@@ -1974,7 +1974,7 @@ async function export9188(type) {
       return [id, r.diamonds||0, 7419, phone, r.bank_account||"", r.bank||"", fee];
     });
     wsData   = [descRow, headerRow, ...dataRows];
-    fileName = `9188賣方建檔_${fromVal}_${toVal}.xlsx`;
+    fileName = `9188賣方建檔_${fromVal}_${toVal}.xls`;
   } else {
     const descRow = [
       "非必填\n僅輸入大小寫英數字，請填入買方自訂單號\n",
@@ -1994,13 +1994,13 @@ async function export9188(type) {
       return [r.order_no||"", id, r.amount||0, 7419, phone, r.bank_account||"", r.bank||"", r.note||""];
     });
     wsData   = [descRow, headerRow, ...dataRows];
-    fileName = `9188買方_${fromVal}_${toVal}.xlsx`;
+    fileName = `9188買方_${fromVal}_${toVal}.xls`;
   }
 
   const ws = XLSX.utils.aoa_to_sheet(wsData);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "工作表1");
-  XLSX.writeFile(wb, fileName);
+  XLSX.writeFile(wb, fileName, { bookType: 'xls' });
   msgEl.innerHTML = `<span class="text-success">✅ 匯出完成：${data.length} 筆${label}資料（${fromVal} ~ ${toVal}）</span>`;
 }
 
