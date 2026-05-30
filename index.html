@@ -1968,10 +1968,9 @@ async function export9188(type) {
     const dataRows = data.map(r => {
       const cust  = CUSTOMERS.find(c => c.暱稱 && c.暱稱.includes(r.nickname));
       const id    = r.member_id || (cust ? cust['9188編號'] : "") || "";
-      const phone = cust ? (cust.電話 && cust.電話[0] ? cust.電話[0] : "") : "";
       const feeM  = r.note ? r.note.match(/手續費(\d+)元/) : null;
       const fee   = feeM ? parseInt(feeM[1]) : 0;
-      return [id, r.diamonds||0, 7419, phone, r.bank_account||"", r.bank||"", fee];
+      return [id, r.diamonds||0, 7419, "", r.bank_account||"", r.bank||"", fee];
     });
     wsData   = [descRow, headerRow, ...dataRows];
     fileName = `9188賣方建檔_${fromVal}_${toVal}.xls`;
@@ -1987,12 +1986,13 @@ async function export9188(type) {
       "非必填\n商店自行運用，僅輸入大小寫英數字及 /  ，字數50"
     ];
     const headerRow = ["買方自訂單號","會員編號","交易金額","商品編號","手機","客戶銀行帳號","商店收款銀行","備註"];
-    const dataRows = data.map(r => {
-      const cust  = CUSTOMERS.find(c => c.暱稱 && c.暱稱.includes(r.nickname));
-      const id    = r.member_id || (cust ? cust['9188編號'] : "") || "";
-      const phone = cust ? (cust.電話 && cust.電話[0] ? cust.電話[0] : "") : "";
-      return [r.order_no||"", id, r.amount||0, 7419, phone, r.bank_account||"", r.bank||"", r.note||""];
-    });
+    const dataRows = data
+      .filter(r => r.bank !== '超商')
+      .map(r => {
+        const cust = CUSTOMERS.find(c => c.暱稱 && c.暱稱.includes(r.nickname));
+        const id   = r.member_id || (cust ? cust['9188編號'] : "") || "";
+        return [r.order_no||"", id, r.amount||0, 7419, "", r.bank_account||"", r.bank||"", r.note||""];
+      });
     wsData   = [descRow, headerRow, ...dataRows];
     fileName = `9188買方_${fromVal}_${toVal}.xls`;
   }
