@@ -621,7 +621,7 @@
             <th>交易單號</th>
             <th>收支時間</th>
             <th>備註</th>
-            <th>贈出時間</th>
+            <th>時間</th>
             <th></th>
           </tr>
         </thead>
@@ -2952,6 +2952,9 @@ function renderLog() {
     return;
   }
   empty && empty.classList.add("d-none");
+
+  // 按收支時間早到晚排序
+  data = [...data].sort((a, b) => (a.time || '').localeCompare(b.time || ''));
 
   tbody.innerHTML = data.map(r => {
     const logIdx = TODAY_LOGS.indexOf(r);
