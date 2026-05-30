@@ -1840,16 +1840,16 @@ function submitBuyerOrder(withGift=false) {
   const now = new Date();
   const timeStr = String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0");
   const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+  const orderDate = document.getElementById("buyer_date").value || todayStr;
   const diamonds = Math.round(amount * 1.3);
   const cvsCode  = document.getElementById("buyer_cvs_code").value.trim();
-  const note = selectedBuyerPay==="超商" && cvsCode
-    ? `超商代碼 ${cvsCode}` : selectedBuyerPay+"匯款";
+  const note = document.getElementById("buyer_note").value.trim();
 
   TODAY_LOGS.push({
     type:"buy", label:"買方", nickname, diamonds, amount,
     time: timeStr, note, giftTime: withGift ? timeStr : "", bank: selectedBuyerPay,
-    date: todayStr, cvsCode: selectedBuyerPay==="超商" ? cvsCode : "",
-    orderNo: genOrderNo("buy", todayStr, timeStr),
+    date: orderDate, cvsCode: selectedBuyerPay==="超商" ? cvsCode : "",
+    orderNo: genOrderNo("buy", orderDate, timeStr),
     bankAccount: document.getElementById("buyer_bank").value.trim()
   });
 
@@ -1878,15 +1878,16 @@ function submitSellerOrder() {
   const now = new Date();
   const timeStr = String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0");
   const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+  const orderDate = document.getElementById("seller_date").value || todayStr;
   const diamonds = Math.round(amount * 1.44);
   const sellerNote = document.getElementById("seller_note").value.trim();
   const feeNote = selectedFee ? `手續費${selectedFee}元` : "";
-  const note = [selectedSellerPay+"轉帳", feeNote, sellerNote].filter(Boolean).join("／");
+  const note = [feeNote, sellerNote].filter(Boolean).join("／");
 
   TODAY_LOGS.push({
     type:"sell", label:"賣方", nickname, diamonds, amount,
     time: timeStr, note, giftTime: "", bank: selectedSellerPay,
-    date: todayStr, cvsCode: "", orderNo: genOrderNo("sell", todayStr, timeStr),
+    date: orderDate, cvsCode: "", orderNo: genOrderNo("sell", orderDate, timeStr),
     bankAccount: document.getElementById("seller_bank").value.trim()
   });
 
@@ -2653,7 +2654,7 @@ function submitQuickOrder(withGift) {
   const now = new Date();
   const timeStr = String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0");
   const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
-  const note = selectedPay==="超商" && cvsCode ? `超商 ${cvsCode}` : selectedPay+"匯款";
+  const note = document.getElementById("q_note") ? document.getElementById("q_note").value.trim() : "";
   const diamonds = amount ? Math.round(amount * 1.3) : 0;
 
   TODAY_LOGS.push({
@@ -2924,19 +2925,26 @@ function renderLog() {
   const tbody = document.getElementById("log_list");
   const empty = document.getElementById("log_empty");
 
+  // 只顯示符合日期選擇器的資料
+  const picker = document.getElementById('log_date_picker');
+  const selectedDate = picker ? picker.value : '';
+  const baseLogs = selectedDate
+    ? TODAY_LOGS.filter(r => r.date === selectedDate)
+    : TODAY_LOGS;
+
   let data;
   const bankFilters = ["合庫","玉山","超商","國泰","中信"];
-  if(currentLogFilter==="all")                          data = TODAY_LOGS;
-  else if(currentLogFilter==="storage")                 data = TODAY_LOGS.filter(isStorageEntry);
-  else if(bankFilters.includes(currentLogFilter))       data = TODAY_LOGS.filter(r=>r.bank===currentLogFilter);
-  else data = TODAY_LOGS.filter(r=>r.type===currentLogFilter);
+  if(currentLogFilter==="all")                          data = baseLogs;
+  else if(currentLogFilter==="storage")                 data = baseLogs.filter(isStorageEntry);
+  else if(bankFilters.includes(currentLogFilter))       data = baseLogs.filter(r=>r.bank===currentLogFilter);
+  else data = baseLogs.filter(r=>r.type===currentLogFilter);
 
-  const buyAmt  = TODAY_LOGS.filter(r=>r.type==="buy").reduce((s,r)=>s+r.amount,0);
-  const sellAmt = TODAY_LOGS.filter(r=>r.type==="sell").reduce((s,r)=>s+r.amount,0);
+  const buyAmt  = baseLogs.filter(r=>r.type==="buy").reduce((s,r)=>s+r.amount,0);
+  const sellAmt = baseLogs.filter(r=>r.type==="sell").reduce((s,r)=>s+r.amount,0);
   document.getElementById("stat-buy-amount").textContent = buyAmt;
   document.getElementById("stat-sell-amount").textContent = sellAmt;
-  document.getElementById("stat-buy-count").textContent  = TODAY_LOGS.filter(r=>r.type==="buy").length;
-  document.getElementById("stat-sell-count").textContent = TODAY_LOGS.filter(r=>r.type==="sell").length;
+  document.getElementById("stat-buy-count").textContent  = baseLogs.filter(r=>r.type==="buy").length;
+  document.getElementById("stat-sell-count").textContent = baseLogs.filter(r=>r.type==="sell").length;
 
   if(!data.length) {
     tbody.innerHTML = "";
