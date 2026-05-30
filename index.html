@@ -612,7 +612,7 @@
             <th>交易單號</th>
             <th>收支時間</th>
             <th>備註</th>
-            <th>時間</th>
+            <th style="cursor:pointer;white-space:nowrap" onclick="toggleTimeSort()" id="th-time">時間 ↑</th>
             <th></th>
           </tr>
         </thead>
@@ -2874,6 +2874,15 @@ let currentLogFilter = "all";
 // 銀行起始餘額（使用者手動輸入）
 const BANK_INIT = { 合庫:0, 玉山:0, 超商:0, 國泰:0, 中信:0, 其他:0, 寄放:0 };
 
+// ── 時間排序 ──────────────────────────────────────────────
+let _timeSortAsc = true;
+function toggleTimeSort() {
+  _timeSortAsc = !_timeSortAsc;
+  const th = document.getElementById('th-time');
+  if(th) th.textContent = '時間 ' + (_timeSortAsc ? '↑' : '↓');
+  renderLog();
+}
+
 // ── 切換日期載入交易紀錄 ─────────────────────────────────
 async function loadLogByDate(dateStr) {
   if(!dateStr) return;
@@ -2944,8 +2953,11 @@ function renderLog() {
   }
   empty && empty.classList.add("d-none");
 
-  // 按收支時間早到晚排序
-  data = [...data].sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+  // 按時間排序（依 _timeSortAsc 決定升降）
+  data = [...data].sort((a, b) => {
+    const cmp = (a.time || '').localeCompare(b.time || '');
+    return _timeSortAsc ? cmp : -cmp;
+  });
 
   tbody.innerHTML = data.map(r => {
     const logIdx = TODAY_LOGS.indexOf(r);
