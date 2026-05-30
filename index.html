@@ -1,0 +1,4003 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>寶萌管理系統</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  body { background:#f5f6fa; font-family:'Segoe UI',sans-serif; padding-top:16px; padding-left:200px; transition:padding-left .25s ease; }
+  @media (max-width:767px) {
+    body { font-size:16px; }
+    .form-control, .form-control-lg { font-size:16px !important; }
+    .btn { font-size:15px; }
+    .table-log th, .table-log td { font-size:13px; padding:6px 8px; }
+    .sidebar-btn { font-size:16px; padding:13px 20px; }
+    .small, small { font-size:13px !important; }
+    .badge { font-size:12px !important; }
+    .card.p-3 { padding:1rem !important; }
+    .card.p-4 { padding:1.1rem !important; }
+    .stat-val { font-size:16px; }
+  }
+  body.sidebar-closed { padding-left:0; }
+  .card { border:none; border-radius:14px; box-shadow:0 2px 12px rgba(0,0,0,.08); }
+  .btn-pink { background:#d63384; color:#fff; border:none; }
+  .btn-pink:hover { background:#b5206e; color:#fff; }
+  .order-type-card { cursor:pointer; border-radius:14px; transition:transform .15s,box-shadow .15s; border:2px solid transparent; }
+  .order-type-card:hover { transform:translateY(-3px); box-shadow:0 6px 20px rgba(0,0,0,.13); }
+  .order-type-card.active { border-color:#d63384; background:#fff0f6; }
+  .result-card  { border-left:4px solid #d63384; }
+  .blacklist-card { border-left:4px solid #dc3545; }
+  .page { display:none; }
+  .page.active { display:block; }
+  .table-log th, .table-log td { white-space:nowrap; font-size:12px; vertical-align:middle; padding:5px 8px; }
+  .table-log thead th { background:#f8f9fa; }
+  .table-log-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+
+  /* ── 側邊欄 ── */
+  #sidebar {
+    position:fixed; top:0; left:0; height:100vh; width:200px;
+    background:#d63384; z-index:1050;
+    transition:transform .25s ease;
+    display:flex; flex-direction:column;
+    padding:16px 0 24px;
+    overflow-y:auto;
+  }
+  #sidebar.closed { transform:translateX(-100%); }
+  #sidebar-overlay { display:none !important; }
+  #sidebar-brand {
+    color:#fff; font-weight:700; font-size:1.1rem;
+    padding:0 20px 16px; border-bottom:1px solid rgba(255,255,255,.25);
+    margin-bottom:8px;
+  }
+  .sidebar-btn {
+    display:flex; align-items:center; gap:10px;
+    width:100%; text-align:left;
+    background:none; border:none; color:#fff;
+    font-size:14px; padding:10px 20px;
+    border-radius:0; transition:background .15s;
+  }
+  .sidebar-btn:hover { background:rgba(255,255,255,.15); }
+  .sidebar-btn.active-nav { background:rgba(255,255,255,.25); font-weight:600; }
+  .sidebar-btn i { font-size:16px; width:20px; text-align:center; }
+
+  /* ── toggle 按鈕 ── */
+  #sidebar-toggle {
+    position:fixed; top:10px; left:164px; z-index:1060;
+    background:rgba(255,255,255,.2); border:none; color:#fff;
+    border-radius:8px; width:28px; height:28px;
+    font-size:15px; display:flex; align-items:center; justify-content:center;
+    transition:left .25s ease;
+  }
+  #sidebar-toggle:hover { background:rgba(255,255,255,.35); }
+  body.sidebar-closed #sidebar-toggle {
+    left:10px;
+    background:#d63384;
+    box-shadow:0 2px 8px rgba(214,51,132,.4);
+  }
+</style>
+</head>
+<body>
+
+<div id="login-overlay" style="position:fixed;inset:0;background:#f5f6fa;z-index:9999;display:flex;align-items:center;justify-content:center;">
+  <div style="text-align:center;padding:40px;background:#fff;border-radius:20px;box-shadow:0 8px 40px rgba(0,0,0,.14);max-width:360px;width:90%;">
+    <div style="font-size:3rem;margin-bottom:10px;">💎</div>
+    <h4 style="font-weight:700;color:#d63384;margin-bottom:4px;">寶萌管理系統</h4>
+    <p style="color:#aaa;font-size:13px;margin-bottom:26px;">請使用授權的 Google 帳號登入</p>
+    <div id="g_signin_btn" style="display:flex;justify-content:center;margin-bottom:10px;"></div>
+    <div id="login-loading" style="display:none;margin-top:18px;color:#888;font-size:13px;">
+      <div style="display:inline-block;width:14px;height:14px;border:2px solid #d63384;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;margin-right:8px;vertical-align:middle;"></div>
+      載入資料中，請稍候…
+    </div>
+    <div id="login-error" style="display:none;margin-top:14px;color:#dc3545;font-size:13px;background:#fff5f5;padding:10px 14px;border-radius:8px;text-align:left;"></div>
+  </div>
+</div>
+<style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+
+<!-- ── toggle 按鈕 ── -->
+<button id="sidebar-toggle" onclick="toggleSidebar()" title="選單">
+  <i class="bi bi-list"></i>
+</button>
+
+<!-- ── 側邊欄遮罩（已停用）── -->
+<div id="sidebar-overlay"></div>
+
+<!-- ── 左側導覽列 ── -->
+<nav id="sidebar">
+  <div id="sidebar-brand"><i class="bi bi-heart-fill me-2"></i>寶萌管理系統</div>
+  <button class="sidebar-btn" id="nav-home"      onclick="showPage('home')"><i class="bi bi-house"></i> 首頁</button>
+  <button class="sidebar-btn" id="nav-order"     onclick="showPage('order')"><i class="bi bi-plus-circle"></i> 開單</button>
+  <button class="sidebar-btn" id="nav-storage"   onclick="showPage('storage')"><i class="bi bi-box-seam"></i> 寄放</button>
+  <button class="sidebar-btn" id="nav-today_log" onclick="showPage('today_log')"><i class="bi bi-calendar-check"></i> 交易紀錄</button>
+  <button class="sidebar-btn" id="nav-customer"  onclick="showPage('customer')"><i class="bi bi-search"></i> 會員</button>
+  <button class="sidebar-btn" id="nav-rebate"    onclick="showPage('rebate')"><i class="bi bi-gem"></i> 回分計算</button>
+  <button class="sidebar-btn" id="nav-bank"      onclick="showPage('bank')"><i class="bi bi-bank"></i> 銀行</button>
+  <button class="sidebar-btn" id="nav-checkout"  onclick="showPage('checkout')"><i class="bi bi-receipt-cutoff"></i> 結帳</button>
+  <button class="sidebar-btn" id="nav-database"  onclick="showPage('database')"><i class="bi bi-database"></i> 資料庫</button>
+</nav>
+
+<div class="container py-4">
+
+<!-- ════════════════════════════════════════
+     首頁
+════════════════════════════════════════ -->
+<div id="page-home" class="page active">
+
+  <!-- ── 小算盤（最上方） ── -->
+  <div class="row g-3 mb-4">
+    <div class="col-12"><h5 class="fw-bold text-secondary mb-1">🧮 小算盤</h5></div>
+
+    <!-- 買方：台幣 → 紅鑽 -->
+    <div class="col-12 col-sm-6">
+      <div class="card p-3 h-100" style="border-left:4px solid #198754">
+        <div class="text-success fw-bold mb-2">買方　台幣 → 紅鑽（× 1.3）</div>
+        <!-- 列1：輸入台幣 -->
+        <div class="input-group input-group-sm mb-2">
+          <span class="input-group-text">台幣</span>
+          <input type="number" class="form-control" id="mini_twd_in" placeholder="" min="0" oninput="calcMini('twd')">
+          <span class="input-group-text">元</span>
+        </div>
+        <!-- 列2：結果 + 複製 -->
+        <div class="input-group input-group-sm">
+          <span class="input-group-text">=</span>
+          <input type="text" class="form-control text-center fw-bold" id="mini_dia_out" placeholder="—" readonly>
+          <span class="input-group-text">顆</span>
+          <button class="btn btn-outline-success btn-sm" onclick="copyMiniDia()" title="複製顆數"><i class="bi bi-clipboard"></i></button>
+        </div>
+        <div id="mini_twd_warn" class="small mt-1 d-none" style="color:#c00">⚠️ 無法換算（含小數）</div>
+        <span id="mini_dia_copied" class="text-success small d-none mt-1">已複製！</span>
+      </div>
+    </div>
+
+    <!-- 賣方：紅鑽 → 台幣 -->
+    <div class="col-12 col-sm-6">
+      <div class="card p-3 h-100" style="border-left:4px solid #dc3545">
+        <div class="text-danger fw-bold mb-2">賣方　紅鑽 → 台幣（÷ 1.44）</div>
+        <!-- 列1：輸入紅鑽 -->
+        <div class="input-group input-group-sm mb-2">
+          <span class="input-group-text">紅鑽</span>
+          <input type="number" class="form-control" id="mini_dia_in" placeholder="" min="0" oninput="calcMini('dia')">
+          <span class="input-group-text">顆</span>
+        </div>
+        <!-- 列2：結果 + 複製整句 -->
+        <div class="input-group input-group-sm">
+          <span class="input-group-text">=</span>
+          <input type="text" class="form-control text-center fw-bold" id="mini_twd_out" placeholder="—" readonly>
+          <span class="input-group-text">元</span>
+          <button class="btn btn-outline-danger btn-sm" onclick="copyMiniTwd()" title="複製完整句子"><i class="bi bi-clipboard"></i></button>
+        </div>
+        <div id="mini_dia_warn" class="small mt-1 d-none" style="color:#c00">⚠️ 無法換算（含小數）</div>
+        <span id="mini_twd_copied" class="text-success small d-none mt-1">已複製！</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 道具交易 ── -->
+  <div class="row g-3 mb-4">
+    <div class="col-12"><h5 class="fw-bold text-secondary mb-1">道具交易</h5></div>
+    <div class="col-6">
+      <div class="card order-type-card p-3 text-center" onclick="showPage('quick_order')">
+        <div class="fs-1">⚡</div><div class="fw-bold">快速開單</div><small class="text-muted">先建立再補齊</small>
+      </div>
+    </div>
+    <div class="col-6">
+      <div class="card order-type-card p-3 text-center" onclick="showPage('order')">
+        <div class="fs-1">💰</div><div class="fw-bold">買賣開單</div><small class="text-muted">完整交易資訊</small>
+      </div>
+    </div>
+    <div class="col-6">
+      <div class="card order-type-card p-3 text-center" onclick="showPage('storage')">
+        <div class="fs-1">📦</div><div class="fw-bold">寄放區</div><small class="text-muted">紅鑽暫存</small>
+      </div>
+    </div>
+    <div class="col-6">
+      <div class="card order-type-card p-3 text-center" onclick="showPage('today_log')">
+        <div class="fs-1">📋</div><div class="fw-bold">今日交易紀錄</div><small class="text-muted">當日明細</small>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 新建&查詢 ── -->
+  <div class="row g-3 mb-4">
+    <div class="col-12"><h5 class="fw-bold text-secondary mb-1">新建&amp;查詢</h5></div>
+    <div class="col-6">
+      <div class="card p-3 text-center" style="cursor:pointer" onclick="showPage('customer')">
+        <div class="fs-1">🔍</div><div class="fw-bold">客戶查詢</div><small class="text-muted">含黑名單反查</small>
+      </div>
+    </div>
+    <div class="col-6">
+      <div class="card p-3 text-center" style="cursor:pointer" onclick="showPage('customer')">
+        <div class="fs-1">➕</div><div class="fw-bold">新建會員</div><small class="text-muted">新增客戶</small>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+
+<!-- ════════════════════════════════════════
+     新建會員（已整合至會員查詢頁）
+════════════════════════════════════════ -->
+<div id="page-new_member" class="page">
+  <div class="card p-4 text-center">
+    <div class="fs-1 mb-2">👤</div>
+    <p class="text-muted">新增會員功能已整合至「會員查詢」頁面</p>
+    <button class="btn btn-pink px-5" onclick="showPage('customer')">
+      <i class="bi bi-arrow-right-circle me-1"></i>前往會員查詢
+    </button>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════
+     快速開單
+════════════════════════════════════════ -->
+<div id="page-quick_order" class="page">
+  <div class="card p-4">
+    <h5 class="fw-bold mb-4"><i class="bi bi-lightning-fill me-2 text-warning"></i>快速開單</h5>
+
+    <div class="mb-3">
+      <label class="form-label fw-semibold">客人暱稱 <span class="text-danger">*</span></label>
+      <input type="text" class="form-control form-control-lg" id="q_nickname" placeholder="輸入暱稱" autocomplete="off">
+      <div id="q_blacklist_warning" class="alert alert-danger mt-2 d-none py-2">
+        <i class="bi bi-exclamation-triangle-fill me-1"></i>此暱稱在黑名單中！
+      </div>
+      <div id="q_nick_suggestions" class="d-none mt-2"></div>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label fw-semibold">金額</label>
+      <div class="input-group">
+        <input type="number" class="form-control form-control-lg" id="q_amount" placeholder="輸入金額" min="0" oninput="calcQDiamonds()">
+        <span class="input-group-text">元</span>
+      </div>
+      <div id="q_diamond_hint" class="d-none mt-2 p-2 rounded" style="background:#f0fff4;border:1px solid #b7ebc8">
+        <span class="text-success fw-bold">紅鑽：</span>
+        <span class="fw-bold fs-5 text-success" id="q_diamond_val">0</span>
+        <span class="text-success">顆</span>
+        <button class="btn btn-sm btn-outline-success ms-2 py-0" onclick="copyText(document.getElementById('q_diamond_val').textContent,this)" title="複製顆數"><i class="bi bi-clipboard"></i></button>
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label fw-semibold">付款方式</label>
+      <div class="d-flex gap-2">
+        <button class="btn btn-outline-secondary flex-fill pay-btn active-pay" id="pay-合庫" onclick="selectPay('合庫')">合庫</button>
+        <button class="btn btn-outline-secondary flex-fill pay-btn" id="pay-玉山" onclick="selectPay('玉山')">玉山</button>
+        <button class="btn btn-outline-secondary flex-fill pay-btn" id="pay-超商" onclick="selectPay('超商')">超商</button>
+      </div>
+    </div>
+
+    <div class="mb-3 d-none" id="q_cvs_row">
+      <label class="form-label fw-semibold">超商代碼</label>
+      <input type="text" class="form-control" id="q_cvs_code" placeholder="">
+    </div>
+
+    <div id="q_order_result" class="alert d-none mb-3"></div>
+
+    <div class="d-flex gap-2">
+      <button class="btn btn-pink flex-grow-1 py-2 fw-bold fs-5" onclick="submitQuickOrder(false)">
+        <i class="bi bi-check-circle me-1"></i>確認開單
+      </button>
+      <button class="btn btn-success py-2 fw-bold" style="min-width:110px" onclick="submitQuickOrder(true)" id="q_gift_btn">
+        <i class="bi bi-gift me-1"></i>已贈出
+      </button>
+    </div>
+    <div class="text-muted text-center mt-2 small">「已贈出」= 開單並記錄贈出時間</div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════
+     開單（買賣）
+════════════════════════════════════════ -->
+<div id="page-order" class="page">
+  <!-- 標籤切換 -->
+  <div class="d-flex gap-2 mb-3">
+    <button class="btn flex-fill py-2 fw-bold btn-pink" id="tab-buyer" onclick="switchOrderTab('buyer')">
+      <i class="bi bi-arrow-down-circle me-1"></i>買方
+    </button>
+    <button class="btn flex-fill py-2 fw-bold btn-outline-secondary" id="tab-seller" onclick="switchOrderTab('seller')">
+      <i class="bi bi-arrow-up-circle me-1"></i>賣方
+    </button>
+  </div>
+
+  <!-- ── 買方面板 ── -->
+  <div class="card p-4" id="order-buyer-panel">
+    <h6 class="fw-bold mb-3 text-success"><i class="bi bi-arrow-down-circle me-1"></i>買方 — 現金匯入</h6>
+
+    <div class="mb-3">
+      <label class="form-label fw-semibold small">付款方式</label>
+      <div class="d-flex gap-2 flex-wrap">
+        <button class="btn btn-pink btn-sm pay-buyer-btn" id="buyer-pay-合庫" onclick="selectBuyerPay('合庫')">合庫</button>
+        <button class="btn btn-outline-secondary btn-sm pay-buyer-btn" id="buyer-pay-超商" onclick="selectBuyerPay('超商')">超商</button>
+        <button class="btn btn-outline-secondary btn-sm pay-buyer-btn" id="buyer-pay-玉山" onclick="selectBuyerPay('玉山')">玉山</button>
+        <button class="btn btn-outline-secondary btn-sm pay-buyer-btn" id="buyer-pay-其他" onclick="selectBuyerPay('其他')">其他</button>
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label fw-semibold">日期</label>
+      <input type="date" class="form-control" id="buyer_date">
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label fw-semibold">暱稱 <span class="text-danger">*</span></label>
+      <input type="text" class="form-control" id="buyer_nickname" placeholder="" autocomplete="off">
+      <div id="buyer_blacklist_warning" class="alert alert-danger mt-2 d-none py-2">
+        <i class="bi bi-exclamation-triangle-fill me-1"></i>此暱稱在黑名單中！
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label fw-semibold">金額</label>
+      <div class="input-group">
+        <input type="number" class="form-control form-control-lg" id="buyer_amount" placeholder="" min="0" oninput="calcBuyerDiamonds()">
+        <span class="input-group-text">元</span>
+      </div>
+      <!-- 快選金額 -->
+      <div class="d-flex flex-wrap gap-1 mt-2">
+        <button class="btn btn-sm btn-outline-secondary" onclick="setBuyerAmount(500)">500</button>
+        <button class="btn btn-sm btn-outline-secondary" onclick="setBuyerAmount(1000)">1000</button>
+        <button class="btn btn-sm btn-outline-secondary" onclick="setBuyerAmount(2000)">2000</button>
+        <button class="btn btn-sm btn-outline-secondary" onclick="setBuyerAmount(3000)">3000</button>
+        <button class="btn btn-sm btn-outline-secondary" onclick="setBuyerAmount(5000)">5000</button>
+        <button class="btn btn-sm btn-outline-secondary" onclick="setBuyerAmount(10000)">10000</button>
+        <button class="btn btn-sm btn-outline-secondary" onclick="setBuyerAmount(15000)">15000</button>
+        <button class="btn btn-sm btn-outline-secondary" onclick="setBuyerAmount(20000)">20000</button>
+      </div>
+      <!-- 紅鑽換算（可複製）-->
+      <div id="buyer_diamond_hint" class="d-none mt-2 p-2 rounded" style="background:#f0fff4;border:1px solid #b7ebc8">
+        <span class="text-success fw-bold">紅鑽：</span>
+        <span class="fw-bold fs-5 text-success" id="buyer_diamond_val">0</span>
+        <span class="text-success">顆</span>
+        <button class="btn btn-sm btn-outline-success ms-2 py-0"
+          onclick="copyText(document.getElementById('buyer_diamond_val').textContent,this)" title="複製顆數">
+          <i class="bi bi-clipboard"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- 超商代碼（選超商才顯示）-->
+    <div class="mb-3 d-none" id="buyer_cvs_row">
+      <label class="form-label fw-semibold">超商代碼</label>
+      <input type="text" class="form-control" id="buyer_cvs_code" placeholder="">
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label fw-semibold">客人轉入的銀行帳號 <span class="text-muted small">（選填）</span></label>
+      <input type="text" class="form-control" id="buyer_bank" placeholder="">
+      <div id="buyer_bank_suggestions" class="d-none mt-2"></div>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label fw-semibold">備註 <span class="text-muted small">（選填）</span></label>
+      <input type="text" class="form-control" id="buyer_note" placeholder="">
+    </div>
+
+    <div id="buyer_result" class="alert d-none mb-3"></div>
+    <div class="d-flex gap-2">
+      <button class="btn btn-pink flex-grow-1 py-2 fw-bold fs-5" onclick="submitBuyerOrder(false)">
+        <i class="bi bi-check-circle me-1"></i>確認開單
+      </button>
+      <button class="btn btn-success py-2 fw-bold" style="min-width:110px" onclick="submitBuyerOrder(true)">
+        <i class="bi bi-gift me-1"></i>已贈出
+      </button>
+    </div>
+    <div class="text-muted text-center mt-2 small">「已贈出」= 開單並記錄贈出時間</div>
+  </div>
+
+  <!-- ── 賣方面板 ── -->
+  <div class="card p-4 d-none" id="order-seller-panel">
+    <h6 class="fw-bold mb-3 text-danger"><i class="bi bi-arrow-up-circle me-1"></i>賣方 — 現金轉出</h6>
+
+    <div class="mb-3">
+      <button class="btn btn-outline-primary btn-sm fw-bold" onclick="document.getElementById('importSellerFile').click()">
+        <i class="bi bi-file-earmark-arrow-up me-1"></i>匯入轉帳
+      </button>
+      <input type="file" id="importSellerFile" accept=".xls,.xlsx" class="d-none" onchange="importSellerTransfer(this)">
+      <span class="text-muted small ms-2">從賣方範本 XLS 批次匯入（第3列起）</span>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label fw-semibold small">付款方式</label>
+      <div class="d-flex gap-2 flex-wrap">
+        <button class="btn btn-pink btn-sm pay-seller-btn" id="seller-pay-合庫" onclick="selectSellerPay('合庫')">合庫</button>
+        <button class="btn btn-outline-secondary btn-sm pay-seller-btn" id="seller-pay-國泰" onclick="selectSellerPay('國泰')">國泰</button>
+        <button class="btn btn-outline-secondary btn-sm pay-seller-btn" id="seller-pay-中信" onclick="selectSellerPay('中信')">中信</button>
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label fw-semibold">日期</label>
+      <input type="date" class="form-control" id="seller_date">
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label fw-semibold">暱稱 <span class="text-danger">*</span></label>
+      <input type="text" class="form-control" id="seller_nickname" placeholder="" autocomplete="off">
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label fw-semibold">金額</label>
+      <div class="input-group">
+        <input type="number" class="form-control form-control-lg" id="seller_amount" placeholder="" min="0">
+        <span class="input-group-text">元</span>
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label fw-semibold">轉入客人的帳號</label>
+      <input type="text" class="form-control" id="seller_bank" placeholder="">
+      <div id="seller_bank_suggestions" class="d-none mt-2"></div>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label fw-semibold">備註 <span class="text-muted small">（選填）</span></label>
+      <input type="text" class="form-control" id="seller_note" placeholder="">
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label fw-semibold">轉帳手續費 <span class="text-muted small">（預設 0 元）</span></label>
+      <div class="d-flex gap-2">
+        <button class="btn btn-pink btn-sm fee-btn" id="fee-btn-0" onclick="selectFee(0)">不收費（0元）</button>
+        <button class="btn btn-outline-secondary btn-sm fee-btn" id="fee-btn-10" onclick="selectFee(10)">10 元</button>
+        <button class="btn btn-outline-secondary btn-sm fee-btn" id="fee-btn-15" onclick="selectFee(15)">15 元</button>
+      </div>
+    </div>
+
+    <div id="seller_result" class="alert d-none mb-3"></div>
+    <button class="btn btn-pink w-100 py-2 fw-bold fs-5" onclick="submitSellerOrder()">
+      <i class="bi bi-check-circle me-1"></i>確認開單
+    </button>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════
+     客戶查詢
+════════════════════════════════════════ -->
+<div id="page-customer" class="page">
+
+  <!-- ── 新增會員（可折疊） ── -->
+  <div class="card p-3 mb-3">
+    <div class="d-flex justify-content-between align-items-center" style="cursor:pointer" onclick="toggleAddMember()">
+      <h5 class="fw-bold mb-0"><i class="bi bi-person-plus me-2 text-pink" style="color:#d63384"></i>新增會員</h5>
+      <i class="bi bi-chevron-down text-muted" id="add-member-chevron"></i>
+    </div>
+    <div id="add-member-form" class="d-none mt-3">
+      <!-- 快速建立 -->
+      <div class="mb-3 p-3 rounded" style="background:#fff3cd;">
+        <label class="form-label fw-semibold mb-1">⚡ 快速建立會員</label>
+        <div class="input-group">
+          <input type="text" class="form-control" id="nm_quick_input"
+            placeholder="">
+          <button class="btn btn-warning fw-bold" type="button" onclick="quickFillMember()">帶入</button>
+        </div>
+      </div>
+      <div id="nm_blacklist_warning" class="alert alert-danger d-none mb-3">
+        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+        <strong>黑名單警告！</strong> <span id="nm_blacklist_detail"></span>
+      </div>
+      <div class="row g-2">
+        <div class="col-12 col-sm-6">
+          <label class="form-label fw-semibold">新建日期</label>
+          <input type="date" class="form-control" id="nm_date" readonly style="background:#f8f9fa">
+        </div>
+        <div class="col-12 col-sm-6">
+          <label class="form-label fw-semibold">暱稱 <span class="text-danger">*</span></label>
+          <input type="text" class="form-control" id="nm_nickname" placeholder="" oninput="checkNmBlacklist()">
+        </div>
+        <div class="col-12 col-sm-6">
+          <label class="form-label fw-semibold">9188 編號</label>
+          <div class="input-group">
+            <input type="text" class="form-control" id="nm_9188" placeholder="">
+            <button class="btn btn-outline-secondary btn-sm" type="button" onclick="genNoId()" title="自動產生無編號 ID">無編號</button>
+          </div>
+        </div>
+        <div class="col-12 col-sm-6">
+          <label class="form-label fw-semibold">電話</label>
+          <input type="text" class="form-control" id="nm_phone" placeholder="" oninput="checkNmBlacklist()">
+        </div>
+        <div class="col-12 col-sm-6">
+          <label class="form-label fw-semibold">身分證</label>
+          <input type="text" class="form-control" id="nm_id" placeholder="" oninput="checkNmBlacklist()">
+        </div>
+        <div class="col-12 col-sm-6">
+          <label class="form-label fw-semibold">銀行帳號</label>
+          <input type="text" class="form-control" id="nm_bank" placeholder="">
+        </div>
+        <div class="col-12 col-sm-6">
+          <label class="form-label fw-semibold">銀行備註</label>
+          <input type="text" class="form-control" id="nm_bank_note" placeholder="">
+        </div>
+        <div class="col-12 col-sm-6">
+          <label class="form-label fw-semibold">戶名</label>
+          <input type="text" class="form-control" id="nm_name" placeholder="">
+        </div>
+        <div class="col-12">
+          <label class="form-label fw-semibold">備註</label>
+          <input type="text" class="form-control" id="nm_note" placeholder="">
+        </div>
+      </div>
+      <div id="nm_result" class="alert d-none mt-3 mb-0"></div>
+      <div class="d-flex gap-2 mt-3">
+        <button class="btn btn-pink flex-grow-1 fw-bold" onclick="submitNewMember(false)">
+          <i class="bi bi-person-check me-1"></i>建立會員
+        </button>
+        <button class="btn btn-outline-danger btn-sm px-3" onclick="submitNewMember(true)" title="直接加入黑名單">
+          <i class="bi bi-slash-circle me-1"></i>加入黑名單
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card p-4 mb-3">
+    <h5 class="fw-bold mb-3"><i class="bi bi-search me-2"></i>客戶查詢 / 黑名單反查</h5>
+    <div class="input-group">
+      <input type="text" class="form-control form-control-lg" id="searchInput" placeholder="輸入暱稱、9188編號或電話" autocomplete="off">
+      <button class="btn btn-pink px-4" onclick="doSearch()"><i class="bi bi-search"></i></button>
+    </div>
+    <div class="form-text text-muted mt-1">黑名單與一般會員一起搜尋，黑名單會顯示紅色警示</div>
+  </div>
+
+  <div id="search_results_section" class="d-none">
+    <div id="search_results"></div>
+  </div>
+
+  <div id="no_result" class="d-none text-center text-muted py-5">
+    <div class="fs-1">🔍</div><p>查無資料</p>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     今日交易紀錄
+════════════════════════════════════════ -->
+<div id="page-today_log" class="page">
+  <div class="card p-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="fw-bold mb-0"><i class="bi bi-calendar-check me-2"></i>交易紀錄</h5>
+      <span class="text-muted small" id="today_date_label"></span>
+    </div>
+
+    <!-- 統計列：4格 -->
+    <div class="row g-2 mb-3 text-center">
+      <div class="col-3">
+        <div class="card p-2 bg-light">
+          <div class="text-success fw-bold" id="stat-buy-amount">0</div>
+          <div class="text-muted" style="font-size:10px">買方收入</div>
+        </div>
+      </div>
+      <div class="col-3">
+        <div class="card p-2 bg-light">
+          <div class="text-danger fw-bold" id="stat-sell-amount">0</div>
+          <div class="text-muted" style="font-size:10px">賣方支出</div>
+        </div>
+      </div>
+      <div class="col-3">
+        <div class="card p-2 bg-light">
+          <div class="text-success fw-bold" id="stat-buy-count">0</div>
+          <div class="text-muted" style="font-size:10px">買方筆數</div>
+        </div>
+      </div>
+      <div class="col-3">
+        <div class="card p-2 bg-light">
+          <div class="text-danger fw-bold" id="stat-sell-count">0</div>
+          <div class="text-muted" style="font-size:10px">賣方筆數</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 篩選 tab -->
+    <div class="d-flex gap-2 mb-3 flex-wrap align-items-center">
+      <button class="btn btn-sm btn-pink"              onclick="filterLog('all')"     id="filter-all">全部</button>
+      <button class="btn btn-sm btn-outline-secondary" onclick="filterLog('buy')"     id="filter-buy">買方</button>
+      <button class="btn btn-sm btn-outline-secondary" onclick="filterLog('sell')"    id="filter-sell">賣方</button>
+      <button class="btn btn-sm btn-outline-secondary" onclick="filterLog('storage')" id="filter-storage">寄放</button>
+      <button class="btn btn-sm btn-outline-secondary" onclick="filterLog('合庫')"    id="filter-合庫">合庫</button>
+      <button class="btn btn-sm btn-outline-secondary" onclick="filterLog('玉山')"    id="filter-玉山">玉山</button>
+      <button class="btn btn-sm btn-outline-secondary" onclick="filterLog('超商')"    id="filter-超商">超商</button>
+      <button class="btn btn-sm btn-outline-primary ms-auto" onclick="showPage('bank')">
+        <i class="bi bi-bank me-1"></i>銀行
+      </button>
+    </div>
+
+    <!-- 明細表格 -->
+    <div class="table-log-wrap">
+      <table class="table table-hover table-log mb-0">
+        <thead>
+          <tr>
+            <th>日期</th>
+            <th>暱稱</th>
+            <th>金額</th>
+            <th>紅鑽</th>
+            <th>收支銀行</th>
+            <th>超商代碼</th>
+            <th>交易單號</th>
+            <th>收支時間</th>
+            <th>備註</th>
+            <th>贈出時間</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="log_list"></tbody>
+      </table>
+      <div id="log_empty" class="text-center text-muted py-4 d-none">
+        <div class="fs-1">📋</div>
+        <p class="small">此分類今日無紀錄</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     回分計算（獨立頁）
+════════════════════════════════════════ -->
+<div id="page-rebate" class="page">
+  <h5 class="fw-bold mb-3">回分計算</h5>
+  <div class="row g-3">
+
+    <!-- ── A　需扣手續費(友團) ── -->
+    <div class="col-12">
+      <div class="card p-3">
+        <div class="fw-bold text-danger d-flex justify-content-between align-items-center"
+             style="cursor:pointer" onclick="toggleRebate('a')">
+          <span>A　需扣手續費（友團）</span>
+          <span id="rebate_a_arrow" style="font-size:12px">▶</span>
+        </div>
+        <div id="rebate_a_body" class="mt-2" style="display:none">
+          <div class="d-flex gap-2 flex-wrap mb-2">
+            <button class="btn btn-sm rebate-card-btn btn-outline-secondary" data-fee="0.01"  onclick="selectRebateCard(this)">V2.V3　(1%)</button>
+            <button class="btn btn-sm rebate-card-btn btn-outline-secondary" data-fee="0.008" onclick="selectRebateCard(this)">V4.V5　(0.8%)</button>
+            <button class="btn btn-sm rebate-card-btn btn-outline-secondary" data-fee="0.005" onclick="selectRebateCard(this)">V6　(0.5%)</button>
+            <button class="btn btn-sm rebate-card-btn btn-outline-secondary" data-fee="0.003" onclick="selectRebateCard(this)">V7　(0.3%)</button>
+            <button class="btn btn-sm rebate-card-btn btn-outline-secondary" data-fee="0"     onclick="selectRebateCard(this)">SV　不扣手續</button>
+          </div>
+          <div class="input-group mb-2">
+            <span class="input-group-text">客人身上</span>
+            <input type="number" class="form-control" id="rebate_a_input" placeholder="輸入紅鑽數" min="0" oninput="calcRebateA()">
+            <span class="input-group-text">顆</span>
+          </div>
+          <div id="rebate_a_result" class="d-none">
+            <div class="row g-2 text-center mt-1">
+              <div class="col-6">
+                <div class="bg-light rounded p-2">
+                  <div class="text-muted small mb-1">回鑽數量</div>
+                  <div class="fw-bold fs-5 text-danger user-select-all" id="rebate_a_diamonds">—</div>
+                  <div class="text-muted small">顆</div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="bg-light rounded p-2">
+                  <div class="text-muted small mb-1">換算台幣</div>
+                  <div class="fw-bold fs-5 text-success user-select-all" id="rebate_a_twd">—</div>
+                  <div class="text-muted small">元</div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="bg-light rounded p-2">
+                  <div class="text-muted small mb-1">服務金</div>
+                  <div class="fw-bold text-warning user-select-all" id="rebate_a_fee">—</div>
+                  <div class="text-muted small">顆</div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="bg-light rounded p-2">
+                  <div class="text-muted small mb-1">身上要有</div>
+                  <div class="fw-bold text-primary user-select-all" id="rebate_a_need">—</div>
+                  <div class="text-muted small">顆</div>
+                </div>
+              </div>
+            </div>
+            <!-- 複製列 -->
+            <div class="mt-2 d-flex align-items-center gap-2 p-2 rounded" style="background:#f0f0f0">
+              <span class="fw-bold user-select-all flex-grow-1 text-center" id="rebate_a_copy_text" style="font-size:15px;letter-spacing:.5px">—</span>
+              <button class="btn btn-sm btn-outline-secondary" onclick="copyRebateA()" style="white-space:nowrap">
+                <i class="bi bi-clipboard"></i> 複製
+              </button>
+              <span id="rebate_a_copied" class="text-success small d-none">已複製！</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ── B　須扣手續費(非友團) ── -->
+    <div class="col-12">
+      <div class="card p-3">
+        <div class="fw-bold text-danger d-flex justify-content-between align-items-center"
+             style="cursor:pointer" onclick="toggleRebate('b')">
+          <span>B　須扣手續費（非友團）</span>
+          <span id="rebate_b_arrow" style="font-size:12px">▶</span>
+        </div>
+        <div id="rebate_b_body" class="mt-2" style="display:none">
+          <div class="d-flex gap-2 flex-wrap mb-2">
+            <button class="btn btn-sm rebate-card-btn-b btn-outline-secondary" data-fee="0.02"  onclick="selectRebateCardB(this)">V2.V3　(2%)</button>
+            <button class="btn btn-sm rebate-card-btn-b btn-outline-secondary" data-fee="0.018" onclick="selectRebateCardB(this)">V4　(1.8%)</button>
+            <button class="btn btn-sm rebate-card-btn-b btn-outline-secondary" data-fee="0.015" onclick="selectRebateCardB(this)">V5　(1.5%)</button>
+            <button class="btn btn-sm rebate-card-btn-b btn-outline-secondary" data-fee="0.012" onclick="selectRebateCardB(this)">V6　(1.2%)</button>
+            <button class="btn btn-sm rebate-card-btn-b btn-outline-secondary" data-fee="0.008" onclick="selectRebateCardB(this)">V7　(0.8%)</button>
+            <button class="btn btn-sm rebate-card-btn-b btn-outline-secondary" data-fee="0.005" onclick="selectRebateCardB(this)">SV1　(0.5%)</button>
+            <button class="btn btn-sm rebate-card-btn-b btn-outline-secondary" data-fee="0"     onclick="selectRebateCardB(this)">SV2.SV3　不扣手續</button>
+          </div>
+          <div class="input-group mb-2">
+            <span class="input-group-text">客人身上</span>
+            <input type="number" class="form-control" id="rebate_b_input" placeholder="輸入紅鑽數" min="0" oninput="calcRebateB()">
+            <span class="input-group-text">顆</span>
+          </div>
+          <div id="rebate_b_result" class="d-none">
+            <div class="row g-2 text-center mt-1">
+              <div class="col-6">
+                <div class="bg-light rounded p-2">
+                  <div class="text-muted small mb-1">回鑽數量</div>
+                  <div class="fw-bold fs-5 text-danger user-select-all" id="rebate_b_diamonds">—</div>
+                  <div class="text-muted small">顆</div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="bg-light rounded p-2">
+                  <div class="text-muted small mb-1">換算台幣</div>
+                  <div class="fw-bold fs-5 text-success user-select-all" id="rebate_b_twd">—</div>
+                  <div class="text-muted small">元</div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="bg-light rounded p-2">
+                  <div class="text-muted small mb-1">服務金</div>
+                  <div class="fw-bold text-warning user-select-all" id="rebate_b_fee">—</div>
+                  <div class="text-muted small">顆</div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="bg-light rounded p-2">
+                  <div class="text-muted small mb-1">身上要有</div>
+                  <div class="fw-bold text-primary user-select-all" id="rebate_b_need">—</div>
+                  <div class="text-muted small">顆</div>
+                </div>
+              </div>
+            </div>
+            <!-- 複製列 -->
+            <div class="mt-2 d-flex align-items-center gap-2 p-2 rounded" style="background:#f0f0f0">
+              <span class="fw-bold user-select-all flex-grow-1 text-center" id="rebate_b_copy_text" style="font-size:15px;letter-spacing:.5px">—</span>
+              <button class="btn btn-sm btn-outline-secondary" onclick="copyRebateB()" style="white-space:nowrap">
+                <i class="bi bi-clipboard"></i> 複製
+              </button>
+              <span id="rebate_b_copied" class="text-success small d-none">已複製！</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── C　直接輸入 ── -->
+    <div class="col-12">
+      <div class="card p-3">
+        <div class="fw-bold text-primary d-flex justify-content-between align-items-center"
+             style="cursor:pointer" onclick="toggleRebate('c')">
+          <span>C　輸入500台幣的倍數</span>
+          <span id="rebate_c_arrow" style="font-size:12px">▼</span>
+        </div>
+        <div id="rebate_c_body" class="mt-2">
+          <div class="input-group mb-2">
+            <span class="input-group-text">台幣</span>
+            <input type="number" class="form-control" id="rebate_c_input" placeholder="輸入500的倍數" min="0" step="500" oninput="calcRebateC()">
+            <span class="input-group-text">元</span>
+          </div>
+          <div id="rebate_c_result" class="d-none">
+            <div class="row g-2 text-center mt-1">
+              <div class="col-6">
+                <div class="bg-light rounded p-2">
+                  <div class="text-muted small mb-1">換算紅鑽</div>
+                  <div class="fw-bold fs-5 text-danger user-select-all" id="rebate_c_dia">—</div>
+                  <div class="text-muted small">顆</div>
+                </div>
+              </div>
+              <div class="col-6 d-flex align-items-center justify-content-center">
+                <div id="rebate_c_warn" class="text-danger fw-bold small d-none">⚠ 非500的倍數</div>
+              </div>
+            </div>
+            <div id="rebate_c_copy_row" class="d-none mt-2 d-flex align-items-center gap-2 p-2 rounded" style="background:#f0f0f0">
+              <span class="fw-bold user-select-all flex-grow-1 text-center" id="rebate_c_copy_text" style="font-size:15px;letter-spacing:.5px"></span>
+              <button class="btn btn-sm btn-outline-secondary" onclick="copyRebateC()" style="white-space:nowrap"><i class="bi bi-clipboard"></i> 複製</button>
+              <span id="rebate_c_copied" class="text-success small d-none">已複製</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── D　對照表 ── -->
+    <div class="col-12">
+      <div class="card p-3">
+        <div class="fw-bold mb-2">D　對照表</div>
+        <div style="overflow-x:auto">
+          <div id="rebate_ref_table"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     資料庫（佔位）
+════════════════════════════════════════ -->
+<div id="page-database" class="page">
+  <!-- 搜尋區 -->
+  <div class="card p-3 mb-3">
+    <h5 class="fw-bold mb-3"><i class="bi bi-database me-2 text-primary"></i>歷史交易查詢</h5>
+    <div class="row g-2 mb-2">
+      <div class="col-12 col-md-4">
+        <label class="form-label fw-semibold small mb-1">暱稱</label>
+        <input type="text" class="form-control" id="db_nickname" placeholder="輸入暱稱搜尋（留空查全部）">
+      </div>
+      <div class="col-6 col-md-3">
+        <label class="form-label fw-semibold small mb-1">開始日期</label>
+        <input type="date" class="form-control" id="db_date_from">
+      </div>
+      <div class="col-6 col-md-3">
+        <label class="form-label fw-semibold small mb-1">結束日期</label>
+        <input type="date" class="form-control" id="db_date_to">
+      </div>
+      <div class="col-12 col-md-2 d-flex align-items-end">
+        <button class="btn btn-pink w-100" onclick="searchDB()">
+          <i class="bi bi-search me-1"></i>查詢
+        </button>
+      </div>
+    </div>
+    <div class="d-flex flex-wrap gap-1 align-items-center">
+      <span class="text-muted small me-1">類型篩選：</span>
+      <button class="btn btn-sm btn-pink"             id="dbf-all"     onclick="setDBFilter('all')">全部</button>
+      <button class="btn btn-sm btn-outline-secondary" id="dbf-buy"     onclick="setDBFilter('buy')">買方</button>
+      <button class="btn btn-sm btn-outline-secondary" id="dbf-sell"    onclick="setDBFilter('sell')">賣方</button>
+      <button class="btn btn-sm btn-outline-secondary" id="dbf-debit"   onclick="setDBFilter('debit')">記帳</button>
+      <button class="btn btn-sm btn-outline-secondary" id="dbf-repay"   onclick="setDBFilter('repay')">還鑽</button>
+      <button class="btn btn-sm btn-outline-secondary" id="dbf-storage" onclick="setDBFilter('storage')">寄放/領回</button>
+    </div>
+  </div>
+
+  <!-- 統計區 -->
+  <div id="db_stats" class="d-none card p-3 mb-3">
+    <div class="small fw-semibold text-muted mb-2">交易彙總</div>
+    <div class="row g-2" id="db_stats_row"></div>
+  </div>
+
+  <!-- 結果表格 -->
+  <div class="card p-3">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <span class="fw-semibold small text-muted" id="db_result_count">請設定條件後按查詢</span>
+      <button class="btn btn-sm btn-outline-success d-none" id="db_export_btn" onclick="exportDBToCSV()">
+        <i class="bi bi-file-earmark-excel me-1"></i>匯出 CSV
+      </button>
+    </div>
+    <div id="db_empty" class="text-center text-muted py-4 d-none">
+      <i class="bi bi-inbox fs-2 d-block mb-2"></i>沒有符合的紀錄
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0" id="db_table" style="display:none">
+        <thead class="table-light">
+          <tr>
+            <th>日期</th><th>類型</th><th>暱稱</th>
+            <th class="text-end">金額</th><th class="text-end">紅鑽</th>
+            <th>銀行</th><th>備註</th>
+          </tr>
+        </thead>
+        <tbody id="db_tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 9188 建檔匯出（預設收合） -->
+  <div class="card p-3 mt-3">
+    <div class="d-flex justify-content-between align-items-center" style="cursor:pointer" onclick="toggle9188Export()">
+      <h6 class="fw-bold mb-0">
+        <i class="bi bi-file-earmark-spreadsheet me-2 text-success"></i>9188 建檔匯出
+      </h6>
+      <i class="bi bi-chevron-right" id="export9188_arrow"></i>
+    </div>
+    <div id="export9188_body" class="d-none mt-3">
+      <div class="row g-2 mb-2">
+        <div class="col-6">
+          <label class="form-label fw-semibold small mb-1">開始日期</label>
+          <input type="date" class="form-control" id="exp9188_from">
+        </div>
+        <div class="col-6">
+          <label class="form-label fw-semibold small mb-1">結束日期</label>
+          <input type="date" class="form-control" id="exp9188_to">
+        </div>
+      </div>
+      <div class="text-muted small mb-3">※ 日期區間最多 20 天，首兩列說明列固定保留</div>
+      <div class="d-flex gap-2 flex-wrap">
+        <button class="btn btn-success btn-sm fw-bold px-3" onclick="export9188('sell')">
+          <i class="bi bi-file-earmark-arrow-down me-1"></i>9188 賣方建檔
+        </button>
+        <button class="btn btn-primary btn-sm fw-bold px-3" onclick="export9188('buy')">
+          <i class="bi bi-file-earmark-arrow-down me-1"></i>9188 買方
+        </button>
+      </div>
+      <div id="exp9188_msg" class="mt-2 small"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     銀行頁面
+════════════════════════════════════════ -->
+<div id="page-bank" class="page">
+  <!-- 統計區 -->
+  <div class="card p-3 mb-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="fw-bold mb-0"><i class="bi bi-bank me-2 text-primary"></i>銀行餘額</h5>
+      <button class="btn btn-outline-secondary btn-sm" onclick="showBankEditModal()">
+        <i class="bi bi-pencil me-1"></i>修改餘額
+      </button>
+    </div>
+    <div id="bank_stat_rows"></div>
+    <!-- 總計列 -->
+    <div class="row g-2 text-center mt-1">
+      <div class="col-4">
+        <div class="card p-2 bg-light">
+          <div class="text-success fw-bold" id="bank_total_in">0</div>
+          <div class="text-muted" style="font-size:11px">今日現金收入</div>
+        </div>
+      </div>
+      <div class="col-4">
+        <div class="card p-2 bg-light">
+          <div class="text-danger fw-bold" id="bank_total_out">0</div>
+          <div class="text-muted" style="font-size:11px">今日現金支出</div>
+        </div>
+      </div>
+      <div class="col-4">
+        <div class="card p-2 bg-light">
+          <div class="text-primary fw-bold" id="bank_total_count">0 筆</div>
+          <div class="text-muted" style="font-size:11px">今日總筆數</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 其他收支操作 -->
+  <div class="card p-3 mb-3">
+    <div class="fw-bold small mb-2 text-muted">其他收入 / 支出（不計入今日交易，僅影響銀行餘額）</div>
+    <div class="d-flex gap-2 flex-wrap mb-2">
+      <button class="btn btn-outline-success btn-sm fw-bold" onclick="bankOtherAction('in')">
+        <i class="bi bi-plus-circle me-1"></i>其他收入
+      </button>
+      <button class="btn btn-outline-danger btn-sm fw-bold" onclick="bankOtherAction('out')">
+        <i class="bi bi-dash-circle me-1"></i>其他支出
+      </button>
+    </div>
+  </div>
+
+  <!-- 明細表格 -->
+  <div class="card">
+    <div class="card-body p-2">
+      <div class="d-flex align-items-center justify-content-between mb-2 ps-1 flex-wrap gap-2">
+        <div class="fw-bold small text-muted">銀行明細</div>
+        <div class="d-flex gap-2 flex-wrap align-items-center">
+          <input type="date" class="form-control form-control-sm" id="bfilter-date" style="width:140px" onchange="renderBankDetail()">
+          <div class="d-flex gap-1 flex-wrap" id="bank_filter_btns">
+            <button class="btn btn-sm btn-pink fw-bold"         id="bfilter-全部" onclick="filterBankDetail('全部')">全部</button>
+            <button class="btn btn-sm btn-outline-secondary"    id="bfilter-合庫" onclick="filterBankDetail('合庫')">合庫</button>
+            <button class="btn btn-sm btn-outline-secondary"    id="bfilter-玉山" onclick="filterBankDetail('玉山')">玉山</button>
+            <button class="btn btn-sm btn-outline-secondary"    id="bfilter-國泰" onclick="filterBankDetail('國泰')">國泰</button>
+            <button class="btn btn-sm btn-outline-secondary"    id="bfilter-中信" onclick="filterBankDetail('中信')">中信</button>
+          </div>
+        </div>
+      </div>
+      <div class="table-log-wrap">
+        <table class="table table-hover table-log mb-0" id="bank_detail_table">
+          <thead>
+            <tr>
+              <th style="min-width:80px">日期</th>
+              <th style="min-width:48px">銀行</th>
+              <th>明細</th>
+              <th class="text-success text-end" style="min-width:72px">收入</th>
+              <th class="text-danger text-end"  style="min-width:72px">支出</th>
+              <th class="text-primary text-end" style="min-width:72px">餘額</th>
+              <th class="text-muted"            style="min-width:48px">時間</th>
+              <th style="min-width:72px"></th>
+            </tr>
+          </thead>
+          <tbody id="bank_detail_tbody">
+            <tr><td colspan="6" class="text-center text-muted py-4">尚無銀行異動紀錄</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     紅鑽暫存區
+════════════════════════════════════════ -->
+<div id="page-storage" class="page">
+  <div class="card p-3 mb-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="fw-bold mb-0"><i class="bi bi-box-seam me-2 text-warning"></i>紅鑽暫存區</h5>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <button class="btn btn-success btn-sm fw-bold px-3" onclick="storageAction('deposit')">
+        <i class="bi bi-plus-circle me-1"></i>寄放
+      </button>
+      <button class="btn btn-warning btn-sm fw-bold px-3 text-dark" onclick="storageAction('withdraw')">
+        <i class="bi bi-cash-coin me-1"></i>領回
+      </button>
+      <button class="btn btn-secondary btn-sm fw-bold px-3" onclick="storageAction('debit')">
+        <i class="bi bi-journal-text me-1"></i>記帳
+      </button>
+      <button class="btn btn-primary btn-sm fw-bold px-3" onclick="storageAction('repay')">
+        <i class="bi bi-gem me-1"></i>還鑽
+      </button>
+      <button class="btn btn-outline-danger btn-sm fw-bold px-3" onclick="storageAction('delete')">
+        <i class="bi bi-trash me-1"></i>刪除
+      </button>
+      <button class="btn btn-outline-success btn-sm fw-bold px-3" onclick="exportStorageTransfer()">
+        <i class="bi bi-file-earmark-arrow-down me-1"></i>匯出轉帳
+      </button>
+    </div>
+  </div>
+
+  <div id="storage_alert" class="alert d-none mb-3"></div>
+
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3" style="width:44px">
+              <input type="checkbox" class="form-check-input" id="storage_select_all"
+                onchange="toggleSelectAll(this.checked)">
+            </th>
+            <th>暱稱</th>
+            <th class="text-end">金額（元）</th>
+            <th class="text-end">紅鑽（顆）</th>
+            <th>備註</th>
+            <th class="text-muted" style="font-size:11px;white-space:nowrap">寄放日期</th>
+          </tr>
+        </thead>
+        <tbody id="storage_tbody"></tbody>
+      </table>
+      <div id="storage_empty" class="text-center text-muted py-5 d-none">
+        <div class="fs-1">📦</div><p class="small">暫存區目前無資料</p>
+      </div>
+    </div>
+    <div class="px-3 py-2 text-end text-muted small border-top" id="storage_total"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     結帳頁面
+════════════════════════════════════════ -->
+<div id="page-checkout" class="page">
+  <div class="card p-3 mb-3">
+    <div class="d-flex justify-content-between align-items-center">
+      <h5 class="fw-bold mb-0"><i class="bi bi-receipt-cutoff me-2 text-success"></i>結帳紀錄</h5>
+      <button class="btn btn-pink btn-sm fw-bold px-3" onclick="openCheckoutModal()">
+        <i class="bi bi-plus-circle me-1"></i>新增今日結帳
+      </button>
+    </div>
+    <div class="text-muted small mt-1">系統顯示最近 7 天，更早的資料請到「資料庫」查詢</div>
+  </div>
+
+  <div id="checkout_alert" class="alert d-none mb-3"></div>
+
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0" id="checkout_table">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3">日期</th>
+            <th class="text-end">今日紅鑽</th>
+            <th class="text-end">買方（元）</th>
+            <th class="text-end text-warning">手續費</th>
+            <th class="text-end">賣方（元）</th>
+            <th class="text-end text-primary fw-bold">總結紅鑽</th>
+            <th class="text-end">誤差</th>
+            <th>備註暱稱</th>
+            <th style="width:60px"></th>
+          </tr>
+        </thead>
+        <tbody id="checkout_tbody"></tbody>
+      </table>
+      <div id="checkout_empty" class="text-center text-muted py-5 d-none">
+        <div class="fs-1">📋</div><p class="small">尚無結帳紀錄</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /container -->
+
+<!-- ════ 交易紀錄 編輯 Modal ════ -->
+<div class="modal fade" id="logEditModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-1">
+        <h5 class="modal-title fw-bold"><i class="bi bi-pencil me-2"></i>編輯交易紀錄</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label fw-semibold">暱稱 <span class="text-danger">*</span></label>
+          <input type="text" class="form-control" id="ledit_nickname" autocomplete="off">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">金額（元）</label>
+          <input type="number" class="form-control" id="ledit_amount" min="0" oninput="leditCalcDiamonds()">
+          <div class="text-muted small mt-1" id="ledit_diamond_hint"></div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">收支銀行</label>
+          <select class="form-select" id="ledit_bank">
+            <option>合庫</option>
+            <option>玉山</option>
+            <option>超商</option>
+            <option>國泰</option>
+            <option>中信</option>
+            <option>其他</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">備註</label>
+          <input type="text" class="form-control" id="ledit_note">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">贈出時間</label>
+          <div class="input-group">
+            <input type="text" class="form-control" id="ledit_giftTime" placeholder="HH:MM">
+            <button class="btn btn-outline-secondary" type="button" onclick="leditSetGiftNow()">現在</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+        <button type="button" class="btn btn-pink fw-bold px-4" onclick="confirmEditLog()">儲存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ 結帳 Modal ════ -->
+<div class="modal fade" id="checkoutModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-1">
+        <h5 class="modal-title fw-bold"><i class="bi bi-receipt-cutoff me-2"></i>新增今日結帳</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <!-- 今日紅鑽 手動輸入 -->
+        <div class="mb-3">
+          <label class="form-label fw-semibold">今日紅鑽 <span class="text-danger">*</span></label>
+          <input type="number" class="form-control form-control-lg" id="co_today_dia" placeholder="手動輸入今日紅鑽數" oninput="recalcCheckout()">
+        </div>
+        <!-- 系統自動計算 -->
+        <div class="card p-3 mb-3 bg-light border-0">
+          <div class="small fw-semibold text-muted mb-2">系統自動計算（來自今日交易紀錄）</div>
+          <div class="row g-2 mb-2">
+            <div class="col-4">
+              <div class="small text-muted">買方台幣</div>
+              <div class="fw-bold text-success fs-5" id="co_buy_amt">—</div>
+              <div class="small text-muted" id="co_buy_detail"></div>
+            </div>
+            <div class="col-4">
+              <div class="small text-muted text-warning">手續費</div>
+              <div class="fw-bold text-warning fs-5" id="co_fee_amt">—</div>
+              <div class="small text-muted">買方×1.3×0.003</div>
+            </div>
+            <div class="col-4">
+              <div class="small text-muted">賣方台幣</div>
+              <div class="fw-bold text-danger fs-5" id="co_sell_amt">—</div>
+              <div class="small text-muted" id="co_sell_detail"></div>
+            </div>
+          </div>
+          <div class="row g-2">
+            <div class="col-12">
+              <div class="d-flex align-items-center gap-2 p-2 rounded" style="background:#fff3e0">
+                <div class="small text-muted" style="white-space:nowrap">前日寄放剩餘（紅鑽）</div>
+                <div class="fw-bold text-danger ms-auto" id="co_storage_dia">—</div>
+                <div class="small text-muted">顆</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- 計算結果 -->
+        <div class="card p-3 mb-3" style="border-left:4px solid #d63384">
+          <div class="row g-2 text-center">
+            <div class="col-6">
+              <div class="small text-muted">總結紅鑽</div>
+              <div class="fw-bold text-primary fs-5" id="co_total_dia">—</div>
+            </div>
+            <div class="col-6">
+              <div class="small text-muted">誤差</div>
+              <div class="fw-bold fs-5" id="co_variance">—</div>
+            </div>
+          </div>
+          <div class="text-muted small mt-2 text-center" id="co_formula_hint"></div>
+        </div>
+        <!-- 暱稱備註（可多筆） -->
+        <div class="mb-2">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <label class="form-label fw-semibold mb-0">備註暱稱 <span class="text-muted small">（選填，可多筆）</span></label>
+            <button class="btn btn-outline-secondary btn-sm" onclick="addCheckoutDetail()">
+              <i class="bi bi-plus"></i> 新增
+            </button>
+          </div>
+          <div id="co_details_list"></div>
+        </div>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+        <button type="button" class="btn btn-pink fw-bold px-4" onclick="submitCheckout()">確認結帳</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ 寄放區操作 Modal ════ -->
+<div class="modal fade" id="storageModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-1">
+        <h5 class="modal-title fw-bold" id="storageModalTitle"></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body pt-2" id="storageModalBody"></div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+        <button type="button" class="btn btn-pink fw-bold" id="storageModalOK" onclick="confirmStorageAction()">確認</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.38.4"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+
+// ════════════════════════════════════════
+// 登入驗證（Google OAuth 白名單）
+// ════════════════════════════════════════
+const GOOGLE_CLIENT_ID = '106314543161-g2hr49u3etvm8p4s2sqhsm9rks28nli2.apps.googleusercontent.com';
+const LOGIN_WHITELIST  = ['jazz9001@gmail.com', 'admin@bmngcorp.tw', 'wewinn888@gmail.com', 'a0922077760@gmail.com', 'ivy72930@gmail.com', 'yyy898888888@gmail.com'];
+
+function parseJwt(token) {
+  try {
+    return JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+  } catch(e) { return null; }
+}
+
+async function onGoogleSignIn(response) {
+  const errEl  = document.getElementById('login-error');
+  const loadEl = document.getElementById('login-loading');
+  errEl.style.display = 'none';
+  const payload = parseJwt(response.credential);
+  if (!payload) {
+    errEl.textContent = '登入失敗，請再試一次';
+    errEl.style.display = 'block';
+    return;
+  }
+  const email = (payload.email || '').toLowerCase();
+  if (!LOGIN_WHITELIST.includes(email)) {
+    errEl.textContent = `此帳號（${email}）無使用權限`;
+    errEl.style.display = 'block';
+    return;
+  }
+  sessionStorage.setItem('bm_auth', email);
+  loadEl.style.display = 'block';
+  await loadAllData();
+  document.getElementById('login-overlay').style.display = 'none';
+}
+
+function initGoogleSignIn() {
+  if (typeof google === 'undefined') {
+    setTimeout(initGoogleSignIn, 200);
+    return;
+  }
+  google.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    callback: onGoogleSignIn,
+    auto_select: false
+  });
+  google.accounts.id.renderButton(
+    document.getElementById('g_signin_btn'),
+    { theme: 'outline', size: 'large', text: 'signin_with', locale: 'zh-TW', width: 280 }
+  );
+}
+
+function checkAuth() {
+  const saved = sessionStorage.getItem('bm_auth');
+  if (saved && LOGIN_WHITELIST.includes(saved)) {
+    document.getElementById('login-overlay').style.display = 'none';
+    loadAllData();
+  } else {
+    document.getElementById('login-overlay').style.display = 'flex';
+    initGoogleSignIn();
+  }
+}
+
+// ════════════════════════════════════════
+// Supabase 設定
+// ════════════════════════════════════════
+const SUPABASE_URL = 'https://swleodnzuojaavrzivcv.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3bGVvZG56dW9qYWF2cnppdmN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2NTk0NzIsImV4cCI6MjA5NDIzNTQ3Mn0.QBTiYHLRZdZxNKBqQ2znmFmI7FcgREdgReJCjw8IAGA';
+const _supa = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ── 載入所有資料 ──────────────────────────────────────────
+// 分頁撈取全部資料（突破 Supabase 預設 1000 筆限制）
+async function fetchAll(table, orderCol = 'id') {
+  let all = [], from = 0;
+  const size = 1000;
+  while(true) {
+    const { data, error } = await _supa.from(table).select('*').order(orderCol).range(from, from + size - 1);
+    if(error || !data || data.length === 0) break;
+    all = all.concat(data);
+    if(data.length < size) break;
+    from += size;
+  }
+  return all;
+}
+
+async function loadAllData() {
+  console.log('loadAllData called at', new Date().toISOString());
+  try {
+    const now = new Date();
+    const todayStr = now.getFullYear() + '-'
+      + String(now.getMonth()+1).padStart(2,'0') + '-'
+      + String(now.getDate()).padStart(2,'0');
+
+    const [membersData, blData, txRes, stRes, bankRes] = await Promise.all([
+      fetchAll('members'),
+      fetchAll('blacklist'),
+      _supa.from('transactions').select('*').eq('date', todayStr).order('created_at'),
+      _supa.from('storage').select('*').order('id'),
+      _supa.from('bank_balances').select('*')
+    ]);
+
+    CUSTOMERS.length = 0;
+    buildGroupedFromDB(membersData).forEach(m => CUSTOMERS.push(m));
+
+    BLACKLIST.length = 0;
+    buildGroupedFromDB(blData).forEach(m => BLACKLIST.push(m));
+    console.log('blacklist raw rows:', blData.length, 'grouped:', BLACKLIST.length);
+
+    TODAY_LOGS.length = 0;
+    (txRes.data || []).forEach(row => {
+      const type = (row.label==='買方'||row.label==='記帳') ? 'buy'
+                 : (row.label==='賣方'||row.label==='還鑽') ? 'sell' : 'storage';
+      // 使用原始 push 避免觸發自動寫入 DB
+      _origPush.call(TODAY_LOGS, {
+        orderNo: row.order_no || '', date: row.date, type, label: row.label || '',
+        nickname: row.nickname || '', amount: parseFloat(row.amount)||0,
+        diamonds: parseFloat(row.diamonds)||0, bank: row.bank || '',
+        cvsCode: row.cvs_code || '', giftTime: row.gift_time || '',
+        note: row.note || '', time: row.transaction_time || '',
+        bankAccount: row.bank_account || '', _dbId: row.id
+      });
+    });
+    buyOrderSeq  = TODAY_LOGS.filter(r=>r.orderNo&&r.orderNo.startsWith('B')).length + 1;
+    sellOrderSeq = TODAY_LOGS.filter(r=>r.orderNo&&r.orderNo.startsWith('S')).length + 1;
+
+    STORAGE_DATA.length = 0;
+    (stRes.data || []).forEach(row => {
+      if(!row.nickname) return;
+      STORAGE_DATA.push({ id: row.id, nickname: row.nickname,
+        amount: parseFloat(row.amount)||0, diamonds: parseFloat(row.diamonds)||0,
+        note: row.note || '', date: row.deposit_date || '' });
+    });
+    storageNextId = STORAGE_DATA.length ? Math.max(...STORAGE_DATA.map(r=>r.id)) + 1 : 1;
+
+    (bankRes.data || []).forEach(row => {
+      if(row.bank_name in BANK_INIT) BANK_INIT[row.bank_name] = parseFloat(row.balance)||0;
+    });
+
+    renderLog(); renderStorageTable(); renderBankPage();
+  } catch(e) { console.warn('loadAllData:', e); }
+}
+
+// ── 將 DB 平鋪列轉為 CUSTOMERS 格式 ──────────────────────
+function buildGroupedFromDB(rows) {
+  const grouped = {}, order = [];
+  rows.forEach(row => {
+    const memberId = row.id_9188 || '';
+    if(!memberId) return;
+    if(!grouped[memberId]) {
+      grouped[memberId] = { '9188編號': memberId, 暱稱:[], 電話:[],
+        身分證: row.id_number||'', 銀行帳號:[], 戶名: row.holder_name||'',
+        備註: row.note||'', 備註2: row.note2||'',
+        新建日期: row.created_at ? row.created_at.split('T')[0] : '',
+        _dbIds: [] };
+      order.push(memberId);
+    }
+    const g = grouped[memberId];
+    if(row.nickname && !g.暱稱.includes(row.nickname)) g.暱稱.push(row.nickname);
+    if(row.phone && !g.電話.includes(row.phone)) g.電話.push(row.phone);
+    if(!g.身分證 && row.id_number) g.身分證 = row.id_number;
+    if(!g.戶名 && row.holder_name) g.戶名 = row.holder_name;
+    if(!g.備註 && row.note) g.備註 = row.note;
+    if(row.bank_account) g.銀行帳號.push({ 帳號: row.bank_account, 備註: row.account_note||'' });
+    g._dbIds.push(row.id);
+  });
+  return order.map(id => grouped[id]);
+}
+
+// ── 交易紀錄寫入 DB ───────────────────────────────────────
+async function appendTransaction(log) {
+  try {
+    const member = CUSTOMERS.find(c => c.暱稱.some(n => n === log.nickname))
+                || CUSTOMERS.find(c => c.暱稱.some(n => n.includes(log.nickname)));
+    const memberId = member ? member['9188編號'] : '';
+    const { data } = await _supa.from('transactions').insert({
+      order_no: log.orderNo, date: log.date, label: log.label,
+      nickname: log.nickname, amount: log.amount||0, diamonds: log.diamonds||0,
+      bank: log.bank||'', cvs_code: log.cvsCode||'', gift_time: log.giftTime||'',
+      note: log.note||'', member_id: memberId,
+      transaction_time: log.time||'', bank_account: log.bankAccount||''
+    }).select();
+    if(data && data[0]) log._dbId = data[0].id;
+  } catch(e) { console.warn('appendTransaction:', e); }
+}
+
+// ── 交易紀錄更新 DB（贈出時間、編輯）────────────────────
+async function updateTransactionDB(log) {
+  if(!log._dbId) return;
+  try {
+    await _supa.from('transactions').update({
+      nickname: log.nickname, amount: log.amount, diamonds: log.diamonds,
+      bank: log.bank, note: log.note, gift_time: log.giftTime||''
+    }).eq('id', log._dbId);
+  } catch(e) { console.warn('updateTransactionDB:', e); }
+}
+
+// ── 交易紀錄刪除 DB ───────────────────────────────────────
+async function deleteTransactionDB(log) {
+  if(!log._dbId) return;
+  try { await _supa.from('transactions').delete().eq('id', log._dbId); }
+  catch(e) { console.warn('deleteTransactionDB:', e); }
+}
+
+// ── 紅鑽暫存區 DB 操作 ────────────────────────────────────
+async function storageInsertDB(row) {
+  const { data } = await _supa.from('storage').insert({
+    nickname: row.nickname, amount: row.amount, diamonds: row.diamonds,
+    note: row.note||'', deposit_date: row.date
+  }).select();
+  if(data && data[0]) row.id = data[0].id;
+}
+
+async function storageUpdateDB(row) {
+  await _supa.from('storage').update({
+    amount: row.amount, diamonds: row.diamonds, note: row.note||'', deposit_date: row.date
+  }).eq('id', row.id);
+}
+
+async function storageDeleteDB(ids) {
+  await _supa.from('storage').delete().in('id', ids);
+}
+
+// ── 銀行餘額同步 DB ───────────────────────────────────────
+async function syncBankBalances() {
+  try {
+    await Promise.all(['合庫','玉山','國泰','中信'].map(b =>
+      _supa.from('bank_balances').update({ balance: BANK_INIT[b]||0 }).eq('bank_name', b)
+    ));
+  } catch(e) { console.warn('syncBankBalances:', e); }
+}
+
+// ── 會員新建 DB ───────────────────────────────────────────
+async function appendMemberToDB(member) {
+  try {
+    const maxLen = Math.max(member.暱稱.length, member.銀行帳號.length, 1);
+    const rows = [];
+    for(let i=0; i<maxLen; i++) {
+      rows.push({ member_type:'會員', id_9188: member['9188編號']||'無',
+        nickname: member.暱稱[i]||'', bank_account: member.銀行帳號[i]?.帳號||'',
+        account_note: member.銀行帳號[i]?.備註||'',
+        holder_name: i===0?member.戶名:'', phone: i===0?(member.電話[0]||''):(member.電話[i]||''),
+        id_number: i===0?member.身分證:'', note: i===0?member.備註:'',
+        note2: i===0?(member.備註2||''):'' });
+    }
+    const { data, error } = await _supa.from('members').insert(rows).select();
+    if(error) throw error;
+    if(data) member._dbIds = data.map(r => r.id);
+  } catch(e) { console.warn('appendMemberToDB:', e); throw e; }
+}
+
+// ── 會員編輯存回 DB ───────────────────────────────────────
+async function saveMemberToDB(rec, isBlack) {
+  try {
+    const table = isBlack ? 'blacklist' : 'members';
+    if(rec._dbIds && rec._dbIds.length > 0)
+      await _supa.from(table).delete().in('id', rec._dbIds);
+    const maxLen = Math.max(rec.暱稱.length, rec.銀行帳號.length, rec.電話.length, 1);
+    const rows = [];
+    for(let i=0; i<maxLen; i++) {
+      rows.push({ member_type:'會員', id_9188: rec['9188編號']||'無',
+        nickname: rec.暱稱[i]||'', bank_account: rec.銀行帳號[i]?.帳號||'',
+        account_note: rec.銀行帳號[i]?.備註||'',
+        holder_name: i===0?rec.戶名:'', phone: i===0?(rec.電話[0]||''):(rec.電話[i]||''),
+        id_number: i===0?rec.身分證:'', note: i===0?rec.備註:'',
+        note2: i===0?(rec.備註2||''):'' });
+    }
+    const { data } = await _supa.from(table).insert(rows).select();
+    if(data) rec._dbIds = data.map(r => r.id);
+  } catch(e) { console.warn('saveMemberToDB:', e); }
+}
+
+// ── 刪除會員 ────────────────────────────────────────────────
+async function deleteMember(cid, isBlack) {
+  const arr = isBlack ? BLACKLIST : CUSTOMERS;
+  const parts = cid.split('-');
+  const idx = parseInt(parts[parts.length - 1]);
+  const rec = arr[idx];
+  if(!rec) return;
+  const name = rec.暱稱[0] || rec['9188編號'];
+  if(!confirm(`確定要刪除會員「${name}」的所有資料嗎？\n此操作無法復原！`)) return;
+  if(!confirm(`再次確認：永久刪除「${name}」？`)) return;
+  // 從 Supabase 刪除
+  try {
+    const table = isBlack ? 'blacklist' : 'members';
+    if(rec._dbIds && rec._dbIds.length) {
+      await _supa.from(table).delete().in('id', rec._dbIds);
+    } else {
+      await _supa.from(table).delete().eq('id_9188', rec['9188編號']);
+    }
+  } catch(e) { console.warn('deleteMember DB:', e); }
+  // 從本地移除
+  arr.splice(idx, 1);
+  doSearch();
+}
+
+// ── 轉入黑名單 DB ─────────────────────────────────────────
+async function moveToBlacklistDB(rec) {
+  try {
+    // 若有 _dbIds，從 members 刪除；否則用 id_9188 兜底刪除
+    if(rec._dbIds && rec._dbIds.length > 0) {
+      await _supa.from('members').delete().in('id', rec._dbIds);
+    } else if(rec['9188編號'] && rec['9188編號'] !== '無') {
+      await _supa.from('members').delete().eq('id_9188', rec['9188編號']);
+    }
+    const maxLen = Math.max(rec.暱稱.length, rec.銀行帳號.length, rec.電話.length, 1);
+    const rows = [];
+    for(let i=0; i<maxLen; i++) {
+      rows.push({ member_type:'黑名單', id_9188: rec['9188編號']||'無',
+        nickname: rec.暱稱[i]||'', bank_account: rec.銀行帳號[i]?.帳號||'',
+        account_note: rec.銀行帳號[i]?.備註||'',
+        holder_name: i===0?rec.戶名:'', phone: i===0?(rec.電話[0]||''):(rec.電話[i]||''),
+        id_number: i===0?rec.身分證:'', note: i===0?rec.備註:'',
+        note2: i===0?(rec.備註2||''):'' });
+    }
+    const { data, error } = await _supa.from('blacklist').insert(rows).select();
+    console.log('🔵 blacklist data:', JSON.stringify(data));
+    console.log('🔴 blacklist error:', JSON.stringify(error));
+    if(error) { alert('⚠️ 黑名單儲存失敗：' + error.message); return; }
+    if(data) rec._dbIds = data.map(r => r.id);
+  } catch(e) { console.error('blacklist catch:', String(e)); alert('⚠️ 黑名單儲存失敗：' + e.message); }
+}
+
+function updateBankInit(bank, val) {
+  BANK_INIT[bank] = parseInt(val)||0;
+  renderBankBalance();
+  syncBankBalances();
+}
+
+
+// ── 資料（暱稱/電話/銀行帳號 均為陣列）────────────────
+// 銀行帳號格式：012-12345678910（3碼銀行代碼-帳號）
+let CUSTOMERS = [];
+let BLACKLIST = [];
+// ── 匯率換算 ──────────────────────────────────────────
+const BUY_RATE  = 1350/1000;
+const SELL_RATE = 1350/900;
+
+function calcDiamonds(amount, type) {
+  return Math.round(amount * (type==="sell" ? SELL_RATE : BUY_RATE));
+}
+function calcAmount(diamonds, type) {
+  return Math.round(diamonds / (type==="sell" ? SELL_RATE : BUY_RATE));
+}
+
+// ── 頁面切換 ──────────────────────────────────────────
+let currentPage = "home";
+function showPage(name) {
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.getElementById("page-"+name).classList.add("active");
+  document.querySelectorAll(".sidebar-btn").forEach(b => b.classList.remove("active-nav"));
+  document.getElementById("nav-"+name)?.classList.add("active-nav");
+  currentPage = name;
+  if(name === "today_log") renderLog();
+  if(name === "storage")   renderStorageTable();
+  if(name === "bank") {
+    const bdEl = document.getElementById('bfilter-date');
+    if(bdEl && !bdEl.value) bdEl.value = _fmtDate(new Date());
+    renderBankPage();
+  }
+  if(name === "checkout")  loadCheckout();
+  // 手機版：點選頁面後自動收起側邊欄
+  if(window.innerWidth < 768) {
+    document.getElementById("sidebar").classList.add("closed");
+    document.body.classList.add("sidebar-closed");
+  }
+}
+
+function toggleSidebar() {
+  const sidebar = document.getElementById("sidebar");
+  const isClosed = sidebar.classList.toggle("closed");
+  document.body.classList.toggle("sidebar-closed", isClosed);
+}
+
+function closeSidebar() {
+  // 保留函式供舊呼叫相容，但不做任何事
+}
+
+// ── 買賣開單：tab 切換 ────────────────────────────────
+let currentOrderTab = "buyer";
+let selectedBuyerPay = "合庫";
+let selectedSellerPay = "合庫";
+let selectedFee = 0;
+
+function goOrder(type) {
+  // 從首頁點寄放區 → 預設賣方
+  switchOrderTab(type === "storage" ? "seller" : "buyer");
+  showPage("order");
+}
+
+function switchOrderTab(tab) {
+  currentOrderTab = tab;
+  document.getElementById("tab-buyer").className  = "btn flex-fill py-2 fw-bold " + (tab==="buyer"  ? "btn-pink" : "btn-outline-secondary");
+  document.getElementById("tab-seller").className = "btn flex-fill py-2 fw-bold " + (tab==="seller" ? "btn-pink" : "btn-outline-secondary");
+  document.getElementById("order-buyer-panel").classList.toggle("d-none",  tab!=="buyer");
+  document.getElementById("order-seller-panel").classList.toggle("d-none", tab!=="seller");
+}
+
+// 今天日期自動帶入
+(function(){
+  const today = new Date();
+  const y = today.getFullYear();
+  const m = String(today.getMonth()+1).padStart(2,"0");
+  const d = String(today.getDate()).padStart(2,"0");
+  const val = `${y}-${m}-${d}`;
+  document.getElementById("buyer_date").value  = val;
+  document.getElementById("seller_date").value = val;
+})();
+
+// 買方付款方式
+function selectBuyerPay(method) {
+  selectedBuyerPay = method;
+  ["合庫","超商","玉山","其他"].forEach(m => {
+    const btn = document.getElementById("buyer-pay-"+m);
+    btn.classList.toggle("btn-pink", m===method);
+    btn.classList.toggle("btn-outline-secondary", m!==method);
+  });
+  document.getElementById("buyer_cvs_row").classList.toggle("d-none", method!=="超商");
+}
+
+// ── 首頁小算盤 ──────────────────────────────────────────────────────────
+function calcMini(source) {
+  function fmt(val) {
+    const fixed2 = val.toFixed(2);
+    return fixed2.endsWith('.00') ? String(Math.round(val)) : fixed2;
+  }
+  if (source === 'twd') {
+    const twd = parseFloat(document.getElementById('mini_twd_in').value);
+    const outEl  = document.getElementById('mini_dia_out');
+    const warnEl = document.getElementById('mini_twd_warn');
+    if (isNaN(twd) || twd <= 0) { outEl.value = ''; warnEl.classList.add('d-none'); return; }
+    const dia = twd * 1.3;
+    const clean = Number.isInteger(dia);
+    outEl.value = fmt(dia);
+    outEl.style.color = clean ? '' : '#c00';
+    warnEl.classList.toggle('d-none', clean);
+  } else {
+    const dia = parseFloat(document.getElementById('mini_dia_in').value);
+    const outEl  = document.getElementById('mini_twd_out');
+    const warnEl = document.getElementById('mini_dia_warn');
+    if (isNaN(dia) || dia <= 0) { outEl.value = ''; warnEl.classList.add('d-none'); return; }
+    const twd = dia / 1.44;
+    const clean = Number.isInteger(twd);
+    outEl.value = fmt(twd);
+    outEl.style.color = clean ? '' : '#c00';
+    warnEl.classList.toggle('d-none', clean);
+  }
+}
+
+function copyMiniDia() {
+  const val = document.getElementById('mini_dia_out').value;
+  if(!val || val === '—') return;
+  navigator.clipboard.writeText(val).then(() => {
+    const el = document.getElementById('mini_dia_copied');
+    el.classList.remove('d-none');
+    setTimeout(() => el.classList.add('d-none'), 1800);
+  });
+}
+
+function copyMiniTwd() {
+  const dia = document.getElementById('mini_dia_in').value;
+  const twd = document.getElementById('mini_twd_out').value;
+  if(!dia || !twd || twd === '—') return;
+  const text = `${dia}顆=${twd}台`;
+  navigator.clipboard.writeText(text).then(() => {
+    const el = document.getElementById('mini_twd_copied');
+    el.classList.remove('d-none');
+    setTimeout(() => el.classList.add('d-none'), 1800);
+  });
+}
+
+// 手續費選擇
+function selectFee(val) {
+  selectedFee = val;
+  [0, 10, 15].forEach(v => {
+    const b = document.getElementById("fee-btn-" + v);
+    if (b) b.className = "btn btn-sm fee-btn " + (v === val ? "btn-pink" : "btn-outline-secondary");
+  });
+}
+
+// 賣方付款方式
+function selectSellerPay(method) {
+  selectedSellerPay = method;
+  ["合庫","國泰","中信"].forEach(m => {
+    const btn = document.getElementById("seller-pay-"+m);
+    btn.classList.toggle("btn-pink", m===method);
+    btn.classList.toggle("btn-outline-secondary", m!==method);
+  });
+}
+
+// 買方金額快選
+function setBuyerAmount(v) {
+  document.getElementById("buyer_amount").value = v;
+  calcBuyerDiamonds();
+}
+
+// 買方紅鑽換算
+function calcBuyerDiamonds() {
+  const v = parseInt(document.getElementById("buyer_amount").value);
+  const hint = document.getElementById("buyer_diamond_hint");
+  if(v > 0) {
+    const d = Math.round(v * 1.3);
+    document.getElementById("buyer_diamond_val").textContent = d;
+    hint.classList.remove("d-none");
+  } else {
+    hint.classList.add("d-none");
+  }
+}
+
+// ── 帳號自動帶入：輸入暱稱後查詢客戶銀行帳號 ────────
+function lookupBanks(q, suggestionsId, bankInputId) {
+  const sugEl = document.getElementById(suggestionsId);
+  if(!q) { sugEl.classList.add("d-none"); sugEl.innerHTML = ""; return; }
+
+  // 精確優先，再模糊比對
+  const match = CUSTOMERS.find(c => c.暱稱.some(n => n === q))
+             || CUSTOMERS.find(c => c.暱稱.some(n => n.includes(q)));
+
+  if(!match || !match.銀行帳號 || match.銀行帳號.length === 0) {
+    sugEl.classList.add("d-none"); sugEl.innerHTML = "";
+    return;
+  }
+
+  const banks = match.銀行帳號.filter(b => b.帳號);
+  if(banks.length === 0) { sugEl.classList.add("d-none"); sugEl.innerHTML = ""; return; }
+
+  if(banks.length === 1) {
+    // 只有一筆，直接帶入
+    document.getElementById(bankInputId).value = banks[0].帳號;
+    const note = banks[0].備註 ? `（${banks[0].備註}）` : "";
+    sugEl.innerHTML = `<div class="text-success small"><i class="bi bi-check-circle me-1"></i>已帶入 ${match.暱稱[0]} 的帳號${note}</div>`;
+    sugEl.classList.remove("d-none");
+  } else {
+    // 多筆，顯示選擇列
+    const btnHtml = banks.map(b => {
+      const safe = b.帳號.replace(/'/g, "\\'");
+      const label = b.備註 ? `${b.帳號} <span class="text-muted small">(${b.備註})</span>` : b.帳號;
+      return `<button type="button" class="btn btn-sm btn-outline-primary me-1 mb-1"
+        onclick="document.getElementById('${bankInputId}').value='${safe}';
+                 document.getElementById('${suggestionsId}').classList.add('d-none')">
+        ${label}
+      </button>`;
+    }).join("");
+    sugEl.innerHTML = `
+      <div class="text-muted small mb-1"><i class="bi bi-person-check me-1"></i>${match.暱稱[0]} 的帳號，點選帶入：</div>
+      ${btnHtml}`;
+    sugEl.classList.remove("d-none");
+  }
+}
+
+// 買方黑名單即時提示 + 帳號查詢
+let buyerNickTimer;
+document.getElementById("buyer_nickname").addEventListener("input", function(){
+  clearTimeout(buyerNickTimer);
+  buyerNickTimer = setTimeout(()=>{
+    const q = this.value.trim();
+    const isBlack = BLACKLIST.some(c => c.暱稱.some(n=>n.includes(q)));
+    document.getElementById("buyer_blacklist_warning").classList.toggle("d-none", !q || !isBlack);
+    lookupBanks(q, "buyer_bank_suggestions", "buyer_bank");
+  }, 350);
+});
+
+// 賣方暱稱輸入：帳號查詢
+let sellerNickTimer;
+document.getElementById("seller_nickname").addEventListener("input", function(){
+  clearTimeout(sellerNickTimer);
+  sellerNickTimer = setTimeout(()=>{
+    lookupBanks(this.value.trim(), "seller_bank_suggestions", "seller_bank");
+  }, 350);
+});
+
+// 買方送出
+function submitBuyerOrder(withGift=false) {
+  const nickname = document.getElementById("buyer_nickname").value.trim();
+  const amount   = parseInt(document.getElementById("buyer_amount").value) || 0;
+  const resultEl = document.getElementById("buyer_result");
+
+  if(!nickname) { showMsg(resultEl, false, "請填寫暱稱"); return; }
+  const isBlack = BLACKLIST.some(c => c.暱稱.some(n=>n.includes(nickname)));
+  if(isBlack) { showMsg(resultEl, false, `⚠️ 警告：「${nickname}」在黑名單中！`); return; }
+  if(!amount) { showMsg(resultEl, false, "請填寫金額"); return; }
+
+  const now = new Date();
+  const timeStr = String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0");
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+  const diamonds = Math.round(amount * 1.3);
+  const cvsCode  = document.getElementById("buyer_cvs_code").value.trim();
+  const note = selectedBuyerPay==="超商" && cvsCode
+    ? `超商代碼 ${cvsCode}` : selectedBuyerPay+"匯款";
+
+  TODAY_LOGS.push({
+    type:"buy", label:"買方", nickname, diamonds, amount,
+    time: timeStr, note, giftTime: withGift ? timeStr : "", bank: selectedBuyerPay,
+    date: todayStr, cvsCode: selectedBuyerPay==="超商" ? cvsCode : "",
+    orderNo: genOrderNo("buy", todayStr, timeStr),
+    bankAccount: document.getElementById("buyer_bank").value.trim()
+  });
+
+  showMsg(resultEl, true, withGift
+    ? `✅ 開單成功！已贈出時間：${timeStr}`
+    : `✅ 開單成功！${nickname} / ${diamonds} 顆 / ${amount}`);
+
+  document.getElementById("buyer_nickname").value  = "";
+  document.getElementById("buyer_amount").value    = "";
+  document.getElementById("buyer_cvs_code").value  = "";
+  document.getElementById("buyer_bank").value      = "";
+  document.getElementById("buyer_note").value      = "";
+  document.getElementById("buyer_blacklist_warning").classList.add("d-none");
+  document.getElementById("buyer_diamond_hint").classList.add("d-none");
+}
+
+// 賣方送出
+function submitSellerOrder() {
+  const nickname = document.getElementById("seller_nickname").value.trim();
+  const amount   = parseInt(document.getElementById("seller_amount").value) || 0;
+  const resultEl = document.getElementById("seller_result");
+
+  if(!nickname) { showMsg(resultEl, false, "請填寫暱稱"); return; }
+  if(!amount)   { showMsg(resultEl, false, "請填寫金額"); return; }
+
+  const now = new Date();
+  const timeStr = String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0");
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+  const diamonds = Math.round(amount * 1.44);
+  const sellerNote = document.getElementById("seller_note").value.trim();
+  const feeNote = selectedFee ? `手續費${selectedFee}元` : "";
+  const note = [selectedSellerPay+"轉帳", feeNote, sellerNote].filter(Boolean).join("／");
+
+  TODAY_LOGS.push({
+    type:"sell", label:"賣方", nickname, diamonds, amount,
+    time: timeStr, note, giftTime: "", bank: selectedSellerPay,
+    date: todayStr, cvsCode: "", orderNo: genOrderNo("sell", todayStr, timeStr),
+    bankAccount: document.getElementById("seller_bank").value.trim()
+  });
+
+  showMsg(resultEl, true, `✅ 開單成功！${nickname} / ${diamonds} 顆 / ${amount}元${selectedFee ? "（手續費" + selectedFee + "元）" : ""}`);
+
+  document.getElementById("seller_nickname").value = "";
+  document.getElementById("seller_amount").value   = "";
+  document.getElementById("seller_bank").value     = "";
+  document.getElementById("seller_note").value     = "";
+  selectFee(0);
+}
+
+function showMsg(el, ok, msg) {
+  el.classList.remove("d-none","alert-success","alert-danger");
+  el.classList.add(ok ? "alert-success" : "alert-danger");
+  el.textContent = msg;
+}
+
+// ── 9188 建檔匯出 ────────────────────────────────────────────────────────
+function _fmtDate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+
+function toggle9188Export() {
+  const body  = document.getElementById("export9188_body");
+  const arrow = document.getElementById("export9188_arrow");
+  const isHidden = body.classList.contains("d-none");
+  body.classList.toggle("d-none", !isHidden);
+  arrow.className = isHidden ? "bi bi-chevron-up" : "bi bi-chevron-right";
+  // 首次展開時預填日期（今天往前 19 天）
+  if (isHidden && !document.getElementById("exp9188_to").value) {
+    const today = new Date();
+    const from  = new Date(today); from.setDate(from.getDate() - 19);
+    document.getElementById("exp9188_to").value   = _fmtDate(today);
+    document.getElementById("exp9188_from").value = _fmtDate(from);
+  }
+}
+
+async function export9188(type) {
+  if (!window.XLSX) { alert("XLSX 函式庫尚未載入，請重新整理頁面"); return; }
+  const fromVal = document.getElementById("exp9188_from").value;
+  const toVal   = document.getElementById("exp9188_to").value;
+  const msgEl   = document.getElementById("exp9188_msg");
+
+  if (!fromVal || !toVal) {
+    msgEl.innerHTML = '<span class="text-danger">請選擇日期區間</span>'; return;
+  }
+  const diffDays = Math.round((new Date(toVal) - new Date(fromVal)) / 86400000) + 1;
+  if (diffDays < 1)  { msgEl.innerHTML = '<span class="text-danger">結束日期不能早於開始日期</span>'; return; }
+  if (diffDays > 20) { msgEl.innerHTML = '<span class="text-danger">日期區間不能超過 20 天</span>'; return; }
+
+  msgEl.innerHTML = '<span class="text-muted">查詢中…</span>';
+
+  const label = type === 'sell' ? '賣方' : '買方';
+  const { data, error } = await _supa.from('transactions')
+    .select('*').eq('label', label)
+    .gte('date', fromVal).lte('date', toVal).order('date');
+
+  if (error) { msgEl.innerHTML = `<span class="text-danger">查詢失敗：${error.message}</span>`; return; }
+  if (!data || data.length === 0) {
+    msgEl.innerHTML = `<span class="text-warning">查無 ${fromVal} ~ ${toVal} 的${label}資料</span>`; return;
+  }
+
+  let wsData, fileName;
+
+  if (type === 'sell') {
+    const descRow = [
+      "必填\n使用已建好的會員資料避免重覆建檔問題，注意會員需要有建立暱稱",
+      "必填\n只填商品數量，交易金額由系統計算，以免輸入錯誤，換算後金額不得小於80元整!",
+      "必填\n填已建好的商品編號以免有商品名稱修改問題",
+      "非必填\n09開頭10碼數字並加入\";\"在結尾",
+      "非必填\n輸入為3碼銀行代碼-帳號 除了分隔線外都是數字",
+      "必填\n商家自訂的銀行帳戶",
+      "非必填\n空白則為0,數字可填0~30\n"
+    ];
+    const headerRow = ["會員編號","商品數量","商品編號","手機","客戶銀行帳號","商店支出銀行","銀行轉出手續費"];
+    const dataRows = data.map(r => {
+      const cust  = CUSTOMERS.find(c => c.暱稱 && c.暱稱.includes(r.nickname));
+      const id    = r.member_id || (cust ? cust['9188編號'] : "") || "";
+      const phone = cust ? (cust.電話 && cust.電話[0] ? cust.電話[0] : "") : "";
+      const feeM  = r.note ? r.note.match(/手續費(\d+)元/) : null;
+      const fee   = feeM ? parseInt(feeM[1]) : 0;
+      return [id, r.diamonds||0, 7419, phone, r.bank_account||"", r.bank||"", fee];
+    });
+    wsData   = [descRow, headerRow, ...dataRows];
+    fileName = `9188賣方建檔_${fromVal}_${toVal}.xlsx`;
+  } else {
+    const descRow = [
+      "非必填\n僅輸入大小寫英數字，請填入買方自訂單號\n",
+      "必填\n使用已建好的會員資料避免重覆建檔問題，注意會員需要有建立暱稱",
+      "必填\n只填交易金額，商品數量一樣由系統計算，以免輸入錯誤，同開單限制金額不小於100",
+      "必填\n填已建好的商品編號以免有商品名稱修改問題",
+      "非必填\n09開頭10碼數字並加入\";\"在結尾",
+      "非必填\n輸入為3碼銀行代碼-帳號 除了分隔線外都是數字",
+      "必填\n商家自訂的銀行帳戶",
+      "非必填\n商店自行運用，僅輸入大小寫英數字及 /  ，字數50"
+    ];
+    const headerRow = ["買方自訂單號","會員編號","交易金額","商品編號","手機","客戶銀行帳號","商店收款銀行","備註"];
+    const dataRows = data.map(r => {
+      const cust  = CUSTOMERS.find(c => c.暱稱 && c.暱稱.includes(r.nickname));
+      const id    = r.member_id || (cust ? cust['9188編號'] : "") || "";
+      const phone = cust ? (cust.電話 && cust.電話[0] ? cust.電話[0] : "") : "";
+      return [r.order_no||"", id, r.amount||0, 7419, phone, r.bank_account||"", r.bank||"", r.note||""];
+    });
+    wsData   = [descRow, headerRow, ...dataRows];
+    fileName = `9188買方_${fromVal}_${toVal}.xlsx`;
+  }
+
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "工作表1");
+  XLSX.writeFile(wb, fileName);
+  msgEl.innerHTML = `<span class="text-success">✅ 匯出完成：${data.length} 筆${label}資料（${fromVal} ~ ${toVal}）</span>`;
+}
+
+// ── 結帳頁面 ─────────────────────────────────────────────────────────────
+let _checkoutModal = null;
+let _checkoutData  = [];   // 最近7天結帳紀錄
+let _lastCheckout  = null; // 最近一筆（用於計算誤差）
+
+function getCheckoutModal() {
+  if (!_checkoutModal) _checkoutModal = new bootstrap.Modal(document.getElementById('checkoutModal'));
+  return _checkoutModal;
+}
+
+// 載入最近7天結帳
+async function loadCheckout() {
+  const today = new Date();
+  const from  = new Date(today); from.setDate(from.getDate() - 6);
+  const fromStr = _fmtDate(from);
+  const { data, error } = await _supa.from('daily_checkout')
+    .select('*').gte('date', fromStr).order('date', { ascending: false });
+  if (error) { console.warn('loadCheckout:', error); return; }
+  _checkoutData = data || [];
+  // 也取最近一筆（可能超出7天範圍，用於計算今日誤差）
+  const { data: last } = await _supa.from('daily_checkout')
+    .select('*').order('date', { ascending: false }).limit(1);
+  _lastCheckout = (last && last.length) ? last[0] : null;
+  renderCheckoutTable();
+}
+
+// 渲染表格
+function renderCheckoutTable() {
+  const tbody  = document.getElementById('checkout_tbody');
+  const empty  = document.getElementById('checkout_empty');
+  if (!_checkoutData.length) {
+    tbody.innerHTML = '';
+    empty.classList.remove('d-none');
+    return;
+  }
+  empty.classList.add('d-none');
+  tbody.innerHTML = _checkoutData.map(r => {
+    const variance = r.variance !== null ? r.variance : '—';
+    const varColor = r.variance > 0 ? 'text-success' : r.variance < 0 ? 'text-danger' : '';
+    const details = Array.isArray(r.details) ? r.details : (r.details ? JSON.parse(r.details) : []);
+    const detailHtml = details.length
+      ? details.map(d => `<span class="badge bg-secondary me-1">${d.nickname} ${d.diamonds}顆</span>`).join('')
+      : '<span class="text-muted small">—</span>';
+    return `<tr>
+      <td class="ps-3 fw-semibold">${r.date}</td>
+      <td class="text-end">${r.today_diamonds ?? '—'}</td>
+      <td class="text-end text-success">${r.buy_amount ?? '—'}</td>
+      <td class="text-end text-warning fw-semibold">${r.buy_amount != null ? Math.round(r.buy_amount * 1.3 * 0.003) : '—'}</td>
+      <td class="text-end text-danger">${r.sell_amount ?? '—'}</td>
+      <td class="text-end fw-bold text-primary">${r.total_diamonds ?? '—'}</td>
+      <td class="text-end fw-bold ${varColor}">${variance}</td>
+      <td style="max-width:180px;white-space:normal">${detailHtml}</td>
+      <td class="text-end">
+        <button class="btn btn-outline-danger btn-sm py-0 px-1" onclick="deleteCheckout(${r.id})" title="刪除">
+          <i class="bi bi-trash"></i>
+        </button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// 開啟新增結帳 Modal
+function openCheckoutModal() {
+  // 計算買方/賣方台幣（來自今日交易紀錄）
+  const buyAmt  = TODAY_LOGS.filter(r => ['買方','記帳'].includes(r.label)).reduce((s,r) => s + (r.amount||0), 0);
+  const sellAmt = TODAY_LOGS.filter(r => r.label === '賣方').reduce((s,r) => s + (r.amount||0), 0);
+  const repayDia = TODAY_LOGS.filter(r => r.label === '還鑽').reduce((s,r) => s + (r.diamonds||0), 0);
+
+  const feeAmt = Math.round(buyAmt * 1.3 * 0.003);
+  // 前日寄放剩餘紅鑽 = 目前寄放區所有紅鑽總和
+  const storageDia = (typeof STORAGE_DATA !== 'undefined')
+    ? STORAGE_DATA.reduce((s, r) => s + (r.diamonds || 0), 0)
+    : 0;
+
+  document.getElementById('co_buy_amt').textContent    = buyAmt;
+  document.getElementById('co_fee_amt').textContent    = feeAmt;
+  document.getElementById('co_sell_amt').textContent   = sellAmt;
+  document.getElementById('co_storage_dia').textContent = storageDia;
+  document.getElementById('co_buy_detail').textContent  = '買方+記帳 合計';
+  document.getElementById('co_sell_detail').textContent = repayDia ? `賣方合計 + 還鑽 ${repayDia}顆` : '賣方合計';
+  document.getElementById('co_today_dia').value = '';
+  document.getElementById('co_total_dia').textContent  = '—';
+  document.getElementById('co_variance').textContent   = '—';
+  document.getElementById('co_variance').className     = 'fw-bold fs-5';
+  document.getElementById('co_formula_hint').textContent = '';
+  document.getElementById('co_details_list').innerHTML = '';
+
+  // 存暫存供 recalc 使用
+  const modal = document.getElementById('checkoutModal');
+  modal.dataset.buyAmt    = buyAmt;
+  modal.dataset.sellAmt   = sellAmt;
+  modal.dataset.repayDia  = repayDia;
+  modal.dataset.feeAmt    = feeAmt;
+  modal.dataset.storageDia = storageDia;
+
+  getCheckoutModal().show();
+}
+
+// 即時重算
+function recalcCheckout() {
+  const todayDia = parseInt(document.getElementById('co_today_dia').value) || 0;
+  const modal    = document.getElementById('checkoutModal');
+  const buyAmt   = parseInt(modal.dataset.buyAmt)   || 0;
+  const sellAmt  = parseInt(modal.dataset.sellAmt)  || 0;
+  const repayDia = parseInt(modal.dataset.repayDia) || 0;
+
+  const feeAmt    = parseInt(modal.dataset.feeAmt)    || Math.round(buyAmt * 1.3 * 0.003);
+  const storageDia = parseInt(modal.dataset.storageDia) || 0;
+  const totalDia  = todayDia - storageDia - Math.round(buyAmt * 1.3) - feeAmt + Math.round(sellAmt * 1.44) + repayDia;
+  document.getElementById('co_total_dia').textContent = todayDia ? totalDia : '—';
+  document.getElementById('co_formula_hint').textContent =
+    todayDia ? `${todayDia} − 寄放${storageDia} − ${buyAmt}×1.3 − 手續費${feeAmt} + ${sellAmt}×1.44 + 還鑽${repayDia} = ${totalDia}` : '';
+
+  // 誤差 = 上次總結紅鑽 - 今日紅鑽
+  const varEl = document.getElementById('co_variance');
+  if (todayDia && _lastCheckout && _lastCheckout.total_diamonds !== null) {
+    const variance = (_lastCheckout.total_diamonds - todayDia);
+    varEl.textContent = variance;
+    varEl.className = 'fw-bold fs-5 ' + (variance === 0 ? 'text-success' : variance > 0 ? 'text-danger' : 'text-warning');
+  } else {
+    varEl.textContent = todayDia ? '（無前日紀錄）' : '—';
+    varEl.className = 'fw-bold fs-5 text-muted';
+  }
+}
+
+// 新增暱稱備註列
+function addCheckoutDetail() {
+  const list = document.getElementById('co_details_list');
+  const idx  = list.children.length;
+  const div  = document.createElement('div');
+  div.className = 'd-flex gap-2 mb-2 align-items-center';
+  div.innerHTML = `
+    <input type="text"   class="form-control form-control-sm" placeholder="暱稱" data-co-nick="${idx}">
+    <input type="number" class="form-control form-control-sm" placeholder="紅鑽（顆）" data-co-dia="${idx}" style="max-width:120px">
+    <button class="btn btn-outline-danger btn-sm py-0 px-1" onclick="this.parentElement.remove()"><i class="bi bi-x"></i></button>`;
+  list.appendChild(div);
+}
+
+// 送出結帳
+async function submitCheckout() {
+  const todayDia = parseInt(document.getElementById('co_today_dia').value);
+  if (!todayDia) { alert('請填寫今日紅鑽'); return; }
+
+  const modal    = document.getElementById('checkoutModal');
+  const buyAmt    = parseInt(modal.dataset.buyAmt)    || 0;
+  const sellAmt   = parseInt(modal.dataset.sellAmt)   || 0;
+  const repayDia  = parseInt(modal.dataset.repayDia)  || 0;
+  const feeAmt    = parseInt(modal.dataset.feeAmt)    || Math.round(buyAmt * 1.3 * 0.003);
+  const storageDia = parseInt(modal.dataset.storageDia) || 0;
+  const totalDia  = todayDia - storageDia - Math.round(buyAmt * 1.3) - feeAmt + Math.round(sellAmt * 1.44) + repayDia;
+  const variance = _lastCheckout ? (_lastCheckout.total_diamonds - todayDia) : null;
+
+  // 收集暱稱備註
+  const details = [];
+  document.querySelectorAll('#co_details_list > div').forEach(row => {
+    const nick = row.querySelector('[data-co-nick]')?.value?.trim();
+    const dia  = parseInt(row.querySelector('[data-co-dia]')?.value) || 0;
+    if (nick || dia) details.push({ nickname: nick || '', diamonds: dia });
+  });
+
+  const today = _fmtDate(new Date());
+  const { error } = await _supa.from('daily_checkout').upsert({
+    date:            today,
+    today_diamonds:  todayDia,
+    buy_amount:      buyAmt,
+    sell_amount:     sellAmt,
+    total_diamonds:  totalDia,
+    variance:        variance,
+    details:         details,
+  }, { onConflict: 'date' });
+
+  if (error) { alert('儲存失敗：' + error.message); return; }
+  getCheckoutModal().hide();
+  await loadCheckout();
+  const alertEl = document.getElementById('checkout_alert');
+  alertEl.className = 'alert alert-warning mb-3';
+  alertEl.innerHTML = `
+    ✅ <strong>${today} 結帳完成！</strong>總結紅鑽：${totalDia}
+    <hr class="my-2">
+    🏦 <strong>別忘了更新銀行餘額！</strong>
+    請到「銀行」頁面點右上角「修改餘額」，把今天的結尾餘額存入，明天才會正確。
+    <div class="mt-2">
+      <button class="btn btn-sm btn-warning fw-bold" onclick="showPage('bank');document.getElementById('checkout_alert').classList.add('d-none')">
+        <i class="bi bi-bank me-1"></i>前往銀行頁面
+      </button>
+    </div>`;
+  setTimeout(() => alertEl.classList.add('d-none'), 12000);
+}
+
+// 刪除結帳紀錄
+async function deleteCheckout(id) {
+  if (!confirm('確定要刪除這筆結帳紀錄？')) return;
+  const { error } = await _supa.from('daily_checkout').delete().eq('id', id);
+  if (error) { alert('刪除失敗：' + error.message); return; }
+  await loadCheckout();
+}
+
+// ── 寄放區：匯出轉帳 XLS（賣方範本格式）────────────────────────────────
+function exportStorageTransfer() {
+  if (!window.XLSX) { alert("XLSX 函式庫尚未載入，請重新整理頁面"); return; }
+
+  // 取得選取的列（未選取則匯出全部）
+  const checks = [...document.querySelectorAll("#storage_tbody input[type=checkbox]:checked")];
+  let rows = [];
+  if (checks.length > 0) {
+    const selectedIds = new Set(checks.map(cb => parseInt(cb.dataset.id)));
+    rows = STORAGE_DATA.filter(r => selectedIds.has(r.id));
+  } else {
+    rows = [...STORAGE_DATA];
+  }
+
+  if (rows.length === 0) { alert("暫存區沒有資料可以匯出"); return; }
+
+  // 固定前兩列（符合賣方範本格式）
+  const descRow = [
+    "必填\n使用已建好的會員資料避免重覆建檔問題，注意會員需要有建立暱稱",
+    "必填\n只填商品數量，交易金額由系統計算，以免輸入錯誤，換算後金額不得小於80元整!",
+    "必填\n填已建好的商品編號以免有商品名稱修改問題",
+    "非必填\n09開頭10碼數字並加入\";\"在結尾",
+    "非必填\n輸入為3碼銀行代碼-帳號 除了分隔線外都是數字",
+    "必填\n商家自訂的銀行帳戶",
+    "非必填\n空白則為0,數字可填0~30\n"
+  ];
+  const headerRow = ["會員編號", "商品數量", "商品編號", "手機", "客戶銀行帳號", "商店支出銀行", "銀行轉出手續費"];
+
+  const dataRows = rows.map(r => {
+    const cust = CUSTOMERS.find(c => c.暱稱 && c.暱稱.includes(r.nickname));
+    const id9188   = cust ? (cust['9188編號'] || "") : "";
+    const phone    = cust ? (cust.電話 && cust.電話[0] ? cust.電話[0] : "") : "";
+    const bankAcc  = cust ? (cust.銀行帳號 && cust.銀行帳號[0] ? cust.銀行帳號[0].帳號 : "") : "";
+    return [id9188, r.diamonds || 0, 7419, phone, bankAcc, selectedSellerPay, selectedFee || 0];
+  });
+
+  const wsData = [descRow, headerRow, ...dataRows];
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "工作表1");
+
+  const today = new Date();
+  const dateTag = `${today.getFullYear()}${String(today.getMonth()+1).padStart(2,"0")}${String(today.getDate()).padStart(2,"0")}`;
+  XLSX.writeFile(wb, `賣方轉帳_${dateTag}.xlsx`);
+}
+
+// ── 賣方開單：匯入轉帳 XLS（從第3列批次建立訂單）──────────────────────
+function importSellerTransfer(input) {
+  if (!window.XLSX) { alert("XLSX 函式庫尚未載入，請重新整理頁面"); return; }
+  const file = input.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const wb = XLSX.read(e.target.result, { type: "array" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const allRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+
+      // 略過前兩列（說明列 + 標題列）
+      const dataRows = allRows.slice(2).filter(r => r[0] || r[1]);
+      if (dataRows.length === 0) { alert("XLS 第3列起沒有資料"); input.value = ""; return; }
+
+      const now = new Date();
+      const timeStr  = String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0");
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+
+      let successCount = 0;
+      const errors = [];
+
+      dataRows.forEach((r, i) => {
+        const id9188    = String(r[0] || "").trim();
+        const diamonds  = parseInt(r[1]) || 0;
+        const bankAcc   = String(r[4] || "").trim();
+        const bank      = String(r[5] || "").trim() || selectedSellerPay;
+        const fee       = parseInt(r[6]) || 0;
+
+        if (!diamonds) { errors.push(`第${i+3}列：商品數量為空，已略過`); return; }
+
+        // 用9188編號找暱稱
+        const cust = CUSTOMERS.find(c => String(c['9188編號']) === id9188);
+        const nickname = cust ? (cust.暱稱[0] || id9188) : id9188;
+
+        const amount = Math.round(diamonds / 1.44);
+        const feeNote = fee ? `手續費${fee}元` : "";
+        const note = [bank + "轉帳", feeNote].filter(Boolean).join("／");
+
+        TODAY_LOGS.push({
+          type:"sell", label:"賣方", nickname, diamonds, amount,
+          time: timeStr, note, giftTime: "", bank,
+          date: todayStr, cvsCode: "", orderNo: genOrderNo("sell", todayStr, timeStr),
+          bankAccount: bankAcc
+        });
+        successCount++;
+      });
+
+      let msg = `✅ 匯入完成：成功建立 ${successCount} 筆賣方訂單`;
+      if (errors.length) msg += `\n⚠️ ${errors.join("\n")}`;
+      alert(msg);
+    } catch(err) {
+      alert("讀取 XLS 失敗：" + err.message);
+    }
+    input.value = "";
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ── 搜尋輔助：陣列欄位是否包含關鍵字 ─────────────────
+function matchArr(arr, q) {
+  if(!Array.isArray(arr)) return String(arr||"").toLowerCase().includes(q);
+  return arr.some(v => {
+    if(typeof v === "string") return v.toLowerCase().includes(q);
+    if(v && v.帳號) return v.帳號.toLowerCase().includes(q) || (v.備註||"").toLowerCase().includes(q);
+    return false;
+  });
+}
+
+// ── 新增會員折疊面板 ────────────────────────────────────
+function toggleAddMember() {
+  const form = document.getElementById('add-member-form');
+  const icon = document.getElementById('add-member-chevron');
+  const isHidden = form.classList.contains('d-none');
+  form.classList.toggle('d-none', !isHidden);
+  icon.className = isHidden ? 'bi bi-chevron-up text-muted' : 'bi bi-chevron-down text-muted';
+  // 展開時設定今日日期
+  if(isHidden) {
+    const el = document.getElementById('nm_date');
+    if(el && !el.value) {
+      const now = new Date();
+      el.value = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+    }
+  }
+}
+
+// ── 客戶查詢 ──────────────────────────────────────────
+let searchTimer;
+document.getElementById("searchInput").addEventListener("input", function(){
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(doSearch, 350);
+});
+document.getElementById("searchInput").addEventListener("keydown", e => {
+  if(e.key==="Enter") doSearch();
+});
+
+function doSearch() {
+  const q      = document.getElementById("searchInput").value.trim().toLowerCase();
+  const resSec = document.getElementById("search_results_section");
+  const noRes  = document.getElementById("no_result");
+  if(!q) { resSec.classList.add("d-none"); noRes.classList.add("d-none"); return; }
+
+  const matchCustomers = CUSTOMERS.filter(c =>
+    matchArr(c.暱稱, q) || c["9188編號"].toLowerCase().includes(q) ||
+    matchArr(c.電話, q) || (c.身分證||"").toLowerCase().includes(q) || matchArr(c.銀行帳號, q)
+  );
+  const matchBlacklist = BLACKLIST.filter(c =>
+    matchArr(c.暱稱, q) || c["9188編號"].toLowerCase().includes(q) ||
+    matchArr(c.電話, q) || (c.身分證||"").toLowerCase().includes(q)
+  );
+  const allResults = [
+    ...matchBlacklist.map(c => ({...c, _black:true})),
+    ...matchCustomers.map(c => ({...c, _black:false})),
+  ];
+  resSec.classList.toggle("d-none", allResults.length===0);
+  noRes.classList.toggle("d-none", allResults.length>0);
+  document.getElementById("search_results").innerHTML = allResults.map(c=>renderCard(c, c._black)).join("");
+}
+
+// ── 複製 ──────────────────────────────────────────────
+function copyText(text, btnEl) {
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btnEl.innerHTML;
+    btnEl.innerHTML = '<i class="bi bi-check-lg"></i>';
+    btnEl.classList.replace("btn-outline-secondary","btn-success");
+    setTimeout(() => { btnEl.innerHTML = orig; btnEl.classList.replace("btn-success","btn-outline-secondary"); }, 1200);
+  });
+}
+function copyBtn(val) {
+  if(!val) return "";
+  const safe = val.replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+  return `<button class="btn btn-outline-secondary btn-sm py-0 px-1 ms-1" style="font-size:11px" onclick="copyText('${safe}',this)" title="複製"><i class="bi bi-clipboard"></i></button>`;
+}
+
+// ── 切換編輯 ──────────────────────────────────────────
+function toggleEdit(cid) {
+  const v = document.getElementById("view-"+cid);
+  const e = document.getElementById("edit-"+cid);
+  const opening = e.classList.contains("d-none");
+  v.classList.toggle("d-none", opening);
+  e.classList.toggle("d-none", !opening);
+}
+
+// ── 儲存編輯 ──────────────────────────────────────────
+function saveEdit(cid, isBlack) {
+  const arr = isBlack ? BLACKLIST : CUSTOMERS;
+  const idx = parseInt(cid.split("-").pop());
+  const rec = arr[idx];
+
+  // 暱稱陣列
+  rec.暱稱 = Array.from(document.querySelectorAll(`[data-ef="${cid}-暱稱"]`))
+    .map(el=>el.value.trim()).filter(Boolean);
+
+  // 電話陣列
+  rec.電話 = Array.from(document.querySelectorAll(`[data-ef="${cid}-電話"]`))
+    .map(el=>el.value.trim()).filter(Boolean);
+
+  // 銀行帳號陣列
+  const bankEls  = document.querySelectorAll(`[data-ef="${cid}-帳號"]`);
+  const bankNotes= document.querySelectorAll(`[data-ef="${cid}-銀行備註"]`);
+  rec.銀行帳號 = Array.from(bankEls).map((el,i)=>({
+    帳號: el.value.trim(),
+    備註: (bankNotes[i]||{}).value||""
+  })).filter(b=>b.帳號);
+
+  // 單值欄位
+  ["9188編號","身分證","戶名","備註"].forEach(f=>{
+    const el = document.querySelector(`[data-ef="${cid}-${f}"]`);
+    if(el) rec[f] = el.value.trim();
+  });
+
+  saveMemberToDB(rec, isBlack);
+  doSearch();
+}
+
+// ── 轉入黑名單（二次確認）────────────────────────────
+const _blConfirm = {};
+function moveToBlacklist(cid) {
+  const btn = document.getElementById("bl-btn-"+cid);
+  if(!_blConfirm[cid]) {
+    _blConfirm[cid] = true;
+    btn.textContent = "⚠️ 再按一次確認轉入";
+    btn.classList.replace("btn-outline-danger","btn-danger");
+    setTimeout(()=>{
+      if(_blConfirm[cid]) {
+        delete _blConfirm[cid];
+        btn.textContent = "🚫 轉入黑名單";
+        btn.classList.replace("btn-danger","btn-outline-danger");
+      }
+    }, 4000);
+  } else {
+    delete _blConfirm[cid];
+    const idx = parseInt(cid.split("-").pop());
+    const rec = CUSTOMERS.splice(idx, 1)[0];
+    BLACKLIST.push(rec);
+    moveToBlacklistDB(rec).then(() => doSearch()).catch(e => {
+      // DB 失敗時還原本地資料
+      BLACKLIST.pop();
+      CUSTOMERS.splice(idx, 0, rec);
+      doSearch();
+    });
+    doSearch();
+  }
+}
+
+// ── renderCard ────────────────────────────────────────
+function renderCard(c, isBlack) {
+  const arr = isBlack ? BLACKLIST : CUSTOMERS;
+  const idx = arr.findIndex(x => x["9188編號"]===c["9188編號"] && x.暱稱[0]===c.暱稱[0]);
+  const cid = (isBlack?"bl":"cu")+"-"+idx;
+
+  // 暱稱列
+  const nicknameView = c.暱稱.map((n,i) =>
+    `<span class="me-1 fw-bold ${i===0?"fs-5":"text-muted small"} ${isBlack?"text-danger":""}">${n}${copyBtn(n)}</span>`
+  ).join("");
+
+  // 電話列
+  const phoneView = c.電話.length
+    ? c.電話.map(p=>`<span class="me-2">${p}</span>`).join("")
+    : "—";
+
+  // 銀行帳號列
+  const bankView = c.銀行帳號.length
+    ? c.銀行帳號.map(b=>`
+        <div class="mt-1"><b>帳號：</b>${b.帳號}${copyBtn(b.帳號)}
+        ${b.備註?`<span class="text-primary ms-1 small">${b.備註}</span>`:""}</div>`).join("")
+    : "<span class='text-muted'>—</span>";
+
+  // ── 編輯模式的動態列（暱稱/電話/銀行帳號）
+  function dynRows(label, field, values, placeholder) {
+    const rows = values.length ? values : [""];
+    return `<div class="mb-2" id="dyngroup-${cid}-${field}">
+      <label class="form-label fw-semibold small mb-1">${label}</label>
+      ${rows.map((v,i)=>`
+        <div class="input-group input-group-sm mb-1">
+          <input type="text" class="form-control" data-ef="${cid}-${field}" value="${String(v).replace(/"/g,'&quot;')}" placeholder="${placeholder}">
+          <button class="btn btn-outline-danger" type="button" onclick="removeDynRow(this)"><i class="bi bi-x"></i></button>
+        </div>`).join("")}
+      <button class="btn btn-sm btn-outline-secondary mt-1 dyn-add-btn" type="button" onclick="addDynRow('${cid}','${field}','${placeholder}')">
+        <i class="bi bi-plus"></i> 新增${label}
+      </button>
+    </div>`;
+  }
+
+  function dynBankRows(values) {
+    const rows = values.length ? values : [{帳號:"",備註:""}];
+    return `<div class="mb-2" id="dyngroup-${cid}-銀行帳號">
+      <label class="form-label fw-semibold small mb-1">銀行帳號</label>
+      ${rows.map((b,i)=>`
+        <div class="mb-1 ps-2 border-start border-2">
+          <div class="input-group input-group-sm mb-1">
+            <span class="input-group-text" style="font-size:11px">帳號</span>
+            <input type="text" class="form-control" data-ef="${cid}-帳號" value="${(b.帳號||"").replace(/"/g,'&quot;')}" placeholder="">
+            <button class="btn btn-outline-danger" type="button" onclick="removeBankRow(this)"><i class="bi bi-x"></i></button>
+          </div>
+          <div class="input-group input-group-sm">
+            <span class="input-group-text" style="font-size:11px">備註</span>
+            <input type="text" class="form-control" data-ef="${cid}-銀行備註" value="${(b.備註||"").replace(/"/g,'&quot;')}" placeholder="">
+          </div>
+        </div>`).join("")}
+      <button class="btn btn-sm btn-outline-secondary mt-1 dyn-add-btn" type="button" onclick="addBankRow('${cid}')">
+        <i class="bi bi-plus"></i> 新增銀行帳號
+      </button>
+    </div>`;
+  }
+
+  function singleField(label, field, placeholder="") {
+    const val = (c[field]||"").toString().replace(/"/g,'&quot;');
+    return `<div class="mb-2"><label class="form-label fw-semibold small mb-1">${label}</label>
+      <input type="text" class="form-control form-control-sm" data-ef="${cid}-${field}" value="${val}" placeholder="${placeholder}"></div>`;
+  }
+
+
+  const viewHtml = `<div id="view-${cid}">
+    <div class="d-flex justify-content-between align-items-start">
+      <div>${nicknameView}</div>
+      <div class="d-flex gap-1 align-items-center flex-shrink-0 ms-2">
+        ${isBlack?`<span class="badge bg-danger">🚫 黑名單</span>`:`<span class="badge bg-success">正常</span>`}
+        <button class="btn btn-sm btn-outline-secondary py-0" onclick="toggleEdit('${cid}')"><i class="bi bi-pencil"></i> 編輯</button>
+      </div>
+    </div>
+    ${isBlack?`<div class="text-danger small mt-1 fw-semibold"><i class="bi bi-exclamation-triangle-fill me-1"></i>${c.備註||""}</div>`:""}
+    <hr class="my-2">
+    <div class="small">
+      <div class="mb-1"><b>9188編號：</b>${c["9188編號"]||"—"}${copyBtn(c["9188編號"])}</div>
+      <div class="mb-1"><b>銀行帳號：</b>${bankView}</div>
+      <div class="mb-1"><b>戶名：</b>${c.戶名||"—"}</div>
+      <div class="mb-1"><b>電話：</b>${phoneView}</div>
+      <div class="mb-1"><b>身分證：</b>${c.身分證||"—"}</div>
+      ${(!isBlack && c.備註)?`<div class="mt-1 text-muted"><b>備註：</b>${c.備註}</div>`:""}
+      <div class="mt-1 text-muted" style="font-size:11px">建立日期：${c.新建日期||"—"}</div>
+    </div>
+  </div>`;
+
+  const editHtml = `<div id="edit-${cid}" class="d-none">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <span class="fw-semibold text-secondary"><i class="bi bi-pencil me-1"></i>編輯資料</span>
+      <button class="btn btn-sm btn-outline-secondary" onclick="toggleEdit('${cid}')">取消</button>
+    </div>
+    ${dynRows("暱稱","暱稱",c.暱稱,"輸入暱稱")}
+    ${singleField("9188 編號","9188編號")}
+    ${dynRows("電話","電話",c.電話,"0912345678")}
+    ${singleField("身分證","身分證")}
+    ${dynBankRows(c.銀行帳號)}
+    ${singleField("戶名","戶名")}
+    ${singleField("備註","備註")}
+    <div class="d-flex gap-2 mt-2 flex-wrap">
+      <button class="btn btn-pink flex-grow-1" onclick="saveEdit('${cid}',${isBlack})">
+        <i class="bi bi-check-circle me-1"></i>儲存
+      </button>
+      <button class="btn btn-outline-danger" onclick="deleteMember('${cid}',${isBlack})">
+        <i class="bi bi-person-x me-1"></i>刪除會員
+      </button>
+      ${!isBlack?`<button class="btn btn-outline-danger" id="bl-btn-${cid}" onclick="moveToBlacklist('${cid}')">🚫 轉入黑名單</button>`:""}
+    </div>
+  </div>`;
+
+  return `<div class="card mb-2 ${isBlack?"blacklist-card":"result-card"} p-3">${viewHtml}${editHtml}</div>`;
+}
+
+// ── 動態新增列 ────────────────────────────────────────
+function addDynRow(cid, field, placeholder) {
+  const group = document.getElementById(`dyngroup-${cid}-${field}`);
+  const addBtn = group.querySelector("button.dyn-add-btn");
+  const div = document.createElement("div");
+  div.className = "input-group input-group-sm mb-1";
+  div.innerHTML = `<input type="text" class="form-control" data-ef="${cid}-${field}" placeholder="${placeholder}">
+    <button class="btn btn-outline-danger" type="button" onclick="removeDynRow(this)"><i class="bi bi-x"></i></button>`;
+  group.insertBefore(div, addBtn);
+}
+
+function removeDynRow(btn) {
+  const group = btn.closest("[id^='dyngroup-']");
+  const rows = group.querySelectorAll(".input-group");
+  if(rows.length <= 1) { btn.closest(".input-group").querySelector("input").value=""; return; }
+  btn.closest(".input-group").remove();
+}
+
+function addBankRow(cid) {
+  const group = document.getElementById(`dyngroup-${cid}-銀行帳號`);
+  const addBtn = group.querySelector("button.dyn-add-btn");
+  const div = document.createElement("div");
+  div.className = "mb-1 ps-2 border-start border-2";
+  div.innerHTML = `
+    <div class="input-group input-group-sm mb-1">
+      <span class="input-group-text" style="font-size:11px">帳號</span>
+      <input type="text" class="form-control" data-ef="${cid}-帳號" placeholder="">
+      <button class="btn btn-outline-danger" type="button" onclick="removeBankRow(this)"><i class="bi bi-x"></i></button>
+    </div>
+    <div class="input-group input-group-sm">
+      <span class="input-group-text" style="font-size:11px">備註</span>
+      <input type="text" class="form-control" data-ef="${cid}-銀行備註" placeholder="">
+    </div>`;
+  group.insertBefore(div, addBtn);
+}
+
+function removeBankRow(btn) {
+  const group = btn.closest("[id^='dyngroup-']");
+  const rows = group.querySelectorAll(".border-start");
+  if(rows.length <= 1) {
+    btn.closest(".border-start").querySelectorAll("input").forEach(i=>i.value="");
+    return;
+  }
+  btn.closest(".border-start").remove();
+}
+
+// ── 快速開單：金額換算紅鑽 ───────────────────────────
+function calcQDiamonds() {
+  const v = parseInt(document.getElementById("q_amount").value);
+  const hint = document.getElementById("q_diamond_hint");
+  if(v > 0) {
+    const d = Math.round(v * 1.3);
+    document.getElementById("q_diamond_val").textContent = d;
+    hint.classList.remove("d-none");
+  } else {
+    hint.classList.add("d-none");
+  }
+}
+
+// ── 快速開單：付款方式切換 ────────────────────────────
+let selectedPay = "合庫";
+function selectPay(method) {
+  selectedPay = method;
+  ["合庫","玉山","超商"].forEach(m => {
+    const btn = document.getElementById("pay-"+m);
+    btn.classList.toggle("btn-pink", m===method);
+    btn.classList.toggle("active-pay", m===method);
+    btn.classList.toggle("btn-outline-secondary", m!==method);
+  });
+  document.getElementById("q_cvs_row").classList.toggle("d-none", method!=="超商");
+}
+
+// ── 快速開單送出 ──────────────────────────────────────
+function submitQuickOrder(withGift) {
+  const nickname = document.getElementById("q_nickname").value.trim();
+  const amount   = parseInt(document.getElementById("q_amount").value) || 0;
+  const cvsCode  = document.getElementById("q_cvs_code").value.trim();
+  const resultEl = document.getElementById("q_order_result");
+
+  if(!nickname) { showMsg(resultEl, false, "請填寫客人暱稱"); return; }
+  const isBlack = BLACKLIST.some(c => c.暱稱.some(n=>n.includes(nickname)));
+  if(isBlack) { showMsg(resultEl, false, `⚠️ 警告：「${nickname}」在黑名單中！`); return; }
+
+  const now = new Date();
+  const timeStr = String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0");
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+  const note = selectedPay==="超商" && cvsCode ? `超商 ${cvsCode}` : selectedPay+"匯款";
+  const diamonds = amount ? Math.round(amount * 1.3) : 0;
+
+  TODAY_LOGS.push({
+    type:"buy", label:"買方", nickname, diamonds, amount,
+    time: timeStr, note, giftTime: withGift ? timeStr : "", bank: selectedPay,
+    date: todayStr, cvsCode: selectedPay==="超商" ? cvsCode : "",
+    orderNo: genOrderNo("buy", todayStr, timeStr)
+  });
+
+  showMsg(resultEl, true, withGift
+    ? `✅ 開單成功！已贈出時間：${timeStr}`
+    : `✅ 開單成功！可至今日紀錄補記贈出時間`);
+
+  document.getElementById("q_nickname").value = "";
+  document.getElementById("q_amount").value   = "";
+  document.getElementById("q_cvs_code").value = "";
+}
+
+// ── 暱稱自動提示（通用）────────────────────────────────
+function lookupNicknameSuggest(q, suggestionsId, inputId) {
+  const sugEl = document.getElementById(suggestionsId);
+  if(!sugEl) return;
+  if(!q || q.length < 2) { sugEl.classList.add("d-none"); sugEl.innerHTML = ""; return; }
+  const seen = new Set();
+  const matches = [];
+  CUSTOMERS.forEach(c => {
+    c.暱稱.forEach(n => {
+      if(n.includes(q) && !seen.has(n)) { seen.add(n); matches.push(n); }
+    });
+  });
+  if(!matches.length) { sugEl.classList.add("d-none"); sugEl.innerHTML = ""; return; }
+  sugEl.innerHTML = matches.slice(0,6).map(n => {
+    const safe = n.replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+    return `<button type="button" class="btn btn-sm btn-outline-secondary me-1 mb-1"
+      onclick="document.getElementById('${inputId}').value='${safe}';document.getElementById('${suggestionsId}').classList.add('d-none');document.getElementById('${inputId}').dispatchEvent(new Event('input'))">${n}</button>`;
+  }).join("");
+  sugEl.classList.remove("d-none");
+}
+
+// ── 快速開單黑名單即時提示 ────────────────────────────
+document.getElementById("q_nickname").addEventListener("input", function(){
+  const q = this.value.trim();
+  const isBlack = BLACKLIST.some(c => c.暱稱.some(n=>n.includes(q)));
+  document.getElementById("q_blacklist_warning").classList.toggle("d-none", !q || !isBlack);
+  if(q.length >= 2) lookupNicknameSuggest(q, "q_nick_suggestions", "q_nickname");
+  else document.getElementById("q_nick_suggestions").classList.add("d-none");
+});
+
+// ── 寄放區 Modal 暱稱自動提示 ────────────────────────
+document.getElementById("storageModalBody").addEventListener("input", function(e) {
+  if(e.target.id === "sm_nickname") {
+    const q = e.target.value.trim();
+    const s = document.getElementById("sm_nick_suggestions");
+    if(q.length >= 2) lookupNicknameSuggest(q, "sm_nick_suggestions", "sm_nickname");
+    else if(s) s.classList.add("d-none");
+  }
+});
+
+// ── 買賣開單：原 submitOrder 改為接受 withGift 參數 ───
+// (已在 submitOrder 函式中處理，見下方)
+
+// ── 今日紀錄：標記贈出時間 ───────────────────────────
+function markGift(idx) {
+  const now = new Date();
+  TODAY_LOGS[idx].giftTime = String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0");
+  updateTransactionDB(TODAY_LOGS[idx]);
+  renderLog();
+}
+
+// ── 回分計算 ──────────────────────────────────────────
+function calcRebate(changedField) {
+  const dEl = document.getElementById("rebate_diamonds");
+  const aEl = document.getElementById("rebate_amount");
+  if(changedField === "diamonds") {
+    const v = parseInt(dEl.value);
+    if(v > 0) aEl.value = calcAmount(v, "sell");
+  } else {
+    const v = parseInt(aEl.value);
+    if(v > 0) dEl.value = calcDiamonds(v, "sell");
+  }
+}
+
+// ── 無編號 ID 產生器（X + 5位數，不重複） ────────────
+function genNoId() {
+  // 收集所有已使用的編號
+  const used = new Set();
+  (CUSTOMERS || []).forEach(c => { if(c['9188編號']) used.add(c['9188編號']); });
+  (BLACKLIST  || []).forEach(c => { if(c['9188編號']) used.add(c['9188編號']); });
+
+  let id, tries = 0;
+  do {
+    const num = String(Math.floor(Math.random() * 100000)).padStart(5, '0');
+    id = 'X' + num;
+    tries++;
+    if(tries > 10000) { alert('無法產生不重複 ID，請手動填寫'); return; }
+  } while(used.has(id));
+
+  document.getElementById('nm_9188').value = id;
+}
+
+// ── 新建會員：黑名單即時檢查 ──────────────────────────
+function checkNmBlacklist() {
+  const nickname = (document.getElementById("nm_nickname").value||"").trim();
+  const phone    = (document.getElementById("nm_phone").value||"").trim();
+  const idNum    = (document.getElementById("nm_id").value||"").trim();
+  const warnEl   = document.getElementById("nm_blacklist_warning");
+  const detailEl = document.getElementById("nm_blacklist_detail");
+
+  const hits = BLACKLIST.filter(c =>
+    (nickname && c.暱稱.some(n=>n.includes(nickname))) ||
+    (phone && phone.length>=8 && c.電話.some(p=>p.includes(phone))) ||
+    (idNum && idNum.length>=4 && (c.身分證||"").toUpperCase().includes(idNum.toUpperCase()))
+  );
+
+  if(hits.length > 0) {
+    const names = hits.map(c=>`「${c.暱稱[0]}」(${c.備註||"黑名單"})`).join("、");
+    detailEl.textContent = `符合黑名單：${names}`;
+    warnEl.classList.remove("d-none");
+  } else {
+    warnEl.classList.add("d-none");
+  }
+}
+
+// ── 新建會員送出 ──────────────────────────────────────
+async function submitNewMember(addToBlacklist = false) {
+  const nickname = document.getElementById("nm_nickname").value.trim();
+  const resultEl = document.getElementById("nm_result");
+  if(!nickname) { showMsg(resultEl, false, "請填寫暱稱"); return; }
+
+  // 加入黑名單時不做黑名單重複檢查，一般會員才擋
+  if(!addToBlacklist) {
+    const inBlack = BLACKLIST.some(c => c.暱稱.some(n=>n.includes(nickname)));
+    if(inBlack) { showMsg(resultEl, false, `⚠️ 警告：「${nickname}」在黑名單中，無法建立！`); return; }
+  }
+
+  const newMember = {
+    '9188編號': document.getElementById("nm_9188").value.trim() || '無',
+    暱稱: [nickname],
+    電話: [document.getElementById("nm_phone").value.trim()].filter(Boolean),
+    身分證: document.getElementById("nm_id").value.trim(),
+    銀行帳號: (() => {
+      const a = document.getElementById("nm_bank")?.value.trim();
+      const n = document.getElementById("nm_bank_note")?.value.trim();
+      return a ? [{帳號:a, 備註:n||''}] : [];
+    })(),
+    戶名: document.getElementById("nm_name")?.value.trim()||'',
+    備註: document.getElementById("nm_note").value.trim(),
+    備註2:'', 新建日期: document.getElementById("nm_date").value
+  };
+
+  if(addToBlacklist) {
+    BLACKLIST.push(newMember);
+    await moveToBlacklistDB(newMember);
+    showMsg(resultEl, true, `🚫 「${nickname}」已加入黑名單！`);
+  } else {
+    CUSTOMERS.push(newMember);
+    try {
+      await appendMemberToDB(newMember);
+      showMsg(resultEl, true, `✅ 會員「${nickname}」建立成功！`);
+    } catch(e) {
+      showMsg(resultEl, false, `⚠️ 會員資料儲存失敗：${e.message}`);
+      CUSTOMERS.pop();
+      return;
+    }
+  }
+
+  // 建立成功後收起面板
+  setTimeout(() => {
+    document.getElementById('add-member-form').classList.add('d-none');
+    document.getElementById('add-member-chevron').className = 'bi bi-chevron-down text-muted';
+    resultEl.classList.add('d-none');
+  }, 1800);
+  ["nm_nickname","nm_9188","nm_phone","nm_id","nm_bank","nm_bank_note","nm_name","nm_note"].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.value = "";
+  });
+  document.getElementById("nm_blacklist_warning").classList.add("d-none");
+}
+
+// ── 快速建立會員（貼上 Tab 分隔文字）────────────────────
+function quickFillMember() {
+  const raw = document.getElementById('nm_quick_input').value.trim();
+  if(!raw) return;
+  // Tab 分隔切割
+  const parts = raw.split('\t').map(s => s.trim());
+  // 格式：[9188編號, 姓名, 暱稱, 遊戲名(略過), 手機, 銀行帳號]
+  const id9188   = parts[0] || '';
+  const name     = parts[1] || '';
+  const nickname = parts[2] || '';
+  // parts[3] = 遊戲名，略過
+  const phone    = parts[4] || '';
+  const bank     = parts[5] || '';
+
+  document.getElementById('nm_9188').value     = id9188;
+  document.getElementById('nm_name').value     = name;
+  document.getElementById('nm_nickname').value = nickname;
+  document.getElementById('nm_phone').value    = phone;
+  document.getElementById('nm_bank').value     = bank;
+  document.getElementById('nm_quick_input').value = '';
+
+  // 觸發黑名單即時比對
+  checkNmBlacklist();
+}
+
+// ── 新建會員日期自動帶今天 ────────────────────────────
+(function(){
+  const today = new Date();
+  const y = today.getFullYear();
+  const m = String(today.getMonth()+1).padStart(2,"0");
+  const d = String(today.getDate()).padStart(2,"0");
+  const dateEl = document.getElementById("nm_date");
+  if(dateEl) dateEl.value = `${y}-${m}-${d}`;
+})();
+
+let TODAY_LOGS = [];
+// 自動寫入 Sheet
+const _origPush = Array.prototype.push;
+TODAY_LOGS.push = function(...args) {
+  _origPush.apply(this, args);
+  args.forEach(log => { if(log.label && log.label !== '寄放') appendTransaction(log); });
+  return this.length;
+};
+
+
+let currentLogFilter = "all";
+// 銀行起始餘額（使用者手動輸入）
+const BANK_INIT = { 合庫:0, 玉山:0, 超商:0, 國泰:0, 中信:0, 其他:0, 寄放:0 };
+
+function filterLog(type) {
+  currentLogFilter = type;
+  ["all","buy","sell","storage","合庫","玉山","超商"].forEach(t => {
+    const btn = document.getElementById("filter-"+t);
+    if(!btn) return;
+    btn.classList.toggle("btn-pink", t===type);
+    btn.classList.toggle("btn-outline-secondary", t!==type);
+  });
+  renderLog();
+}
+
+function isStorageEntry(r) {
+  return r.type==="storage" || r.bank==="寄放" || r.label==="記帳" || r.label==="還鑽";
+}
+
+function renderLog() {
+  const tbody = document.getElementById("log_list");
+  const empty = document.getElementById("log_empty");
+
+  let data;
+  const bankFilters = ["合庫","玉山","超商","國泰","中信"];
+  if(currentLogFilter==="all")                          data = TODAY_LOGS;
+  else if(currentLogFilter==="storage")                 data = TODAY_LOGS.filter(isStorageEntry);
+  else if(bankFilters.includes(currentLogFilter))       data = TODAY_LOGS.filter(r=>r.bank===currentLogFilter);
+  else data = TODAY_LOGS.filter(r=>r.type===currentLogFilter);
+
+  const buyAmt  = TODAY_LOGS.filter(r=>r.type==="buy").reduce((s,r)=>s+r.amount,0);
+  const sellAmt = TODAY_LOGS.filter(r=>r.type==="sell").reduce((s,r)=>s+r.amount,0);
+  document.getElementById("stat-buy-amount").textContent = buyAmt;
+  document.getElementById("stat-sell-amount").textContent = sellAmt;
+  document.getElementById("stat-buy-count").textContent  = TODAY_LOGS.filter(r=>r.type==="buy").length;
+  document.getElementById("stat-sell-count").textContent = TODAY_LOGS.filter(r=>r.type==="sell").length;
+
+  if(!data.length) {
+    tbody.innerHTML = "";
+    empty && empty.classList.remove("d-none");
+    return;
+  }
+  empty && empty.classList.add("d-none");
+
+  tbody.innerHTML = data.map(r => {
+    const logIdx = TODAY_LOGS.indexOf(r);
+    const typeCls = r.type==="buy" ? "bg-success" : r.type==="sell" ? "bg-danger" : "bg-primary";
+    const amtCls  = r.type==="buy" ? "text-success" : r.type==="sell" ? "text-danger" : "text-primary";
+    // 贈出時間欄：已贈出→黃底黑字，未贈出且買方→贈出按鈕，其他→空
+    let giftCell = "";
+    if(r.type==="buy") {
+      giftCell = r.giftTime
+        ? `<span style="background:#ffc107;color:#000;font-size:10px;padding:2px 5px;border-radius:4px;white-space:nowrap;font-weight:600">${r.giftTime}</span>`
+        : `<button class="btn btn-outline-success py-0 px-1" style="font-size:10px;line-height:1.4" onclick="markGift(${logIdx})">贈出</button>`;
+    }
+    return `<tr>
+      <td style="white-space:nowrap">${r.date||""}</td>
+      <td style="white-space:nowrap">
+        <span class="badge ${typeCls} me-1" style="font-size:10px">${r.label}</span>${r.nickname}
+      </td>
+      <td class="${amtCls} text-end fw-bold">${r.amount||""}</td>
+      <td class="${amtCls} text-end fw-bold">${r.diamonds}顆</td>
+      <td>${r.bank||""}</td>
+      <td>${r.cvsCode||""}</td>
+      <td class="text-muted" style="font-size:11px">${r.orderNo||""}</td>
+      <td style="white-space:nowrap">${r.time||""}</td>
+      <td class="text-muted">${r.note||""}</td>
+      <td style="white-space:nowrap">${giftCell}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-outline-secondary py-0 px-1" style="font-size:10px;line-height:1.4" onclick="editLog(${logIdx})" title="編輯"><i class="bi bi-pencil"></i></button>
+        <button class="btn btn-outline-danger py-0 px-1 ms-1" style="font-size:10px;line-height:1.4" onclick="deleteLog(${logIdx})" title="刪除"><i class="bi bi-trash"></i></button>
+      </td>
+    </tr>`;
+  }).join("");
+}
+
+// ── 銀行餘額試算 ────────────────────────────────────────
+function renderBankBalance() {
+  const container = document.getElementById("bank_balance_rows");
+  if(!container) return;
+  // 計算各銀行當日增減
+  const bankFlow = {};
+  TODAY_LOGS.forEach(r => {
+    const b = r.bank || "其他";
+    if(!bankFlow[b]) bankFlow[b] = {in:0, out:0};
+    if(r.type==="buy")  bankFlow[b].in  += r.amount;
+    if(r.type==="sell") bankFlow[b].out += r.amount;
+  });
+  const banks = ["合庫","玉山","超商","國泰","中信","其他"];
+  container.innerHTML = banks.map(b => {
+    const flow = bankFlow[b] || {in:0, out:0};
+    const init = BANK_INIT[b] || 0;
+    const balance = init + flow.in - flow.out;
+    const balColor = balance >= 0 ? "text-success" : "text-danger";
+    return `
+    <div class="d-flex align-items-center gap-2 mb-2 py-1 border-bottom">
+      <span class="fw-bold" style="min-width:32px">${b}</span>
+      <div class="input-group input-group-sm" style="max-width:120px">
+        <span class="input-group-text" style="font-size:11px">起</span>
+        <input type="number" class="form-control" style="font-size:12px" value="${init}"
+          onchange="updateBankInit('${b}', this.value);" min="0">
+      </div>
+      <span class="text-muted small">收+${flow.in} 出-${flow.out}</span>
+      <span class="fw-bold ${balColor} ms-auto">${balance >= 0 ? "" : ""}${balance}</span>
+    </div>`;
+  }).join("");
+}
+
+// ── 刪除單筆紀錄 ─────────────────────────────────────────
+function deleteLog(idx) {
+  const r = TODAY_LOGS[idx];
+  if(!r) return;
+  if(!confirm(`確定刪除這筆紀錄？\n【${r.label}】${r.nickname}　${r.diamonds}顆　${r.amount||""}　${r.time}`)) return;
+  if(!confirm("再次確認：刪除後無法復原，繼續嗎？")) return;
+  deleteTransactionDB(r);
+  TODAY_LOGS.splice(idx, 1);
+  renderLog();
+}
+
+// ── 編輯單筆紀錄 ─────────────────────────────────────────
+let _logEditIdx = -1;
+let _logEditModal = null;
+
+function editLog(idx) {
+  const r = TODAY_LOGS[idx];
+  if(!r) return;
+  _logEditIdx = idx;
+  document.getElementById("ledit_nickname").value  = r.nickname || "";
+  document.getElementById("ledit_amount").value    = r.amount   || "";
+  document.getElementById("ledit_bank").value      = r.bank     || "其他";
+  document.getElementById("ledit_note").value      = r.note     || "";
+  document.getElementById("ledit_giftTime").value  = r.giftTime || "";
+  leditCalcDiamonds();
+  if(!_logEditModal) _logEditModal = new bootstrap.Modal(document.getElementById("logEditModal"));
+  _logEditModal.show();
+}
+
+function leditCalcDiamonds() {
+  const r   = TODAY_LOGS[_logEditIdx];
+  const amt = parseInt(document.getElementById("ledit_amount").value) || 0;
+  const hint = document.getElementById("ledit_diamond_hint");
+  if(!r || !amt) { hint.textContent = ""; return; }
+  const ratio = r.type==="sell" ? 1.44 : 1.3;
+  const label = r.type==="sell" ? "×1.44（賣方）" : "×1.3（買方）";
+  hint.textContent = `= ${Math.round(amt * ratio)} 顆　${label}`;
+}
+
+function leditSetGiftNow() {
+  const now = new Date();
+  document.getElementById("ledit_giftTime").value =
+    String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0");
+}
+
+function confirmEditLog() {
+  if(_logEditIdx < 0) return;
+  const r = TODAY_LOGS[_logEditIdx];
+  if(!r) return;
+  const nickname = document.getElementById("ledit_nickname").value.trim();
+  const amount   = parseInt(document.getElementById("ledit_amount").value) || 0;
+  const bank     = document.getElementById("ledit_bank").value;
+  const note     = document.getElementById("ledit_note").value.trim();
+  const giftTime = document.getElementById("ledit_giftTime").value.trim();
+  if(!nickname) { alert("暱稱不能空白"); return; }
+  const ratio    = r.type==="sell" ? 1.44 : 1.3;
+  r.nickname = nickname;
+  r.amount   = amount;
+  r.diamonds = amount ? Math.round(amount * ratio) : r.diamonds;
+  r.bank     = bank;
+  r.note     = note;
+  r.giftTime = giftTime;
+  updateTransactionDB(r);
+  if(_logEditModal) _logEditModal.hide();
+  renderLog();
+}
+
+// 今日日期標籤
+(function(){
+  const d = new Date();
+  const label = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")}`;
+  const el = document.getElementById("today_date_label");
+  if(el) el.textContent = label;
+})();
+
+// ── 紅鑽暫存區 ────────────────────────────────────────
+let STORAGE_DATA = [];
+let storageNextId = 1;
+let currentStorageAction = null;
+let _storageModal = null;
+
+function getStorageModal() {
+  if(!_storageModal) _storageModal = new bootstrap.Modal(document.getElementById("storageModal"));
+  return _storageModal;
+}
+
+function getSelectedIds() {
+  return Array.from(document.querySelectorAll(".storage-row-check:checked")).map(cb => parseInt(cb.dataset.id));
+}
+
+function toggleSelectAll(checked) {
+  document.querySelectorAll(".storage-row-check").forEach(cb => cb.checked = checked);
+}
+
+function renderStorageTable() {
+  const tbody = document.getElementById("storage_tbody");
+  const empty = document.getElementById("storage_empty");
+  const total = document.getElementById("storage_total");
+  if(!STORAGE_DATA.length) {
+    tbody.innerHTML = "";
+    empty.classList.remove("d-none");
+    total.textContent = "";
+    return;
+  }
+  empty.classList.add("d-none");
+  tbody.innerHTML = STORAGE_DATA.map(r => `
+    <tr>
+      <td class="ps-3">
+        <input type="checkbox" class="form-check-input storage-row-check" data-id="${r.id}">
+      </td>
+      <td class="fw-semibold">${r.nickname}</td>
+      <td class="text-end">${r.amount}</td>
+      <td class="text-end text-success fw-bold">${r.diamonds}</td>
+      <td class="text-muted small">${r.note||"—"}</td>
+      <td class="text-muted" style="font-size:11px">${r.date}</td>
+    </tr>`).join("");
+  const totalAmt = STORAGE_DATA.reduce((s,r)=>s+r.amount,0);
+  const totalDia = STORAGE_DATA.reduce((s,r)=>s+r.diamonds,0);
+  total.textContent = `共 ${STORAGE_DATA.length} 筆 ｜ 合計 ${totalAmt} ／ ${totalDia} 顆`;
+}
+
+function showStorageAlert(ok, msg) {
+  const el = document.getElementById("storage_alert");
+  el.className = `alert ${ok?"alert-success":"alert-warning"} mb-3`;
+  el.innerHTML = `${ok?"✅":"⚠️"} ${msg}`;
+  el.classList.remove("d-none");
+  setTimeout(() => el.classList.add("d-none"), 4000);
+}
+
+function storageAction(action) {
+  currentStorageAction = action;
+  const selectedIds = getSelectedIds();
+  const modal = getStorageModal();
+  const title = document.getElementById("storageModalTitle");
+  const body  = document.getElementById("storageModalBody");
+  const okBtn = document.getElementById("storageModalOK");
+
+  if(action === "deposit") {
+    title.textContent = "寄放";
+    okBtn.textContent = "確認寄放"; okBtn.className = "btn btn-success fw-bold";
+    const accRow = selectedIds.length === 1
+      ? STORAGE_DATA.find(r=>r.id===selectedIds[0]) : null;
+    // 有勾選單筆 → 累積模式
+    if(accRow) {
+      body.innerHTML = `
+        <div class="mb-3 p-3 rounded" style="background:#f8f9fa">
+          <div class="fw-semibold">${accRow.nickname}
+            <span class="badge bg-success ms-1">累積寄放</span>
+          </div>
+          <div class="small text-muted">目前：${accRow.amount} ／ ${accRow.diamonds} 顆</div>
+        </div>
+        <input type="hidden" id="sm_acc_id" value="${accRow.id}">
+        <div class="mb-3">
+          <label class="form-label fw-semibold">新增金額（元）</label>
+          <div class="input-group">
+            <input type="number" class="form-control" id="sm_amount" placeholder="輸入金額" min="0"
+              oninput="
+                const add=parseInt(this.value)||0;
+                const newAmt=${accRow.amount}+add;
+                const newDia=Math.round(newAmt*1.44);
+                document.getElementById('sm_diamonds').textContent=newDia;
+                document.getElementById('sm_new_total').textContent=''+newAmt+' ／ '+newDia+' 顆';">
+            <span class="input-group-text">元</span>
+          </div>
+          <div class="mt-2 p-2 rounded" style="background:#f0fff4;border:1px solid #b7ebc8">
+            <span class="text-success fw-bold">累積後紅鑽：</span>
+            <span class="fw-bold text-success" id="sm_diamonds">${accRow.diamonds}</span>顆
+            <span class="text-muted small ms-1">（× 1.44）</span>
+          </div>
+          <div class="mt-1 small text-primary" id="sm_new_total"></div>
+        </div>
+        <div class="mb-1">
+          <label class="form-label fw-semibold">備註 <span class="text-muted small">（選填）</span></label>
+          <input type="text" class="form-control" id="sm_note" placeholder="" value="${accRow.note}">
+        </div>`;
+    } else {
+      body.innerHTML = `
+        <div class="mb-3">
+          <label class="form-label fw-semibold">暱稱 <span class="text-danger">*</span></label>
+          <input type="text" class="form-control" id="sm_nickname" placeholder="輸入暱稱">
+          <div id="sm_nick_suggestions" class="d-none mt-2"></div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">金額（元）</label>
+          <div class="input-group">
+            <input type="number" class="form-control" id="sm_amount" placeholder="輸入金額" min="0"
+              oninput="document.getElementById('sm_diamonds').textContent=Math.round((parseInt(this.value)||0)*1.44)">
+            <span class="input-group-text">元</span>
+          </div>
+          <div class="mt-2 p-2 rounded" style="background:#f0fff4;border:1px solid #b7ebc8">
+            <span class="text-success fw-bold">紅鑽：</span>
+            <span class="fw-bold text-success" id="sm_diamonds">0</span>顆
+            <span class="text-muted small ms-1">（× 1.44）</span>
+          </div>
+        </div>
+        <div class="mb-1">
+          <label class="form-label fw-semibold">備註 <span class="text-muted small">（選填）</span></label>
+          <input type="text" class="form-control" id="sm_note" placeholder="">
+        </div>`;
+    }
+    modal.show();
+
+  } else if(action === "withdraw") {
+    if(!selectedIds.length)    { showStorageAlert(false, "請先勾選要領回的資料"); return; }
+    if(selectedIds.length > 1) { showStorageAlert(false, "領回每次只能選取一筆"); return; }
+    const row = STORAGE_DATA.find(r=>r.id===selectedIds[0]);
+    title.textContent = "領回";
+    okBtn.textContent = "確認領回"; okBtn.className = "btn btn-warning fw-bold text-dark";
+    body.innerHTML = `
+      <div class="mb-3 p-3 rounded" style="background:#f8f9fa">
+        <div class="fw-semibold">${row.nickname}</div>
+        <div class="small text-muted">寄放金額：${row.amount} ／ ${row.diamonds} 顆</div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-semibold">領回金額（元）
+          <span class="text-muted small">最多 ${row.amount}</span>
+        </label>
+        <div class="input-group">
+          <input type="number" class="form-control" id="sm_withdraw_amount"
+            placeholder="輸入金額" min="1" max="${row.amount}"
+            oninput="document.getElementById('sm_withdraw_diamonds').textContent=Math.round((parseInt(this.value)||0)*1.3)">
+          <span class="input-group-text">元</span>
+        </div>
+        <div class="mt-2 p-2 rounded" style="background:#fff3cd;border:1px solid #ffc107">
+          <span class="fw-bold text-warning">買回紅鑽（×1.3）：</span>
+          <span class="fw-bold" id="sm_withdraw_diamonds">0</span>顆
+        </div>
+      </div>
+      <div class="small text-muted"><i class="bi bi-info-circle me-1"></i>領回後將產生：賣方（×1.44）＋ 買方（×1.3）各一筆交易紀錄</div>`;
+    modal.show();
+
+  } else if(action === "debit") {
+    title.textContent = "記帳";
+    okBtn.textContent = "確認記帳"; okBtn.className = "btn btn-secondary fw-bold";
+    body.innerHTML = `
+      <div class="mb-3">
+        <label class="form-label fw-semibold">暱稱 <span class="text-danger">*</span></label>
+        <input type="text" class="form-control" id="sm_nickname" placeholder="輸入暱稱">
+        <div id="sm_nick_suggestions" class="d-none mt-2"></div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-semibold">金額（元）</label>
+        <div class="input-group">
+          <input type="number" class="form-control" id="sm_amount" placeholder="輸入金額" min="0"
+            oninput="document.getElementById('sm_diamonds').textContent=Math.round((parseInt(this.value)||0)*1.3)">
+          <span class="input-group-text">元</span>
+        </div>
+        <div class="mt-2 p-2 rounded" style="background:#f0fff4;border:1px solid #b7ebc8">
+          <span class="text-success fw-bold">紅鑽：</span>
+          <span class="fw-bold text-success" id="sm_diamonds">0</span>顆
+          <span class="text-muted small ms-1">（× 1.3）</span>
+        </div>
+      </div>
+      <div class="mb-1">
+        <label class="form-label fw-semibold">備註 <span class="text-muted small">（選填）</span></label>
+        <input type="text" class="form-control" id="sm_note" placeholder="">
+      </div>`;
+    modal.show();
+
+  } else if(action === "repay") {
+    title.textContent = "還鑽";
+    okBtn.textContent = "確認還鑽"; okBtn.className = "btn btn-primary fw-bold";
+    body.innerHTML = `
+      <div class="mb-3">
+        <label class="form-label fw-semibold">暱稱 <span class="text-danger">*</span></label>
+        <input type="text" class="form-control" id="sm_nickname" placeholder="輸入暱稱">
+        <div id="sm_nick_suggestions" class="d-none mt-2"></div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label fw-semibold">還鑽數量（顆）</label>
+        <div class="input-group">
+          <input type="number" class="form-control" id="sm_diamonds_input" placeholder="輸入顆數" min="0">
+          <span class="input-group-text">顆</span>
+        </div>
+      </div>
+      <div class="mb-1">
+        <label class="form-label fw-semibold">備註 <span class="text-muted small">（選填）</span></label>
+        <input type="text" class="form-control" id="sm_note" placeholder="">
+      </div>`;
+    modal.show();
+
+  } else if(action === "delete") {
+    if(!selectedIds.length) { showStorageAlert(false, "請先勾選要刪除的資料"); return; }
+    const names = selectedIds.map(id => STORAGE_DATA.find(r=>r.id===id)?.nickname||"").join("、");
+    title.textContent = "刪除確認";
+    okBtn.textContent = "確認刪除"; okBtn.className = "btn btn-danger fw-bold";
+    body.innerHTML = `
+      <div class="alert alert-danger mb-2">
+        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+        確定要刪除 <strong>${names}</strong> 的寄放記錄嗎？
+      </div>
+      <p class="text-muted small mb-0">此操作無法復原，請確認後再按下確認。</p>`;
+    modal.show();
+  }
+}
+
+function confirmStorageAction() {
+  const modal = getStorageModal();
+  const now = new Date();
+  const timeStr = String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0");
+  const today   = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+
+  if(currentStorageAction === "deposit") {
+    const addAmt = parseInt(document.getElementById("sm_amount")?.value)||0;
+    const note   = (document.getElementById("sm_note")?.value||"").trim();
+    const accId  = parseInt(document.getElementById("sm_acc_id")?.value||"0");
+    if(!addAmt) { alert("請填寫金額"); return; }
+
+    if(accId) {
+      // 累積模式：更新現有列
+      const row = STORAGE_DATA.find(r=>r.id===accId);
+      row.amount   += addAmt;
+      row.diamonds  = Math.round(row.amount * 1.44);
+      if(note) row.note = note;
+      modal.hide(); renderStorageTable(); storageUpdateDB(row);
+      showStorageAlert(true, `${row.nickname} 累積寄放 +${addAmt}，合計 ${row.amount} ／ ${row.diamonds} 顆`);
+    } else {
+      // 新增模式
+      const nickname = (document.getElementById("sm_nickname")?.value||"").trim();
+      if(!nickname) { alert("請填寫暱稱"); return; }
+      const diamonds = Math.round(addAmt * 1.44);
+      const newRow = { id:storageNextId++, nickname, amount:addAmt, diamonds, note, date:today };
+      STORAGE_DATA.push(newRow);
+      modal.hide(); renderStorageTable(); storageInsertDB(newRow);
+      showStorageAlert(true, `已新增 ${nickname} 寄放 ${addAmt} ／ ${diamonds} 顆`);
+    }
+
+  } else if(currentStorageAction === "withdraw") {
+    const selectedIds = getSelectedIds();
+    const row = STORAGE_DATA.find(r=>r.id===selectedIds[0]);
+    const wdAmt = parseInt(document.getElementById("sm_withdraw_amount")?.value)||0;
+    if(!wdAmt)            { alert("請填寫領回金額"); return; }
+    if(wdAmt > row.amount){ alert(`領回金額不能超過 ${row.amount}`); return; }
+    const wdDiaSell = Math.round(wdAmt * 1.44);   // 賣方：×1.44
+    const wdDiaBuy  = Math.round(wdAmt * 1.3);  // 買方（買回）：×1.3
+    if(wdAmt >= row.amount) {
+      STORAGE_DATA = STORAGE_DATA.filter(r=>r.id!==row.id);
+    } else {
+      row.amount   -= wdAmt;
+      row.diamonds  = Math.round(row.amount * 1.44);
+    }
+    // 備註1：賣方（×1.44）＋ 買方（×1.3）各一筆
+    const wdDate = today;
+    TODAY_LOGS.push({ type:"sell", label:"賣方", nickname:row.nickname,
+      diamonds:wdDiaSell, amount:wdAmt, time:timeStr, note:"寄放領回", giftTime:"", bank:"寄放",
+      date:wdDate, cvsCode:"", orderNo:genOrderNo("sell", wdDate, timeStr) });
+    TODAY_LOGS.push({ type:"buy",  label:"買方", nickname:row.nickname,
+      diamonds:wdDiaBuy,  amount:wdAmt, time:timeStr, note:"寄放領回", giftTime:timeStr, bank:"寄放",
+      date:wdDate, cvsCode:"", orderNo:genOrderNo("buy", wdDate, timeStr) });
+    modal.hide(); renderStorageTable();
+    showStorageAlert(true, `${row.nickname} 領回 ${wdAmt} 已記入今日交易（賣方 ${wdDiaSell} 顆 ／ 買方 ${wdDiaBuy} 顆）`);
+
+  } else if(currentStorageAction === "debit") {
+    const nickname = (document.getElementById("sm_nickname")?.value||"").trim();
+    const amount   = parseInt(document.getElementById("sm_amount")?.value)||0;
+    const note     = (document.getElementById("sm_note")?.value||"").trim();
+    if(!nickname) { alert("請填寫暱稱"); return; }
+    if(!amount)   { alert("請填寫金額"); return; }
+    const diamonds = Math.round(amount * 1.3);
+    TODAY_LOGS.push({ type:"buy", label:"記帳", nickname, diamonds, amount,
+      time:timeStr, note:"記帳"+(note?" "+note:""), giftTime:"", bank:"其他",
+      date:today, cvsCode:"", orderNo:genOrderNo("buy", today, timeStr) });
+    modal.hide();
+    showStorageAlert(true, `${nickname} 記帳 ${amount} 已加入今日交易紀錄`);
+
+  } else if(currentStorageAction === "repay") {
+    const nickname = (document.getElementById("sm_nickname")?.value||"").trim();
+    const diamonds = parseInt(document.getElementById("sm_diamonds_input")?.value)||0;
+    const note     = (document.getElementById("sm_note")?.value||"").trim();
+    if(!nickname) { alert("請填寫暱稱"); return; }
+    if(!diamonds) { alert("請填寫還鑽數量"); return; }
+    TODAY_LOGS.push({ type:"sell", label:"還鑽", nickname, diamonds, amount:0,
+      time:timeStr, note:"還鑽"+(note?" "+note:""), giftTime:"", bank:"其他",
+      date:today, cvsCode:"", orderNo:genOrderNo("sell", today, timeStr) });
+    modal.hide();
+    showStorageAlert(true, `${nickname} 還鑽 ${diamonds} 顆已加入今日交易紀錄`);
+
+  } else if(currentStorageAction === "delete") {
+    const selectedIds = getSelectedIds();
+    storageDeleteDB(selectedIds);
+    STORAGE_DATA = STORAGE_DATA.filter(r => !selectedIds.includes(r.id));
+    modal.hide(); renderStorageTable();
+    showStorageAlert(true, `已刪除 ${selectedIds.length} 筆寄放記錄`);
+  }
+}
+
+// ── 訂單編號產生 ──────────────────────────────────────────
+// 買方：B + YY + MMDD + HHMM + NNN(001起)，例：B2605111103001
+// 賣方：S + YY + MMDD + HHMM + NNN(001起)，例：S2605111103001
+// 買賣序號各自獨立計算，從 TODAY_LOGS 現有筆數接續
+let buyOrderSeq  = TODAY_LOGS.filter(r => r.orderNo && r.orderNo.startsWith("B")).length + 1;
+let sellOrderSeq = TODAY_LOGS.filter(r => r.orderNo && r.orderNo.startsWith("S")).length + 1;
+
+function genOrderNo(type, dateStr, timeStr) {
+  const d8   = (dateStr || "").replace(/-/g, "");       // "20260511"
+  const yy   = d8.substring(2, 4);                      // "26"
+  const mmdd = d8.substring(4, 8);                      // "0511"
+  const hhmm = (timeStr || "").replace(":", "");         // "1103"
+  if(type === "sell") {
+    return "S" + yy + mmdd + hhmm + String(sellOrderSeq++).padStart(3, "0");
+  } else {
+    return "B" + yy + mmdd + hhmm + String(buyOrderSeq++).padStart(3, "0");
+  }
+}
+
+// ── 回分計算 ──────────────────────────────────────────────
+let rebateCardFee = 0.03; // 預設 V1 3%
+
+function toggleRebate(section) {
+  const body  = document.getElementById('rebate_' + section + '_body');
+  const arrow = document.getElementById('rebate_' + section + '_arrow');
+  const open  = body.style.display !== 'none';
+  body.style.display  = open ? 'none' : '';
+  arrow.textContent   = open ? '▶' : '▼';
+}
+
+function selectRebateCard(btn) {
+  document.querySelectorAll('.rebate-card-btn').forEach(b => {
+    b.classList.remove('btn-pink','btn-danger','btn-warning','btn-success','btn-primary');
+    b.classList.add('btn-outline-secondary');
+  });
+  const fee = parseFloat(btn.dataset.fee);
+  btn.classList.remove('btn-outline-secondary');
+  btn.classList.add('btn-danger');
+  rebateCardFee = fee;
+  if(document.getElementById('rebate_a_input').value) calcRebateA();
+}
+
+function calcRebateA() {
+  const raw = parseInt(document.getElementById('rebate_a_input').value) || 0;
+  const res = document.getElementById('rebate_a_result');
+  if(raw <= 300) { res.classList.add('d-none'); return; }
+  const diamonds = Math.floor((raw - 300) / 1350) * 1350;
+  if(diamonds <= 0) { res.classList.add('d-none'); return; }
+  const fee  = Math.round(diamonds * rebateCardFee);
+  const need = Math.round(diamonds + fee + 300);
+  const twd  = Math.round(diamonds / 1.44);
+  document.getElementById('rebate_a_diamonds').textContent = diamonds;
+  document.getElementById('rebate_a_twd').textContent      = twd;
+  document.getElementById('rebate_a_fee').textContent      = fee;
+  document.getElementById('rebate_a_need').textContent     = need;
+  document.getElementById('rebate_a_copy_text').textContent = `${diamonds}顆=${twd}台`;
+  document.getElementById('rebate_a_copied').classList.add('d-none');
+  // SV（fee=0）時隱藏服務金與身上要有欄
+  const noFee = (rebateCardFee === 0);
+  document.getElementById('rebate_a_fee').closest('.col-6').style.display  = noFee ? 'none' : '';
+  document.getElementById('rebate_a_need').closest('.col-6').style.display = noFee ? 'none' : '';
+  res.classList.remove('d-none');
+}
+
+function copyRebateA() {
+  const text = document.getElementById('rebate_a_copy_text').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const el = document.getElementById('rebate_a_copied');
+    el.classList.remove('d-none');
+    setTimeout(() => el.classList.add('d-none'), 2000);
+  });
+}
+
+// ── B 區塊（非友團）────────────────────────────────────
+let rebateCardFeeB = 0;
+
+function selectRebateCardB(btn) {
+  document.querySelectorAll('.rebate-card-btn-b').forEach(b => {
+    b.classList.remove('btn-danger');
+    b.classList.add('btn-outline-secondary');
+  });
+  rebateCardFeeB = parseFloat(btn.dataset.fee);
+  btn.classList.remove('btn-outline-secondary');
+  btn.classList.add('btn-danger');
+  if(document.getElementById('rebate_b_input').value) calcRebateB();
+}
+
+function calcRebateB() {
+  const raw = parseInt(document.getElementById('rebate_b_input').value) || 0;
+  const res = document.getElementById('rebate_b_result');
+  if(raw <= 300) { res.classList.add('d-none'); return; }
+  const diamonds = Math.floor((raw - 300) / 1300) * 1300;
+  if(diamonds <= 0) { res.classList.add('d-none'); return; }
+  const fee  = Math.round(diamonds * rebateCardFeeB);
+  const need = Math.round(diamonds + fee + 300);
+  const twd  = Math.round(diamonds / 1.44);
+  document.getElementById('rebate_b_diamonds').textContent = diamonds;
+  document.getElementById('rebate_b_twd').textContent      = twd;
+  document.getElementById('rebate_b_fee').textContent      = fee;
+  document.getElementById('rebate_b_need').textContent     = need;
+  document.getElementById('rebate_b_copy_text').textContent = `${diamonds}顆=${twd}台`;
+  document.getElementById('rebate_b_copied').classList.add('d-none');
+  const noFee = (rebateCardFeeB === 0);
+  document.getElementById('rebate_b_fee').closest('.col-6').style.display  = noFee ? 'none' : '';
+  document.getElementById('rebate_b_need').closest('.col-6').style.display = noFee ? 'none' : '';
+  res.classList.remove('d-none');
+}
+
+function copyRebateB() {
+  const text = document.getElementById('rebate_b_copy_text').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const el = document.getElementById('rebate_b_copied');
+    el.classList.remove('d-none');
+    setTimeout(() => el.classList.add('d-none'), 2000);
+  });
+}
+
+function calcRebateB_old_unused() {
+  const raw = parseInt(document.getElementById('rebate_b_input').value) || 0;
+  const res = document.getElementById('rebate_b_result');
+  if(raw <= 300) { res.classList.add('d-none'); return; }
+  const diamonds = Math.floor((raw - 300) / 1300) * 1300;
+  if(diamonds <= 0) { res.classList.add('d-none'); return; }
+  document.getElementById('rebate_b_diamonds').textContent = diamonds;
+  document.getElementById('rebate_b_twd').textContent      = Math.round(diamonds / 1.44);
+  res.classList.remove('d-none');
+}
+
+function calcRebateC() {
+  const raw     = parseInt(document.getElementById('rebate_c_input').value) || 0;
+  const res     = document.getElementById('rebate_c_result');
+  const warn    = document.getElementById('rebate_c_warn');
+  const copyRow = document.getElementById('rebate_c_copy_row');
+  if(raw <= 0) { res.classList.add('d-none'); return; }
+  const valid = raw % 500 === 0;
+  const dia   = Math.round(raw * 1.44);
+  document.getElementById('rebate_c_dia').textContent = valid ? dia : '—';
+  if(valid) {
+    warn.classList.add('d-none');
+    document.getElementById('rebate_c_copy_text').textContent = dia + '顆=' + raw + '台';
+    copyRow.classList.remove('d-none');
+    document.getElementById('rebate_c_copied').classList.add('d-none');
+  } else {
+    warn.classList.remove('d-none');
+    copyRow.classList.add('d-none');
+  }
+  res.classList.remove('d-none');
+}
+
+function copyRebateC() {
+  const text = document.getElementById('rebate_c_copy_text').textContent;
+  navigator.clipboard.writeText(text).then(function() {
+    const ok = document.getElementById('rebate_c_copied');
+    ok.classList.remove('d-none');
+    setTimeout(() => ok.classList.add('d-none'), 1500);
+  });
+}
+
+// 初始化對照表 D（台幣500倍數 × 1.44 = 紅鑽，2000–101500）
+document.addEventListener('DOMContentLoaded', function() {
+  const wrap = document.getElementById('rebate_ref_table');
+  if(!wrap) return;
+
+  // 每段：[起始台幣, 每欄列數, 欄數]
+  // 段1: 2000–45500 → 88筆，8欄×11列
+  // 段2: 46000–101500 → 112筆，8欄×14列
+  const sections = [
+    { start: 2000,  rows: 11, cols: 8 },
+    { start: 46000, rows: 14, cols: 8 }
+  ];
+
+  const tdBase = 'padding:4px 10px;text-align:center;white-space:nowrap;font-size:16px;';
+  const thBase = 'padding:4px 10px;text-align:center;white-space:nowrap;font-size:16px;font-weight:700;';
+  // 整千台幣加粗（5000的倍數）
+  const boldTWD = new Set();
+  for(let t = 5000; t <= 101500; t += 5000) boldTWD.add(t);
+
+  sections.forEach(function(sec) {
+    let html = '<table style="border-collapse:collapse;width:100%;margin-bottom:10px">';
+    html += '<thead><tr>';
+    for(let c = 0; c < sec.cols; c++) {
+      html += `<th style="${thBase}background:#f8f8f8;border:1px solid #ddd">台幣</th>`;
+      html += `<th style="${thBase}color:#dc3545;background:#fff8f8;border:1px solid #ddd">紅鑽</th>`;
+    }
+    html += '</tr></thead><tbody>';
+    for(let r = 0; r < sec.rows; r++) {
+      const bg = r % 2 === 0 ? '#fff' : '#fafafa';
+      html += '<tr>';
+      for(let c = 0; c < sec.cols; c++) {
+        const twd = sec.start + (c * sec.rows + r) * 500;
+        const dia = Math.round(twd * 1.44);
+        const bold = boldTWD.has(twd);
+        const twdStyle = bold ? `${tdBase}background:${bg};border:1px solid #eee;font-weight:700` : `${tdBase}background:${bg};border:1px solid #eee`;
+        const diaStyle = bold ? `${tdBase}color:#dc3545;background:${bg};border:1px solid #eee;font-weight:700` : `${tdBase}color:#dc3545;background:${bg};border:1px solid #eee`;
+        html += `<td class="user-select-all" style="${twdStyle}">${twd}</td>`;
+        html += `<td class="user-select-all" style="${diaStyle}">${dia}</td>`;
+      }
+      html += '</tr>';
+    }
+    html += '</tbody></table>';
+    wrap.innerHTML += html;
+  });
+});
+
+// ── 銀行頁面 ─────────────────────────────────────────────
+// 各銀行起始餘額（持久，不隨日期清零，使用者只需設一次）
+const BANK_BALANCES = { 合庫:0, 玉山:0, 超商:0, 國泰:0, 中信:0 };
+const BANK_NAMES      = ["合庫","玉山","超商","國泰","中信"]; // 交易中所有銀行
+const BANK_STAT_NAMES = ["合庫","玉山","國泰","中信"];        // 餘額統計（不含超商）
+let currentBankFilter = "全部";
+
+// 其他收支紀錄（不計入今日交易收支統計，但影響銀行餘額）
+let BANK_OTHER_LOGS = [];
+let bankOtherNextId = 1;
+
+function renderBankPage() {
+  const flow = {};
+  BANK_NAMES.forEach(b => { flow[b] = {in:0, out:0, count:0}; });
+  TODAY_LOGS.forEach(r => {
+    if(!BANK_NAMES.includes(r.bank)) return;
+    if(r.type==="buy")  { flow[r.bank].in  += r.amount; flow[r.bank].count++; }
+    if(r.type==="sell") { flow[r.bank].out += r.amount; flow[r.bank].count++; }
+  });
+  BANK_OTHER_LOGS.forEach(r => {
+    if(!BANK_NAMES.includes(r.bank)) return;
+    if(r.dir==="in")  flow[r.bank].in  += r.amount;
+    if(r.dir==="out") flow[r.bank].out += r.amount;
+  });
+
+  // 餘額統計列
+  const statEl = document.getElementById("bank_stat_rows");
+  if(statEl) {
+    statEl.innerHTML = BANK_STAT_NAMES.map(b => {
+      const f = flow[b] || {in:0, out:0};
+      const init = BANK_INIT[b] || 0;
+      const bal = init + f.in - f.out;
+      return `<div class="d-flex align-items-center justify-content-between border-bottom py-2 gap-2">
+        <span class="fw-bold fs-6" style="min-width:36px">${b}</span>
+        <span class="fw-bold fs-5 ${bal>=0?"text-success":"text-danger"}">${bal.toLocaleString()}</span>
+        <span class="text-muted small ms-auto">起始 ${init.toLocaleString()}　<span class="text-success">+${f.in.toLocaleString()}</span>　<span class="text-danger">-${f.out.toLocaleString()}</span></span>
+      </div>`;
+    }).join("");
+  }
+
+  const allIn  = BANK_STAT_NAMES.reduce((s,b)=>s+(flow[b]?.in||0),0)
+               + BANK_OTHER_LOGS.filter(r=>r.dir==="in").reduce((s,r)=>s+r.amount,0);
+  const allOut = BANK_STAT_NAMES.reduce((s,b)=>s+(flow[b]?.out||0),0)
+               + BANK_OTHER_LOGS.filter(r=>r.dir==="out").reduce((s,r)=>s+r.amount,0);
+  const allCnt = TODAY_LOGS.filter(r=>BANK_NAMES.includes(r.bank)).length + BANK_OTHER_LOGS.length;
+  const tiEl = document.getElementById("bank_total_in");
+  const toEl = document.getElementById("bank_total_out");
+  const tcEl = document.getElementById("bank_total_count");
+  if(tiEl) tiEl.textContent = allIn;
+  if(toEl) toEl.textContent = allOut;
+  if(tcEl) tcEl.textContent = allCnt + " 筆";
+  renderBankDetail();
+}
+
+function renderBankDetail() {
+  const tbody = document.getElementById("bank_detail_tbody");
+  if(!tbody) return;
+  const todayStr = _fmtDate(new Date());
+  const dateFilter = (document.getElementById('bfilter-date')?.value) || '';
+  let rows = [];
+  TODAY_LOGS.forEach((r, idx) => {
+    if(!BANK_NAMES.includes(r.bank)) return;
+    rows.push({ date:todayStr, bank:r.bank, label:r.label, nickname:r.nickname,
+      inAmt:r.type==="buy"?r.amount:0, outAmt:r.type==="sell"?r.amount:0,
+      time:r.time, isOther:false, logIdx:idx });
+  });
+  BANK_OTHER_LOGS.forEach(r => {
+    rows.push({ date:r.date||todayStr, bank:r.bank, label:r.note||"其他", nickname:"",
+      inAmt:r.dir==="in"?r.amount:0, outAmt:r.dir==="out"?r.amount:0,
+      time:r.time, isOther:true, otherId:r.id });
+  });
+  if(currentBankFilter !== "全部") rows = rows.filter(r=>r.bank===currentBankFilter);
+  if(dateFilter) rows = rows.filter(r=>r.date===dateFilter);
+  if(!rows.length) {
+    tbody.innerHTML = "<tr><td colspan='8' class='text-center text-muted py-4'>尚無銀行異動紀錄</td></tr>";
+    return;
+  }
+  // 各銀行起始餘額（計算 running balance 用）
+  const runBal = {};
+  BANK_STAT_NAMES.forEach(b => { runBal[b] = BANK_INIT[b] || 0; });
+  tbody.innerHTML = rows.map(r => {
+    if(runBal[r.bank] !== undefined) {
+      runBal[r.bank] += (r.inAmt || 0) - (r.outAmt || 0);
+    }
+    const bal = runBal[r.bank];
+    const balHtml = bal !== undefined
+      ? `<span class="fw-semibold ${bal>=0?'text-primary':'text-danger'}">${bal.toLocaleString()}</span>`
+      : '—';
+    const ops = r.isOther
+      ? `<button class="btn btn-outline-secondary py-0 px-1 me-1" style="font-size:10px" onclick="editBankOther(${r.otherId})" title="編輯"><i class="bi bi-pencil"></i></button>
+         <button class="btn btn-outline-danger py-0 px-1" style="font-size:10px" onclick="deleteBankOther(${r.otherId})" title="刪除"><i class="bi bi-trash"></i></button>`
+      : `<button class="btn btn-outline-danger py-0 px-1" style="font-size:10px" onclick="deleteBankLog(${r.logIdx})" title="刪除"><i class="bi bi-trash"></i></button>`;
+    return `<tr${r.isOther?" style='background:#fff5f5'":""}>
+      <td class="text-muted">${r.date}</td>
+      <td>${r.bank}</td>
+      <td>${r.label}${r.nickname?" "+r.nickname:""}</td>
+      <td class="text-success text-end">${r.inAmt ? r.inAmt.toLocaleString() : ""}</td>
+      <td class="text-danger text-end">${r.outAmt ? r.outAmt.toLocaleString() : ""}</td>
+      <td class="text-end">${balHtml}</td>
+      <td class="text-muted">${r.time}</td>
+      <td class="text-end">${ops}</td>
+    </tr>`;
+  }).join("");
+}
+
+// ── 銀行明細操作 ────────────────────────────────────────────
+function deleteBankLog(idx) {
+  const r = TODAY_LOGS[idx];
+  if(!r) return;
+  if(!confirm(`確定刪除這筆紀錄？\n【${r.label}】${r.nickname}　${r.amount||r.diamonds}　${r.time}`)) return;
+  deleteTransactionDB(r);
+  TODAY_LOGS.splice(idx, 1);
+  renderBankPage();
+  renderLog();
+}
+
+function deleteBankOther(id) {
+  const idx = BANK_OTHER_LOGS.findIndex(r => r.id === id);
+  if(idx < 0) return;
+  const r = BANK_OTHER_LOGS[idx];
+  if(!confirm(`確定刪除？\n${r.bank}　${r.dir==='in'?'收入':'支出'}　${r.amount}元　${r.note||''}`)) return;
+  BANK_OTHER_LOGS.splice(idx, 1);
+  renderBankPage();
+}
+
+function editBankOther(id) {
+  const r = BANK_OTHER_LOGS.find(r => r.id === id);
+  if(!r) return;
+  const existing = document.getElementById('bankOtherEditOverlay');
+  if(existing) existing.remove();
+  document.body.insertAdjacentHTML('beforeend', `
+    <div id="bankOtherEditOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;display:flex;align-items:center;justify-content:center">
+      <div style="background:#fff;padding:24px;border-radius:16px;width:320px;max-width:92%">
+        <h5 class="fw-bold mb-3"><i class="bi bi-pencil me-2"></i>編輯其他收支</h5>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">日期</label>
+          <input type="date" class="form-control" id="boe_date" value="${r.date||''}">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">銀行</label>
+          <div class="d-flex gap-2 flex-wrap">
+            ${['合庫','玉山','國泰','中信'].map(b=>`
+              <button class="btn btn-sm ${b===r.bank?'btn-danger':'btn-outline-secondary'} boa-edit-bank-btn" data-bank="${b}"
+                onclick="document.querySelectorAll('.boa-edit-bank-btn').forEach(x=>{x.classList.remove('btn-danger');x.classList.add('btn-outline-secondary')});this.classList.remove('btn-outline-secondary');this.classList.add('btn-danger')">${b}</button>`).join('')}
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">金額</label>
+          <div class="input-group">
+            <input type="number" class="form-control" id="boe_amount" value="${r.amount}" min="1">
+            <span class="input-group-text">元</span>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">說明</label>
+          <input type="text" class="form-control" id="boe_note" value="${r.note||''}">
+        </div>
+        <div class="d-flex gap-2">
+          <button class="btn btn-outline-secondary flex-grow-1" onclick="document.getElementById('bankOtherEditOverlay').remove()">取消</button>
+          <button class="btn btn-pink flex-grow-1 fw-bold" onclick="saveBankOtherEdit(${id})">儲存</button>
+        </div>
+      </div>
+    </div>`);
+}
+
+function saveBankOtherEdit(id) {
+  const r = BANK_OTHER_LOGS.find(r => r.id === id);
+  if(!r) return;
+  const bankBtn = document.querySelector('.boa-edit-bank-btn.btn-danger');
+  if(!bankBtn) { alert('請選擇銀行'); return; }
+  const amount = parseInt(document.getElementById('boe_amount').value);
+  if(!amount || amount <= 0) { alert('請填寫金額'); return; }
+  r.bank   = bankBtn.dataset.bank;
+  r.amount = amount;
+  r.note   = document.getElementById('boe_note').value.trim();
+  r.date   = document.getElementById('boe_date').value || r.date;
+  document.getElementById('bankOtherEditOverlay').remove();
+  renderBankPage();
+}
+
+function filterBankDetail(f) {
+  currentBankFilter = f;
+  ["全部","合庫","玉山","國泰","中信"].forEach(b => {
+    const btn = document.getElementById("bfilter-"+b);
+    if(!btn) return;
+    btn.classList.toggle("btn-pink", b===f);
+    btn.classList.toggle("btn-outline-secondary", b!==f);
+  });
+  renderBankDetail();
+}
+
+function showBankEditModal() {
+  const banks = ["合庫","玉山","國泰","中信"];
+  const fields = banks.map(b => `
+    <div class="mb-3">
+      <label class="form-label fw-semibold">${b}</label>
+      <input type="number" class="form-control" id="bedit_${b}" value="${BANK_INIT[b]||0}" min="0">
+    </div>`).join("");
+  const existing = document.getElementById("beditOverlay");
+  if(existing) existing.remove();
+  document.body.insertAdjacentHTML("beforeend", `
+    <div style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;display:flex;align-items:center;justify-content:center" id="beditOverlay">
+      <div style="background:#fff;padding:28px;border-radius:16px;width:320px;max-width:92%">
+        <h5 class="fw-bold mb-3"><i class="bi bi-bank me-2"></i>修改起始餘額</h5>
+        ${fields}
+        <div class="d-flex gap-2 mt-2">
+          <button class="btn btn-outline-secondary flex-grow-1" onclick="document.getElementById('beditOverlay').remove()">取消</button>
+          <button class="btn btn-pink flex-grow-1 fw-bold" onclick="saveBankEdit()">儲存</button>
+        </div>
+      </div>
+    </div>`);
+}
+
+function saveBankEdit() {
+  ["合庫","玉山","國泰","中信"].forEach(b => {
+    const el = document.getElementById("bedit_"+b);
+    if(el) BANK_INIT[b] = parseInt(el.value)||0;
+  });
+  document.getElementById("beditOverlay")?.remove();
+  syncBankBalances();
+  renderBankPage();
+}
+
+function bankOtherAction(dir) {
+  const existing = document.getElementById('bankOtherOverlay');
+  if(existing) existing.remove();
+  const title = dir === 'in' ? '其他收入' : '其他支出';
+  const todayStr = _fmtDate(new Date());
+  document.body.insertAdjacentHTML('beforeend', `
+    <div id="bankOtherOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;display:flex;align-items:center;justify-content:center">
+      <div style="background:#fff;padding:24px;border-radius:16px;width:320px;max-width:92%">
+        <h5 class="fw-bold mb-3"><i class="bi bi-${dir==='in'?'plus':'dash'}-circle me-2 text-${dir==='in'?'success':'danger'}"></i>${title}</h5>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">日期</label>
+          <input type="date" class="form-control" id="boa_date" value="${todayStr}">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">銀行</label>
+          <div class="d-flex gap-2 flex-wrap" id="boa_bank_btns">
+            ${['合庫','玉山','國泰','中信'].map(b=>`
+              <button class="btn btn-sm btn-outline-secondary boa-bank-btn" data-bank="${b}"
+                onclick="selectBoaBank(this)">${b}</button>`).join('')}
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">金額</label>
+          <div class="input-group">
+            <input type="number" class="form-control" id="boa_amount" placeholder="" min="1">
+            <span class="input-group-text">元</span>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">說明 <span class="text-muted small">（選填）</span></label>
+          <input type="text" class="form-control" id="boa_note" placeholder="">
+        </div>
+        <div class="d-flex gap-2">
+          <button class="btn btn-outline-secondary flex-grow-1" onclick="document.getElementById('bankOtherOverlay').remove()">取消</button>
+          <button class="btn btn-${dir==='in'?'success':'danger'} flex-grow-1 fw-bold" onclick="submitBankOther('${dir}')">確定</button>
+        </div>
+      </div>
+    </div>`);
+}
+
+function selectBoaBank(btn) {
+  document.querySelectorAll('.boa-bank-btn').forEach(b => {
+    b.classList.remove('btn-danger','btn-pink');
+    b.classList.add('btn-outline-secondary');
+  });
+  btn.classList.remove('btn-outline-secondary');
+  btn.classList.add('btn-danger');
+}
+
+function submitBankOther(dir) {
+  const bankBtn = document.querySelector('.boa-bank-btn.btn-danger');
+  if(!bankBtn) { alert('請選擇銀行'); return; }
+  const bank = bankBtn.dataset.bank;
+  const amount = parseInt(document.getElementById('boa_amount').value);
+  if(!amount || amount <= 0) { alert('請填寫金額'); return; }
+  const note = document.getElementById('boa_note').value.trim();
+  const date = document.getElementById('boa_date').value || _fmtDate(new Date());
+  const now = new Date();
+  const time = String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+  BANK_OTHER_LOGS.push({ id:bankOtherNextId++, bank, dir, amount, note, time, date });
+  document.getElementById('bankOtherOverlay').remove();
+  renderBankPage();
+}
+
+// ════════════════════════════════════════
+// 資料庫查詢頁面
+// ════════════════════════════════════════
+let _dbData = [];
+let _dbFilter = 'all';
+
+// 預設日期範圍：近3個月
+(function() {
+  const now = new Date();
+  const to   = now.toISOString().split('T')[0];
+  const from = new Date(now.setMonth(now.getMonth()-3)).toISOString().split('T')[0];
+  document.addEventListener('DOMContentLoaded', function() {
+    const f = document.getElementById('db_date_from');
+    const t = document.getElementById('db_date_to');
+    if(f) f.value = from;
+    if(t) t.value = to;
+  });
+})();
+
+function setDBFilter(f) {
+  _dbFilter = f;
+  ['all','buy','sell','debit','repay','storage'].forEach(id => {
+    const btn = document.getElementById('dbf-'+id);
+    if(!btn) return;
+    btn.classList.toggle('btn-pink', id===f);
+    btn.classList.toggle('btn-outline-secondary', id!==f);
+  });
+  renderDBResults();
+}
+
+async function searchDB() {
+  const nickname = document.getElementById('db_nickname').value.trim();
+  const dateFrom = document.getElementById('db_date_from').value;
+  const dateTo   = document.getElementById('db_date_to').value;
+  document.getElementById('db_result_count').textContent = '查詢中…';
+
+  let query = _supa.from('transactions').select('*')
+    .order('date', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(1000);
+
+  if(nickname) query = query.ilike('nickname', `%${nickname}%`);
+  if(dateFrom) query = query.gte('date', dateFrom);
+  if(dateTo)   query = query.lte('date', dateTo);
+
+  const { data, error } = await query;
+  if(error) { alert('查詢失敗：'+error.message); return; }
+  _dbData = data || [];
+  renderDBResults();
+}
+
+function renderDBResults() {
+  const labelFilterMap = {
+    'all': null, 'buy': ['買方'], 'sell': ['賣方'],
+    'debit': ['記帳'], 'repay': ['還鑽'], 'storage': ['寄放','領回']
+  };
+  const targets = labelFilterMap[_dbFilter];
+  const filtered = targets ? _dbData.filter(r => targets.includes(r.label)) : _dbData;
+
+  // 統計彙總
+  const statsEl  = document.getElementById('db_stats');
+  const statsRow = document.getElementById('db_stats_row');
+  if(_dbData.length > 0) {
+    statsEl.classList.remove('d-none');
+    const groups = ['買方','賣方','記帳','還鑽','寄放','領回'];
+    const stats = {};
+    groups.forEach(g => { stats[g] = { count:0, amount:0, diamonds:0 }; });
+    _dbData.forEach(r => {
+      if(stats[r.label]) {
+        stats[r.label].count++;
+        stats[r.label].amount   += parseFloat(r.amount)||0;
+        stats[r.label].diamonds += parseFloat(r.diamonds)||0;
+      }
+    });
+    statsRow.innerHTML = groups.map(g => {
+      if(!stats[g].count) return '';
+      const cls = (g==='買方'||g==='記帳') ? 'text-success' : (g==='賣方'||g==='還鑽') ? 'text-danger' : 'text-primary';
+      const val = (g==='還鑽') ? stats[g].diamonds+'顆' : stats[g].amount;
+      return `<div class="col-6 col-md-2 col-sm-4">
+        <div class="border rounded p-2 text-center">
+          <div class="small text-muted">${g}</div>
+          <div class="fw-bold ${cls} fs-6">${val}</div>
+          <div class="small text-muted">${stats[g].count} 筆</div>
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    statsEl.classList.add('d-none');
+  }
+
+  const countEl    = document.getElementById('db_result_count');
+  const emptyEl    = document.getElementById('db_empty');
+  const tableEl    = document.getElementById('db_table');
+  const exportBtn  = document.getElementById('db_export_btn');
+
+  countEl.textContent = filtered.length > 0 ? `共 ${filtered.length} 筆` : '沒有結果';
+  emptyEl.classList.toggle('d-none', filtered.length > 0);
+  tableEl.style.display = filtered.length > 0 ? '' : 'none';
+  exportBtn.classList.toggle('d-none', filtered.length === 0);
+
+  document.getElementById('db_tbody').innerHTML = filtered.map(r => {
+    const bdg = (r.label==='買方'||r.label==='記帳') ? 'bg-success'
+              : (r.label==='賣方'||r.label==='還鑽') ? 'bg-danger' : 'bg-primary';
+    const cls = (r.label==='買方'||r.label==='記帳') ? 'text-success'
+              : (r.label==='賣方'||r.label==='還鑽') ? 'text-danger' : 'text-primary';
+    return `<tr>
+      <td style="white-space:nowrap">${r.date||''}</td>
+      <td><span class="badge ${bdg}" style="font-size:10px">${r.label||''}</span></td>
+      <td>${r.nickname||''}</td>
+      <td class="text-end ${cls} fw-bold">${r.amount||''}</td>
+      <td class="text-end">${r.diamonds ? r.diamonds+'顆' : ''}</td>
+      <td>${r.bank||''}</td>
+      <td class="text-muted small">${r.note||''}</td>
+    </tr>`;
+  }).join('');
+}
+
+function exportDBToCSV() {
+  const targets = { 'all':null,'buy':['買方'],'sell':['賣方'],'debit':['記帳'],'repay':['還鑽'],'storage':['寄放','領回'] }[_dbFilter];
+  const rows = targets ? _dbData.filter(r=>targets.includes(r.label)) : _dbData;
+  const headers = ['日期','類型','暱稱','金額','紅鑽','銀行','超商代碼','備註','訂單編號'];
+  const csv = [headers, ...rows.map(r=>[r.date,r.label,r.nickname,r.amount,r.diamonds,r.bank,r.cvs_code,r.note,r.order_no])]
+    .map(row => row.map(v => `"${(v||'').toString().replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿'+csv], {type:'text/csv;charset=utf-8'}));
+  a.download = `交易紀錄_${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+}
+
+// ── 頁面初始化：先驗證登入再載入資料 ─────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  checkAuth();
+});
+</script>
+</body>
+</html>
