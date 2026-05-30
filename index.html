@@ -559,7 +559,10 @@
   <div class="card p-3">
     <div class="d-flex justify-content-between align-items-center mb-3">
       <h5 class="fw-bold mb-0"><i class="bi bi-calendar-check me-2"></i>交易紀錄</h5>
-      <span class="text-muted small" id="today_date_label"></span>
+      <div class="d-flex align-items-center gap-2">
+        <input type="date" id="log_date_picker" class="form-control form-control-sm" style="width:140px" onchange="loadLogByDate(this.value)">
+        <span class="text-muted small" id="today_date_label"></span>
+      </div>
     </div>
 
     <!-- 統計列：4格 -->
@@ -832,7 +835,7 @@
     <div class="row g-2 mb-2">
       <div class="col-12 col-md-4">
         <label class="form-label fw-semibold small mb-1">暱稱</label>
-        <input type="text" class="form-control" id="db_nickname" placeholder="輸入暱稱搜尋（留空查全部）">
+        <input type="text" class="form-control" id="db_nickname" placeholder="">
       </div>
       <div class="col-6 col-md-3">
         <label class="form-label fw-semibold small mb-1">開始日期</label>
@@ -1395,6 +1398,10 @@ async function loadAllData() {
     (bankRes.data || []).forEach(row => {
       if(row.bank_name in BANK_INIT) BANK_INIT[row.bank_name] = parseFloat(row.balance)||0;
     });
+
+    // 日期選擇器預設今天
+    const picker = document.getElementById('log_date_picker');
+    if(picker && !picker.value) picker.value = todayStr;
 
     renderLog(); renderStorageTable(); renderBankPage();
   } catch(e) { console.warn('loadAllData:', e); }
@@ -2884,6 +2891,29 @@ let currentLogFilter = "all";
 // 銀行起始餘額（使用者手動輸入）
 const BANK_INIT = { 合庫:0, 玉山:0, 超商:0, 國泰:0, 中信:0, 其他:0, 寄放:0 };
 
+// ── 切換日期載入交易紀錄 ─────────────────────────────────
+async function loadLogByDate(dateStr) {
+  if(!dateStr) return;
+  const { data, error } = await _supa.from('transactions')
+    .select('*').eq('date', dateStr).order('created_at');
+  if(error) { console.warn('loadLogByDate:', error.message); return; }
+
+  TODAY_LOGS.length = 0;
+  (data || []).forEach(row => {
+    const type = (row.label==='買方'||row.label==='記帳') ? 'buy'
+               : (row.label==='賣方'||row.label==='還鑽') ? 'sell' : 'storage';
+    _origPush.call(TODAY_LOGS, {
+      orderNo: row.order_no||'', date: row.date, type, label: row.label||'',
+      nickname: row.nickname||'', amount: parseFloat(row.amount)||0,
+      diamonds: parseFloat(row.diamonds)||0, bank: row.bank||'',
+      cvsCode: row.cvs_code||'', giftTime: row.gift_time||'',
+      note: row.note||'', time: row.transaction_time||'',
+      bankAccount: row.bank_account||'', _dbId: row.id
+    });
+  });
+  renderLog();
+}
+
 function filterLog(type) {
   currentLogFilter = type;
   ["all","buy","sell","storage","合庫","玉山","超商"].forEach(t => {
@@ -3901,12 +3931,17 @@ async function searchDB() {
   const dateTo   = document.getElementById('db_date_to').value;
   document.getElementById('db_result_count').textContent = '查詢中…';
 
+  if(!nickname) {
+    document.getElementById('db_result_count').textContent = '請輸入暱稱';
+    return;
+  }
+
   let query = _supa.from('transactions').select('*')
     .order('date', { ascending: false })
     .order('created_at', { ascending: false })
     .limit(1000);
 
-  if(nickname) query = query.ilike('nickname', `%${nickname}%`);
+  query = query.ilike('nickname', `%${nickname}%`);
   if(dateFrom) query = query.gte('date', dateFrom);
   if(dateTo)   query = query.lte('date', dateTo);
 
