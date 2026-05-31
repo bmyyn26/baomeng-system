@@ -604,12 +604,12 @@
         <thead>
           <tr>
             <th>日期</th>
+            <th>收支銀行</th>
             <th>暱稱</th>
             <th>金額</th>
             <th>紅鑽</th>
-            <th>收支銀行</th>
-            <th>超商代碼</th>
             <th>交易單號</th>
+            <th>超商代碼</th>
             <th>收支時間</th>
             <th>備註</th>
             <th style="cursor:pointer;white-space:nowrap" onclick="toggleTimeSort()" id="th-time">時間 ↑</th>
@@ -806,8 +806,11 @@
     <!-- ── D　對照表 ── -->
     <div class="col-12">
       <div class="card p-3">
-        <div class="fw-bold mb-2">D　對照表</div>
-        <div style="overflow-x:auto">
+        <div class="fw-bold mb-2 d-flex justify-content-between align-items-center" style="cursor:pointer" onclick="this.nextElementSibling.classList.toggle('d-none')">
+          <span>D　對照表</span>
+          <i class="bi bi-chevron-down text-muted"></i>
+        </div>
+        <div class="d-none" style="overflow-x:auto">
           <div id="rebate_ref_table"></div>
         </div>
       </div>
@@ -2969,14 +2972,14 @@ function renderLog() {
       : "";
     return `<tr>
       <td style="white-space:nowrap">${r.date||""}</td>
+      <td>${r.bank||""}</td>
       <td style="white-space:nowrap">
         <span class="badge ${typeCls} me-1" style="font-size:10px">${r.label}</span>${r.nickname}
       </td>
       <td class="${amtCls} text-end fw-bold">${r.amount||""}</td>
       <td class="${amtCls} text-end fw-bold">${r.diamonds}顆</td>
-      <td>${r.bank||""}</td>
-      <td>${r.cvsCode||""}</td>
       <td class="text-muted" style="font-size:11px">${r.orderNo||""}</td>
+      <td>${r.cvsCode||""}</td>
       <td style="white-space:nowrap">${r.time||""}</td>
       <td class="text-muted">${r.note||""}</td>
       <td style="white-space:nowrap">${giftCell}</td>
