@@ -1188,10 +1188,10 @@
           <input type="text" class="form-control" id="ledit_note">
         </div>
         <div class="mb-3">
-          <label class="form-label fw-semibold">贈出時間</label>
+          <label class="form-label fw-semibold">收支時間</label>
           <div class="input-group">
-            <input type="text" class="form-control" id="ledit_giftTime" placeholder="HH:MM">
-            <button class="btn btn-outline-secondary" type="button" onclick="leditSetGiftNow()">現在</button>
+            <input type="text" class="form-control" id="ledit_time" placeholder="HH:MM">
+            <button class="btn btn-outline-secondary" type="button" onclick="document.getElementById('ledit_time').value=_fmtTime(new Date().getHours()+':'+String(new Date().getMinutes()).padStart(2,'0'))">現在</button>
           </div>
         </div>
       </div>
@@ -1464,7 +1464,7 @@ async function updateTransactionDB(log) {
   try {
     await _supa.from('transactions').update({
       nickname: log.nickname, amount: log.amount, diamonds: log.diamonds,
-      bank: log.bank, note: log.note, gift_time: log.giftTime||''
+      bank: log.bank, note: log.note, transaction_time: log.time||''
     }).eq('id', log._dbId);
   } catch(e) { console.warn('updateTransactionDB:', e); }
 }
@@ -2681,7 +2681,7 @@ function editLog(idx) {
   const feeM=(r.note||"").match(/手續費(\d+)元/);
   selectLeditFee(feeM?parseInt(feeM[1]):0);
   document.getElementById("ledit_note").value=(r.note||"").replace(/[\/／]?手續費\d+元[\/／]?/g,"").trim();
-  document.getElementById("ledit_giftTime").value  = r.giftTime || "";
+  document.getElementById("ledit_time").value = r.time || "";
   leditCalcDiamonds();
   if(!_logEditModal) _logEditModal = new bootstrap.Modal(document.getElementById("logEditModal"));
   _logEditModal.show();
@@ -2711,7 +2711,7 @@ function confirmEditLog() {
   const amount   = parseInt(document.getElementById("ledit_amount").value) || 0;
   const bank     = document.getElementById("ledit_bank").value;
   const note     = document.getElementById("ledit_note").value.trim();
-  const giftTime = document.getElementById("ledit_giftTime").value.trim();
+  const newTime  = document.getElementById("ledit_time").value.trim();
   if(!nickname) { alert("暱稱不能空白"); return; }
   const ratio    = r.type==="sell" ? 1.44 : 1.3;
   r.nickname = nickname;
@@ -2719,7 +2719,7 @@ function confirmEditLog() {
   r.diamonds = amount ? Math.round(amount * ratio) : r.diamonds;
   r.bank     = bank;
   r.note     = note;
-  r.giftTime = giftTime;
+  if(newTime) r.time = newTime;
   updateTransactionDB(r);
   if(_logEditModal) _logEditModal.hide();
   renderLog();
