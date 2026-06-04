@@ -4049,4 +4049,103 @@ function renderDBResults() {
   cnt.textContent=filtered.length>0?`共 ${filtered.length} 筆`:'沒有結果';
   emp.classList.toggle('d-none',filtered.length>0);
   tbl.style.display=filtered.length>0?'':'none';
-  exp.
+  exp.classList.toggle('d-none',filtered.length===0);
+  document.getElementById('db_tbody').innerHTML=filtered.map(r=>{
+    const bdg=(r.label==='買方'||r.label==='記帳')?'bg-success':(r.label==='賣方'||r.label==='還鑽')?'bg-danger':'bg-primary';
+    const cls=(r.label==='買方'||r.label==='記帳')?'text-success':(r.label==='賣方'||r.label==='還鑽')?'text-danger':'text-primary';
+    return `<tr><td style="white-space:nowrap">${r.date||''}</td>
+      <td><span class="badge ${bdg}" style="font-size:10px">${r.label||''}</span></td>
+      <td>${r.nickname||''}</td><td class="text-end ${cls} fw-bold">${r.amount||''}</td>
+      <td class="text-end">${r.diamonds?r.diamonds+'顆':''}</td>
+      <td>${r.bank||''}</td><td class="text-muted small">${r.note||''}</td></tr>`;
+  }).join('');
+}
+
+function exportDBToCSV() {
+  const targets={'all':null,'buy':['買方'],'sell':['賣方'],'debit':['記帳'],'repay':['還鑽'],'storage':['寄放','領回']}[_dbFilter];
+  const rows=targets?_dbData.filter(r=>targets.includes(r.label)):_dbData;
+  const csv=[['日期','類型','暱稱','金額','紅鑽','銀行','超商代碼','備註','訂單編號'],
+    ...rows.map(r=>[r.date,r.label,r.nickname,r.amount,r.diamonds,r.bank,r.cvs_code,r.note,r.order_no])]
+    .map(row=>row.map(v=>`"${(v||'').toString().replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'}));
+  a.download=`交易紀錄_${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+}
+
+function calcMini(dir) {
+  if(dir==='twd') {
+    const v=parseInt(document.getElementById('mini_twd_in').value)||0;
+    const dia=v>0?Math.round(v*1.3):0;
+    document.getElementById('mini_dia_out').value=v>0?dia:'';
+  } else {
+    const v=parseInt(document.getElementById('mini_dia_in').value)||0;
+    const twd=v>0?(v/1.44):0;
+    const hasDec=twd!==Math.round(twd);
+    document.getElementById('mini_twd_out').value=v>0?Math.round(twd):'';
+    const warnEl=document.getElementById('mini_dia_warn');
+    if(warnEl) warnEl.classList.toggle('d-none',!hasDec);
+  }
+}
+function copyMiniDia() {
+  const v=document.getElementById('mini_dia_out').value;
+  if(!v) return;
+  navigator.clipboard.writeText(v).then(()=>{
+    const el=document.getElementById('mini_dia_copied');
+    if(el){el.classList.remove('d-none'); setTimeout(()=>el.classList.add('d-none'),1500);}
+  });
+}
+function copyMiniTwd() {
+  const dia=document.getElementById('mini_dia_in').value;
+  const twd=document.getElementById('mini_twd_out').value;
+  if(!twd) return;
+  const text=`${dia}顆=${twd}台`;
+  navigator.clipboard.writeText(text).then(()=>{
+    const el=document.getElementById('mini_twd_copied');
+    if(el){el.classList.remove('d-none'); setTimeout(()=>el.classList.add('d-none'),1500);}
+  });
+}
+
+function toggleAddMember() {
+  const form=document.getElementById('add-member-form');
+  const chevron=document.getElementById('add-member-chevron');
+  if(!form) return;
+  const hidden=form.classList.contains('d-none');
+  form.classList.toggle('d-none',!hidden);
+  if(chevron) chevron.className=hidden?'bi bi-chevron-up text-muted':'bi bi-chevron-down text-muted';
+  if(hidden) {
+    const today=new Date();
+    const d=document.getElementById('nm_date');
+    if(d) d.value=_fmtDate(today);
+  }
+}
+
+// 快速帶入格式：9188編號\t戶名\t暱稱\t(略過)\t電話\t銀行帳號
+function quickFillMember() {
+  const raw = document.getElementById('nm_quick_input')?.value.trim();
+  if(!raw) return;
+  const parts = raw.split(/\t|　/).map(s => s.trim());
+  const set = (id, val) => { const el=document.getElementById(id); if(el && val) el.value=val; };
+  set('nm_9188',     parts[0] || '');
+  set('nm_name',     parts[1] || '');
+  set('nm_nickname', parts[2] || '');
+  set('nm_phone',    parts[4] || '');
+  set('nm_bank',     parts[5] || '');
+  checkNmBlacklist && checkNmBlacklist();
+}
+
+function genNoId() {
+  const existing=new Set([...CUSTOMERS,...BLACKLIST].filter(c=>c['9188編號']?.startsWith('X')).map(c=>c['9188編號']));
+  let num=1;
+  while(existing.has('X'+String(num).padStart(5,'0'))) num++;
+  const newId='X'+String(num).padStart(5,'0');
+  document.getElementById('nm_9188').value=newId;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  checkAuth();
+});
+
+</script>
+</body>
+</html>
