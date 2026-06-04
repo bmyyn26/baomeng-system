@@ -3185,8 +3185,9 @@ async function handleGoogleSignIn(response) {
   const loadEl = document.getElementById('login-loading');
   errEl.style.display = 'none';
   try {
-    // 解析 JWT payload
-    const payload = JSON.parse(atob(response.credential.split('.')[1]));
+    // 解析 JWT payload（base64url → base64 轉換）
+    const b64 = response.credential.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');
+    const payload = JSON.parse(atob(b64.padEnd(b64.length + (4 - b64.length%4)%4, '=')));
     const email = (payload.email || '').toLowerCase();
     if(!WHITELIST.includes(email)) {
       errEl.textContent = `❌ ${payload.email} 不在授權名單中，請聯繫管理員。`;
