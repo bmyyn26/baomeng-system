@@ -3313,6 +3313,23 @@ function _fmtTime(val) {
 
 // ── 開單抽屜 ──────────────────────────────────────────────
 function openOrderDrawer() {
+  // 清除上一筆開單結果與輸入
+  ['buyer_result','seller_result'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.classList.add('d-none');
+  });
+  // 清除買方輸入欄
+  ['buyer_nickname','buyer_amount','buyer_bank','buyer_cvs_code'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.value = '';
+  });
+  const diaHint = document.getElementById('buyer_diamond_hint');
+  if(diaHint) diaHint.classList.add('d-none');
+  // 清除賣方輸入欄
+  ['seller_nickname','seller_amount','seller_bank'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.value = '';
+  });
   document.getElementById("orderDrawer").classList.add("open");
   document.getElementById("orderDrawerBackdrop").classList.add("open");
   document.body.style.overflow = "hidden";
@@ -3516,7 +3533,9 @@ function renderBankDetail() {
   const runBal = {};
   BANK_STAT_NAMES.forEach(b => { runBal[b] = BANK_INIT[b] || 0; });
   const rowsWithBal = [...rows].reverse().map(r => {
-    if(runBal[r.bank] !== undefined) runBal[r.bank] += (r.inAmt||0) - (r.outAmt||0);
+    const feeMatch = !r.isOther && r.note ? r.note.match(/手續費(\d+)元/) : null;
+    const fee = feeMatch ? parseInt(feeMatch[1]) : 0;
+    if(runBal[r.bank] !== undefined) runBal[r.bank] += (r.inAmt||0) - (r.outAmt||0) - fee;
     return { ...r, _bal: runBal[r.bank] };
   }).reverse();
   tbody.innerHTML = rowsWithBal.map(r => {
