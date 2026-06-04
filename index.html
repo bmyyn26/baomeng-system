@@ -1127,9 +1127,9 @@
 <div id="page-checkout" class="page">
   <div class="card p-3 mb-3">
     <div class="d-flex justify-content-between align-items-center">
-      <h5 class="fw-bold mb-0"><i class="bi bi-receipt-cutoff me-2 text-success"></i>結帳紀錄</h5>
+      <h5 class="fw-bold mb-0"><i class="bi bi-receipt-cutoff me-2"></i>結帳紀錄</h5>
       <div class="d-flex gap-2">
-        <button class="btn btn-outline-warning btn-sm fw-bold px-3" onclick="openAdjustModal()">
+        <button class="btn btn-outline-dark btn-sm fw-bold px-3" onclick="openAdjustModal()">
           <i class="bi bi-plus-circle me-1"></i>新增差額
         </button>
         <button class="btn btn-pink btn-sm fw-bold px-3" onclick="openCheckoutModal()">
@@ -1159,9 +1159,9 @@
             <th class="ps-3">日期</th>
             <th class="text-end">今日紅鑽</th>
             <th class="text-end">買方（元）</th>
-            <th class="text-end text-warning">手續費</th>
+            <th class="text-end">手續費</th>
             <th class="text-end">賣方（元）</th>
-            <th class="text-end text-primary fw-bold">總結紅鑽</th>
+            <th class="text-end fw-bold">總結紅鑽</th>
             <th>差額</th>
             <th class="text-end">誤差</th>
             <th style="width:60px"></th>
@@ -3852,15 +3852,15 @@ function renderCheckoutTable(rows) {
   tbody.innerHTML = rows.map(r => {
     const details = r.details ? (Array.isArray(r.details)?r.details:JSON.parse(r.details)) : [];
     const detailHtml = details.length
-      ? details.map(d=>`<span class="badge bg-warning text-dark me-1">${d.nickname} ${d.diamonds>=0?'+':''}${d.diamonds}顆</span>`).join('')
+      ? details.map(d=>`<span class="badge bg-dark text-white me-1">${d.nickname} ${d.diamonds>=0?'+':''}${d.diamonds}顆</span>`).join('')
       : '<span class="text-muted small">無</span>';
     return `<tr>
       <td class="ps-3 fw-semibold">${r.date}</td>
       <td class="text-end">${r.today_diamonds||'—'}</td>
-      <td class="text-end text-success">${r.buy_amount||0}</td>
-      <td class="text-end text-warning">${Math.round((r.buy_amount||0)*1.3*0.003)}</td>
-      <td class="text-end text-danger">${r.sell_amount||0}</td>
-      <td class="text-end text-primary fw-bold">${r.total_diamonds||'—'}</td>
+      <td class="text-end">${r.buy_amount||0}</td>
+      <td class="text-end">${Math.round((r.buy_amount||0)*1.3*0.003)}</td>
+      <td class="text-end">${r.sell_amount||0}</td>
+      <td class="text-end fw-bold">${r.total_diamonds||'—'}</td>
       <td>${detailHtml}</td>
       <td class="text-end ${r.variance>0?'text-danger':r.variance<0?'text-success':''}">${r.variance||0}</td>
       <td><button class="btn btn-outline-danger btn-sm py-0 px-1" onclick="deleteCheckout(${r.id})"><i class="bi bi-trash"></i></button></td>
