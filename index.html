@@ -105,6 +105,30 @@
   #orderDrawer .mb-3 { margin-bottom:8px !important; }
   #orderDrawer h6 { font-size:13px; margin-bottom:8px !important; }
 
+  /* ── 銀行暱稱可點擊 ── */
+  .bank-nick {
+    cursor:pointer; border-bottom:1px dashed #aaa;
+    padding:1px 2px; border-radius:3px;
+    transition:background .1s;
+  }
+  .bank-nick:hover { background:#f0f0f0; }
+
+  /* ── 暱稱複製 Popup ── */
+  #nick-popup {
+    position:fixed; z-index:3000;
+    background:#fff; border-radius:10px;
+    box-shadow:0 4px 20px rgba(0,0,0,.2);
+    padding:10px 14px;
+    display:flex; align-items:center; gap:10px;
+    font-size:15px; font-weight:600;
+    pointer-events:all;
+  }
+  #nick-popup button {
+    background:#d63384; color:#fff; border:none;
+    border-radius:6px; padding:4px 12px;
+    font-size:13px; font-weight:600; cursor:pointer;
+  }
+
   /* ── 底部導覽列 ── */
   #bottom-nav {
     display:none;
@@ -1650,6 +1674,26 @@ function showPage(name) {
     if(bnavId) { const el=document.getElementById(bnavId); if(el) el.classList.add("active-nav"); }
     toggleBottomMore(false);
   }
+}
+
+// ── 銀行暱稱複製 Popup ────────────────────────────────────
+function copyNicknamePopup(e, nickname) {
+  e.stopPropagation();
+  document.getElementById('nick-popup')?.remove();
+  const popup = document.createElement('div');
+  popup.id = 'nick-popup';
+  popup.innerHTML = `<span>${nickname}</span><button onclick="navigator.clipboard.writeText('${nickname.replace(/'/g,"\\'")}').then(()=>{this.textContent='✓ 已複製';setTimeout(()=>document.getElementById('nick-popup')?.remove(),800)})">複製</button>`;
+  document.body.appendChild(popup);
+  // 定位在點擊位置附近
+  const x = Math.min(e.clientX, window.innerWidth - 180);
+  const y = e.clientY - 60;
+  popup.style.left = Math.max(8, x) + 'px';
+  popup.style.top  = Math.max(8, y) + 'px';
+  // 點其他地方關閉
+  setTimeout(() => document.addEventListener('click', function h() {
+    document.getElementById('nick-popup')?.remove();
+    document.removeEventListener('click', h);
+  }), 50);
 }
 
 function toggleBottomMore(force) {
@@ -3621,7 +3665,7 @@ function renderBankDetail() {
     const noteClean = r.note ? r.note.replace(/[\/／]?手續費\d+元[\/／]?/g,'').trim() : '';
     const detailHtml = r.isOther
       ? `${r.note || r.label}${r.nickname && r.nickname !== (r.note||r.label) ? ' '+r.nickname : ''}`
-      : `<span class="badge ${badgeCls} me-1" style="font-size:10px">${r.label}</span>${r.nickname}${r.cvsCode?' <span class="text-muted" style="font-size:11px">'+r.cvsCode+'</span>':''}`;
+      : `<span class="badge ${badgeCls} me-1" style="font-size:10px">${r.label}</span>${r.nickname ? `<span class="bank-nick" onclick="copyNicknamePopup(event,'${r.nickname.replace(/'/g,"\\'")}')"> ${r.nickname}</span>` : ''}${r.cvsCode?' <span class="text-muted" style="font-size:11px">'+r.cvsCode+'</span>':''}`;
     const ops = r.isOther
       ? `<button class="btn btn-outline-secondary py-0 px-1 me-1" style="font-size:10px" onclick="editBankOther(${r.otherId})" title="編輯"><i class="bi bi-pencil"></i></button>
          <button class="btn btn-outline-danger py-0 px-1" style="font-size:10px" onclick="deleteBankOther(${r.otherId})" title="刪除"><i class="bi bi-trash"></i></button>`
