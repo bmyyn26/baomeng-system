@@ -1696,7 +1696,7 @@ function calcBuyerDiamonds() {
   const v = parseInt(document.getElementById("buyer_amount").value);
   const hint = document.getElementById("buyer_diamond_hint");
   if(v > 0) {
-    const d = Math.round(v * 1.35);
+    const d = Math.round(v * 1.3);
     document.getElementById("buyer_diamond_val").textContent = d;
     hint.classList.remove("d-none");
   } else {
@@ -1780,7 +1780,7 @@ function submitBuyerOrder(withGift=false) {
   const now = new Date();
   const timeStr = String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0");
   const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
-  const diamonds = Math.round(amount * 1.35);
+  const diamonds = Math.round(amount * 1.3);
   const cvsCode  = document.getElementById("buyer_cvs_code").value.trim();
   const note = selectedBuyerPay==="超商" && cvsCode
     ? `超商代碼 ${cvsCode}` : selectedBuyerPay+"匯款";
@@ -1820,7 +1820,7 @@ function submitSellerOrder() {
   const now = new Date();
   const timeStr = String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0");
   const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
-  const diamonds = Math.round(amount * 1.5);
+  const diamonds = Math.round(amount * 1.44);
   const sellerNote = document.getElementById("seller_note").value.trim();
   const feeNote = selectedFee ? `手續費${selectedFee}元` : "";
   const note = [selectedSellerPay+"轉帳", feeNote, sellerNote].filter(Boolean).join("／");
@@ -2351,7 +2351,7 @@ function calcQDiamonds() {
   const v = parseInt(document.getElementById("q_amount").value);
   const hint = document.getElementById("q_diamond_hint");
   if(v > 0) {
-    const d = Math.round(v * 1.35);
+    const d = Math.round(v * 1.3);
     document.getElementById("q_diamond_val").textContent = d;
     hint.classList.remove("d-none");
   } else {
@@ -2387,7 +2387,7 @@ function submitQuickOrder(withGift) {
   const timeStr = String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0");
   const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
   const note = selectedPay==="超商" && cvsCode ? `超商 ${cvsCode}` : selectedPay+"匯款";
-  const diamonds = amount ? Math.round(amount * 1.35) : 0;
+  const diamonds = amount ? Math.round(amount * 1.3) : 0;
 
   TODAY_LOGS.push({
     type:"buy", label:"買方", nickname, diamonds, amount,
@@ -2713,7 +2713,7 @@ function confirmEditLog() {
   const note     = document.getElementById("ledit_note").value.trim();
   const giftTime = document.getElementById("ledit_giftTime").value.trim();
   if(!nickname) { alert("暱稱不能空白"); return; }
-  const ratio    = r.type==="sell" ? 1.5 : 1.35;
+  const ratio    = r.type==="sell" ? 1.44 : 1.3;
   r.nickname = nickname;
   r.amount   = amount;
   r.diamonds = amount ? Math.round(amount * ratio) : r.diamonds;
@@ -2818,7 +2818,7 @@ function storageAction(action) {
               oninput="
                 const add=parseInt(this.value)||0;
                 const newAmt=${accRow.amount}+add;
-                const newDia=Math.round(newAmt*1.5);
+                const newDia=Math.round(newAmt*1.44);
                 document.getElementById('sm_diamonds').textContent=newDia;
                 document.getElementById('sm_new_total').textContent=''+newAmt+' ／ '+newDia+' 顆';">
             <span class="input-group-text">元</span>
@@ -2826,7 +2826,7 @@ function storageAction(action) {
           <div class="mt-2 p-2 rounded" style="background:#f0fff4;border:1px solid #b7ebc8">
             <span class="text-success fw-bold">累積後紅鑽：</span>
             <span class="fw-bold text-success" id="sm_diamonds">${accRow.diamonds}</span>顆
-            <span class="text-muted small ms-1">（× 1.5）</span>
+            <span class="text-muted small ms-1">（× 1.44）</span>
           </div>
           <div class="mt-1 small text-primary" id="sm_new_total"></div>
         </div>
@@ -2845,13 +2845,13 @@ function storageAction(action) {
           <label class="form-label fw-semibold">金額（元）</label>
           <div class="input-group">
             <input type="number" class="form-control" id="sm_amount" placeholder="輸入金額" min="0"
-              oninput="document.getElementById('sm_diamonds').textContent=Math.round((parseInt(this.value)||0)*1.5)">
+              oninput="document.getElementById('sm_diamonds').textContent=Math.round((parseInt(this.value)||0)*1.44)">
             <span class="input-group-text">元</span>
           </div>
           <div class="mt-2 p-2 rounded" style="background:#f0fff4;border:1px solid #b7ebc8">
             <span class="text-success fw-bold">紅鑽：</span>
             <span class="fw-bold text-success" id="sm_diamonds">0</span>顆
-            <span class="text-muted small ms-1">（× 1.5）</span>
+            <span class="text-muted small ms-1">（× 1.44）</span>
           </div>
         </div>
         <div class="mb-1">
@@ -2879,15 +2879,15 @@ function storageAction(action) {
         <div class="input-group">
           <input type="number" class="form-control" id="sm_withdraw_amount"
             placeholder="輸入金額" min="1" max="${row.amount}"
-            oninput="document.getElementById('sm_withdraw_diamonds').textContent=Math.round((parseInt(this.value)||0)*1.35)">
+            oninput="document.getElementById('sm_withdraw_diamonds').textContent=Math.round((parseInt(this.value)||0)*1.3)">
           <span class="input-group-text">元</span>
         </div>
         <div class="mt-2 p-2 rounded" style="background:#fff3cd;border:1px solid #ffc107">
-          <span class="fw-bold text-warning">買回紅鑽（×1.35）：</span>
+          <span class="fw-bold text-warning">買回紅鑽（×1.3）：</span>
           <span class="fw-bold" id="sm_withdraw_diamonds">0</span>顆
         </div>
       </div>
-      <div class="small text-muted"><i class="bi bi-info-circle me-1"></i>領回後將產生：賣方（×1.5）＋ 買方（×1.35）各一筆交易紀錄</div>`;
+      <div class="small text-muted"><i class="bi bi-info-circle me-1"></i>領回後將產生：賣方（×1.44）＋ 買方（×1.3）各一筆交易紀錄</div>`;
     modal.show();
 
   } else if(action === "debit") {
@@ -2903,13 +2903,13 @@ function storageAction(action) {
         <label class="form-label fw-semibold">金額（元）</label>
         <div class="input-group">
           <input type="number" class="form-control" id="sm_amount" placeholder="輸入金額" min="0"
-            oninput="document.getElementById('sm_diamonds').textContent=Math.round((parseInt(this.value)||0)*1.35)">
+            oninput="document.getElementById('sm_diamonds').textContent=Math.round((parseInt(this.value)||0)*1.3)">
           <span class="input-group-text">元</span>
         </div>
         <div class="mt-2 p-2 rounded" style="background:#f0fff4;border:1px solid #b7ebc8">
           <span class="text-success fw-bold">紅鑽：</span>
           <span class="fw-bold text-success" id="sm_diamonds">0</span>顆
-          <span class="text-muted small ms-1">（× 1.35）</span>
+          <span class="text-muted small ms-1">（× 1.3）</span>
         </div>
       </div>
       <div class="mb-1">
@@ -2971,7 +2971,7 @@ function confirmStorageAction() {
       // 累積模式：更新現有列
       const row = STORAGE_DATA.find(r=>r.id===accId);
       row.amount   += addAmt;
-      row.diamonds  = Math.round(row.amount * 1.5);
+      row.diamonds  = Math.round(row.amount * 1.44);
       if(note) row.note = note;
       modal.hide();
       storageUpdateDB(row).then(()=>reloadStorageFromDB());
@@ -2980,7 +2980,7 @@ function confirmStorageAction() {
       // 新增模式
       const nickname = (document.getElementById("sm_nickname")?.value||"").trim();
       if(!nickname) { alert("請填寫暱稱"); return; }
-      const diamonds = Math.round(addAmt * 1.5);
+      const diamonds = Math.round(addAmt * 1.44);
       const newRow = { id:storageNextId++, nickname, amount:addAmt, diamonds, note, date:today };
       modal.hide();
       storageInsertDB(newRow).then(()=>reloadStorageFromDB());
@@ -2994,14 +2994,14 @@ function confirmStorageAction() {
     if(!wdAmt)            { alert("請填寫領回金額"); return; }
     if(wdAmt > row.amount){ alert(`領回金額不能超過 ${row.amount}`); return; }
     const wdDiaSell = Math.round(wdAmt * 1.5);   // 賣方：×1.5
-    const wdDiaBuy  = Math.round(wdAmt * 1.35);  // 買方（買回）：×1.35
+    const wdDiaBuy  = Math.round(wdAmt * 1.35);  // 買方（買回）：×1.3
     if(wdAmt >= row.amount) {
       STORAGE_DATA = STORAGE_DATA.filter(r=>r.id!==row.id);
     } else {
       row.amount   -= wdAmt;
-      row.diamonds  = Math.round(row.amount * 1.5);
+      row.diamonds  = Math.round(row.amount * 1.44);
     }
-    // 備註1：賣方（×1.5）＋ 買方（×1.35）各一筆
+    // 備註1：賣方（×1.44）＋ 買方（×1.3）各一筆
     const wdDate = today;
     TODAY_LOGS.push({ type:"sell", label:"賣方", nickname:row.nickname,
       diamonds:wdDiaSell, amount:wdAmt, time:timeStr, note:"寄放領回", giftTime:"", bank:"寄放",
@@ -3018,7 +3018,7 @@ function confirmStorageAction() {
     const note     = (document.getElementById("sm_note")?.value||"").trim();
     if(!nickname) { alert("請填寫暱稱"); return; }
     if(!amount)   { alert("請填寫金額"); return; }
-    const diamonds = Math.round(amount * 1.35);
+    const diamonds = Math.round(amount * 1.3);
     TODAY_LOGS.push({ type:"buy", label:"記帳", nickname, diamonds, amount,
       time:timeStr, note:"記帳"+(note?" "+note:""), giftTime:"", bank:"其他",
       date:today, cvsCode:"", orderNo:genOrderNo("buy", today, timeStr) });
@@ -4049,107 +4049,4 @@ function renderDBResults() {
   cnt.textContent=filtered.length>0?`共 ${filtered.length} 筆`:'沒有結果';
   emp.classList.toggle('d-none',filtered.length>0);
   tbl.style.display=filtered.length>0?'':'none';
-  exp.classList.toggle('d-none',filtered.length===0);
-  document.getElementById('db_tbody').innerHTML=filtered.map(r=>{
-    const bdg=(r.label==='買方'||r.label==='記帳')?'bg-success':(r.label==='賣方'||r.label==='還鑽')?'bg-danger':'bg-primary';
-    const cls=(r.label==='買方'||r.label==='記帳')?'text-success':(r.label==='賣方'||r.label==='還鑽')?'text-danger':'text-primary';
-    return `<tr><td style="white-space:nowrap">${r.date||''}</td>
-      <td><span class="badge ${bdg}" style="font-size:10px">${r.label||''}</span></td>
-      <td>${r.nickname||''}</td><td class="text-end ${cls} fw-bold">${r.amount||''}</td>
-      <td class="text-end">${r.diamonds?r.diamonds+'顆':''}</td>
-      <td>${r.bank||''}</td><td class="text-muted small">${r.note||''}</td></tr>`;
-  }).join('');
-}
-
-function exportDBToCSV() {
-  const targets={'all':null,'buy':['買方'],'sell':['賣方'],'debit':['記帳'],'repay':['還鑽'],'storage':['寄放','領回']}[_dbFilter];
-  const rows=targets?_dbData.filter(r=>targets.includes(r.label)):_dbData;
-  const csv=[['日期','類型','暱稱','金額','紅鑽','銀行','超商代碼','備註','訂單編號'],
-    ...rows.map(r=>[r.date,r.label,r.nickname,r.amount,r.diamonds,r.bank,r.cvs_code,r.note,r.order_no])]
-    .map(row=>row.map(v=>`"${(v||'').toString().replace(/"/g,'""')}"`).join(',')).join('\n');
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'}));
-  a.download=`交易紀錄_${new Date().toISOString().split('T')[0]}.csv`;
-  a.click();
-}
-
-function calcMini(dir) {
-  if(dir==='twd') {
-    const v=parseInt(document.getElementById('mini_twd_in').value)||0;
-    const dia=v>0?Math.round(v*1.3):0;
-    document.getElementById('mini_dia_out').value=v>0?dia:'';
-  } else {
-    const v=parseInt(document.getElementById('mini_dia_in').value)||0;
-    const twd=v>0?(v/1.44):0;
-    const hasDec=twd!==Math.round(twd);
-    document.getElementById('mini_twd_out').value=v>0?Math.round(twd):'';
-    const warnEl=document.getElementById('mini_dia_warn');
-    if(warnEl) warnEl.classList.toggle('d-none',!hasDec);
-  }
-}
-function copyMiniDia() {
-  const v=document.getElementById('mini_dia_out').value;
-  if(!v) return;
-  navigator.clipboard.writeText(v).then(()=>{
-    const el=document.getElementById('mini_dia_copied');
-    if(el){el.classList.remove('d-none'); setTimeout(()=>el.classList.add('d-none'),1500);}
-  });
-}
-function copyMiniTwd() {
-  const dia=document.getElementById('mini_dia_in').value;
-  const twd=document.getElementById('mini_twd_out').value;
-  if(!twd) return;
-  const text=`${dia}顆=${twd}台`;
-  navigator.clipboard.writeText(text).then(()=>{
-    const el=document.getElementById('mini_twd_copied');
-    if(el){el.classList.remove('d-none'); setTimeout(()=>el.classList.add('d-none'),1500);}
-  });
-}
-
-function toggleAddMember() {
-  const form=document.getElementById('add-member-form');
-  const chevron=document.getElementById('add-member-chevron');
-  if(!form) return;
-  const hidden=form.classList.contains('d-none');
-  form.classList.toggle('d-none',!hidden);
-  if(chevron) chevron.className=hidden?'bi bi-chevron-up text-muted':'bi bi-chevron-down text-muted';
-  if(hidden) {
-    const today=new Date();
-    const d=document.getElementById('nm_date');
-    if(d) d.value=_fmtDate(today);
-  }
-}
-
-// 快速帶入格式：9188編號\t戶名\t暱稱\t(略過)\t電話\t銀行帳號
-function quickFillMember() {
-  const raw = document.getElementById('nm_quick_input')?.value.trim();
-  if(!raw) return;
-  // 支援 Tab 或全形空格分隔
-  const parts = raw.split(/\t|　/).map(s => s.trim());
-  // [0]=9188編號 [1]=戶名 [2]=暱稱 [3]=略過 [4]=電話 [5]=銀行帳號
-  const set = (id, val) => { const el=document.getElementById(id); if(el && val) el.value=val; };
-  set('nm_9188',     parts[0] || '');
-  set('nm_name',     parts[1] || '');
-  set('nm_nickname', parts[2] || '');
-  // parts[3] 略過（滿貫大亨 / 遊戲ID）
-  set('nm_phone',    parts[4] || '');
-  set('nm_bank',     parts[5] || '');
-  // 觸發黑名單即時檢查
-  checkNmBlacklist && checkNmBlacklist();
-}
-
-function genNoId() {
-  const existing=new Set([...CUSTOMERS,...BLACKLIST].filter(c=>c['9188編號']?.startsWith('X')).map(c=>c['9188編號']));
-  let num=1;
-  while(existing.has('X'+String(num).padStart(5,'0'))) num++;
-  const newId='X'+String(num).padStart(5,'0');
-  document.getElementById('nm_9188').value=newId;
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-  checkAuth();
-});
-
-</script>
-</body>
-</html>
+  exp.
