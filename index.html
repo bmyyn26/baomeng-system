@@ -3529,8 +3529,8 @@ function renderBankDetail() {
     const feeAmt    = feeMatch ? parseInt(feeMatch[1]) : 0;
     const noteClean = r.note ? r.note.replace(/[\/／]?手續費\d+元[\/／]?/g,'').trim() : '';
     const detailHtml = r.isOther
-      ? `${r.label}${r.nickname?" "+r.nickname:""}${r.note?'<br><span class="text-muted small">'+r.note+'</span>':''}`
-      : `<span class="badge ${badgeCls} me-1" style="font-size:10px">${r.label}</span>${r.nickname}${r.cvsCode?'<br><span class="text-muted" style="font-size:11px">'+r.cvsCode+'</span>':''}${noteClean?'<br><span class="text-muted small">'+noteClean+'</span>':''}`;
+      ? `${r.note || r.label}${r.nickname && r.nickname !== (r.note||r.label) ? ' '+r.nickname : ''}`
+      : `<span class="badge ${badgeCls} me-1" style="font-size:10px">${r.label}</span>${r.nickname}${r.cvsCode?' <span class="text-muted" style="font-size:11px">'+r.cvsCode+'</span>':''}`;
     const ops = r.isOther
       ? `<button class="btn btn-outline-secondary py-0 px-1 me-1" style="font-size:10px" onclick="editBankOther(${r.otherId})" title="編輯"><i class="bi bi-pencil"></i></button>
          <button class="btn btn-outline-danger py-0 px-1" style="font-size:10px" onclick="deleteBankOther(${r.otherId})" title="刪除"><i class="bi bi-trash"></i></button>`
