@@ -832,15 +832,9 @@
       <button class="btn btn-sm btn-outline-secondary"    id="bfilter-中信" onclick="filterBankDetail('中信')">中信</button>
       <button class="btn btn-sm btn-outline-secondary"    id="bfilter-超商" onclick="filterBankDetail('超商')">超商</button>
     </div>
-    <input type="date" class="form-control form-control-sm" id="bfilter-from" style="width:130px" onchange="loadBankByRange()">
-    <span class="text-muted small">～</span>
-    <input type="date" class="form-control form-control-sm" id="bfilter-to" style="width:130px" onchange="loadBankByRange()">
-    <button class="btn btn-sm btn-outline-secondary" onclick="resetBankToToday()" title="回今日">今日</button>
+    <input type="date" class="form-control form-control-sm" id="bfilter-date" style="width:140px" onchange="loadBankByRange()">
+    <button class="btn btn-sm btn-outline-secondary" onclick="resetBankToToday()">今日</button>
     <button class="btn btn-sm btn-outline-secondary" onclick="loadBankByRange()" title="重新整理"><i class="bi bi-arrow-clockwise"></i></button>
-    <button class="btn btn-sm btn-outline-primary fw-bold" onclick="toggleBankBalance()">
-      <i class="bi bi-bank me-1"></i>餘額
-    </button>
-    <button class="btn btn-sm btn-outline-warning fw-bold" onclick="carryoverBankBalances()" title="將今日收支結算後存為明日起始餘額">今日結轉</button>
     <button class="btn btn-sm btn-pink fw-bold" onclick="openOrderDrawer()">
       <i class="bi bi-plus-circle me-1"></i>開單
     </button>
@@ -850,37 +844,6 @@
     <button class="btn btn-sm btn-outline-danger fw-bold" onclick="bankOtherAction('out')">
       <i class="bi bi-dash-circle me-1"></i>支出
     </button>
-  </div>
-
-  <!-- 餘額面板（預設隱藏） -->
-  <div id="bank_balance_panel" class="card p-3 mb-3" style="display:none">
-    <div class="d-flex justify-content-between align-items-center mb-2">
-      <span class="fw-bold small text-muted">銀行餘額</span>
-      <button class="btn btn-outline-secondary btn-sm" onclick="showBankEditModal()">
-        <i class="bi bi-pencil me-1"></i>修改餘額
-      </button>
-    </div>
-    <div id="bank_stat_rows"></div>
-    <div class="row g-2 text-center mt-1">
-      <div class="col-4">
-        <div class="card p-2 bg-light">
-          <div class="text-success fw-bold" id="bank_total_in">0</div>
-          <div class="text-muted" style="font-size:11px">今日現金收入</div>
-        </div>
-      </div>
-      <div class="col-4">
-        <div class="card p-2 bg-light">
-          <div class="text-danger fw-bold" id="bank_total_out">0</div>
-          <div class="text-muted" style="font-size:11px">今日現金支出</div>
-        </div>
-      </div>
-      <div class="col-4">
-        <div class="card p-2 bg-light">
-          <div class="text-primary fw-bold" id="bank_total_count">0 筆</div>
-          <div class="text-muted" style="font-size:11px">今日總筆數</div>
-        </div>
-      </div>
-    </div>
   </div>
 
   <!-- 明細表格 -->
@@ -1675,9 +1638,8 @@ function showPage(name) {
   if(name === "storage") { reloadStorageFromDB(); renderLog(); }
   if(name === "checkout") loadCheckout();
   if(name === "bank") {
-    const fromEl=document.getElementById("bfilter-from");
-    const toEl=document.getElementById("bfilter-to");
-    if(fromEl&&!fromEl.value){const t=_fmtDate(new Date());const d=new Date();d.setDate(d.getDate()-6);fromEl.value=_fmtDate(d);toEl.value=t;}
+    const dateEl=document.getElementById("bfilter-date");
+    if(dateEl&&!dateEl.value) dateEl.value=_fmtDate(new Date());
     loadBankByRange();
   }
   // 手機版：更新底部導覽 active 狀態
@@ -3453,9 +3415,9 @@ function closeOrderDrawer() {
 
 // ── 銀行日期區間 ────────────────────────────────────────────
 async function loadBankByRange() {
-  const from = document.getElementById('bfilter-from')?.value;
-  const to   = document.getElementById('bfilter-to')?.value;
-  if(!from || !to) return;
+  const from = document.getElementById('bfilter-date')?.value;
+  const to   = from;
+  if(!from) return;
   let query = _supa.from('transactions').select('*').order('date').order('created_at');
   query = query.gte('date', from).lte('date', to);
   const { data, error } = await query;
@@ -3489,9 +3451,8 @@ async function loadBankByRange() {
 }
 
 function resetBankToToday() {
-  const today = _fmtDate(new Date());
-  document.getElementById('bfilter-from').value = today;
-  document.getElementById('bfilter-to').value   = today;
+  const dateEl = document.getElementById('bfilter-date');
+  if(dateEl) dateEl.value = _fmtDate(new Date());
   loadBankByRange();
 }
 
@@ -3613,8 +3574,8 @@ function renderBankDetail() {
   const tbody = document.getElementById("bank_detail_tbody");
   if(!tbody) return;
   const todayStr = _fmtDate(new Date());
-  const dateFrom = (document.getElementById('bfilter-from')?.value) || '';
-  const dateTo   = (document.getElementById('bfilter-to')?.value)   || '';
+  const dateFrom = (document.getElementById('bfilter-date')?.value) || '';
+  const dateTo   = dateFrom;
   let rows = [];
   TODAY_LOGS.forEach((r, idx) => {
     if(!BANK_NAMES.includes(r.bank)) return;
