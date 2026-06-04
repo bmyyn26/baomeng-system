@@ -555,7 +555,82 @@
 <!-- ════════════════════════════════════════
      今日交易紀錄
 ════════════════════════════════════════ -->
-<div id="page-today_log" class="page"></div>
+<div id="page-today_log" class="page">
+  <div class="card p-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="fw-bold mb-0"><i class="bi bi-calendar-check me-2"></i>交易紀錄</h5>
+      <div class="d-flex align-items-center gap-2">
+        <input type="date" id="log_date_picker" class="form-control form-control-sm" style="width:140px" onchange="loadLogByDate(this.value)">
+        <span class="text-muted small" id="today_date_label"></span>
+      </div>
+    </div>
+
+    <!-- 統計列 -->
+    <div class="row g-2 mb-3 text-center">
+      <div class="col-3">
+        <div class="card p-2 bg-light">
+          <div class="text-success fw-bold" id="stat-buy-amount">0</div>
+          <div class="text-muted" style="font-size:10px">買方收入</div>
+        </div>
+      </div>
+      <div class="col-3">
+        <div class="card p-2 bg-light">
+          <div class="text-danger fw-bold" id="stat-sell-amount">0</div>
+          <div class="text-muted" style="font-size:10px">賣方支出</div>
+        </div>
+      </div>
+      <div class="col-3">
+        <div class="card p-2 bg-light">
+          <div class="text-success fw-bold" id="stat-buy-count">0</div>
+          <div class="text-muted" style="font-size:10px">買方筆數</div>
+        </div>
+      </div>
+      <div class="col-3">
+        <div class="card p-2 bg-light">
+          <div class="text-danger fw-bold" id="stat-sell-count">0</div>
+          <div class="text-muted" style="font-size:10px">賣方筆數</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 篩選 -->
+    <div class="d-flex gap-2 mb-3 flex-wrap align-items-center">
+      <button class="btn btn-sm btn-pink"              onclick="filterLog('all')"     id="filter-all">全部</button>
+      <button class="btn btn-sm btn-outline-secondary" onclick="filterLog('buy')"     id="filter-buy">買方</button>
+      <button class="btn btn-sm btn-outline-secondary" onclick="filterLog('sell')"    id="filter-sell">賣方</button>
+      <button class="btn btn-sm btn-outline-secondary" onclick="filterLog('storage')" id="filter-storage">寄放</button>
+      <button class="btn btn-sm btn-outline-secondary" onclick="filterLog('合庫')"    id="filter-合庫">合庫</button>
+      <button class="btn btn-sm btn-outline-secondary" onclick="filterLog('玉山')"    id="filter-玉山">玉山</button>
+      <button class="btn btn-sm btn-outline-secondary" onclick="filterLog('超商')"    id="filter-超商">超商</button>
+    </div>
+
+    <!-- 明細表格 -->
+    <div style="overflow-x:auto">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>日期</th>
+            <th>收支銀行</th>
+            <th>暱稱</th>
+            <th class="text-end">金額</th>
+            <th class="text-end">紅鑽</th>
+            <th>交易單號</th>
+            <th>超商代碼</th>
+            <th>收支時間</th>
+            <th>備註</th>
+            <th>時間</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="log_list"></tbody>
+      </table>
+      <div id="log_empty" class="text-center text-muted py-4 d-none">
+        <div class="fs-1">📋</div>
+        <p class="small">此分類今日無紀錄</p>
+      </div>
+    </div>
+  </div>
+</div>
 
 
 <div id="page-database" class="page">
@@ -816,6 +891,38 @@
       </div>
     </div>
     <div class="px-3 py-2 text-end text-muted small border-top" id="storage_total"></div>
+  </div>
+
+  <!-- 寄放相關明細 -->
+  <div class="card mt-3">
+    <div class="px-3 py-2 fw-bold border-bottom d-flex justify-content-between align-items-center" style="background:#fff8e1">
+      <span><i class="bi bi-list-ul me-1 text-warning"></i>今日寄放明細</span>
+      <div class="d-flex gap-1">
+        <button class="btn btn-sm btn-outline-secondary" onclick="filterStorageLog('all')"     id="slog-filter-all">全部</button>
+        <button class="btn btn-sm btn-outline-secondary" onclick="filterStorageLog('寄放')"    id="slog-filter-寄放">寄放</button>
+        <button class="btn btn-sm btn-outline-secondary" onclick="filterStorageLog('領回')"    id="slog-filter-領回">領回</button>
+        <button class="btn btn-sm btn-outline-secondary" onclick="filterStorageLog('記帳')"    id="slog-filter-記帳">記帳</button>
+        <button class="btn btn-sm btn-outline-secondary" onclick="filterStorageLog('還鑽')"    id="slog-filter-還鑽">還鑽</button>
+      </div>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="table table-hover align-middle mb-0" style="font-size:13px">
+        <thead class="table-light">
+          <tr>
+            <th>時間</th>
+            <th>類型</th>
+            <th>暱稱</th>
+            <th class="text-end">金額</th>
+            <th class="text-end">紅鑽</th>
+            <th>備註</th>
+          </tr>
+        </thead>
+        <tbody id="storage_log_list"></tbody>
+      </table>
+      <div id="storage_log_empty" class="text-center text-muted py-3 d-none">
+        <p class="small mb-0">今日無寄放相關紀錄</p>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1515,7 +1622,7 @@ function showPage(name) {
   document.getElementById("nav-"+name)?.classList.add("active-nav");
   currentPage = name;
   if(name === "today_log") renderLog();
-  if(name === "storage") { reloadStorageFromDB(); renderLog(); }
+  if(name === "storage") { reloadStorageFromDB(); renderLog(); renderStorageLog(); }
   if(name === "checkout") loadCheckout();
   if(name === "bank") {
     const fromEl=document.getElementById("bfilter-from");
@@ -2478,6 +2585,48 @@ function filterLog(type) {
 
 function isStorageEntry(r) {
   return r.type==="storage" || r.bank==="寄放" || r.label==="記帳" || r.label==="還鑽";
+}
+
+// ── 暫存區明細（寄放/領回/記帳/還鑽）──────────────────────
+let _storageLogFilter = 'all';
+const STORAGE_LABELS = ['寄放', '領回', '記帳', '還鑽'];
+
+function filterStorageLog(type) {
+  _storageLogFilter = type;
+  ['all','寄放','領回','記帳','還鑽'].forEach(t => {
+    const btn = document.getElementById('slog-filter-' + t);
+    if(!btn) return;
+    btn.classList.toggle('btn-warning', t === type);
+    btn.classList.toggle('btn-outline-secondary', t !== type);
+  });
+  renderStorageLog();
+}
+
+function renderStorageLog() {
+  const tbody = document.getElementById('storage_log_list');
+  const empty = document.getElementById('storage_log_empty');
+  if(!tbody) return;
+
+  let data = TODAY_LOGS.filter(r => STORAGE_LABELS.includes(r.label));
+  if(_storageLogFilter !== 'all') data = data.filter(r => r.label === _storageLogFilter);
+
+  if(!data.length) {
+    tbody.innerHTML = '';
+    empty?.classList.remove('d-none');
+    return;
+  }
+  empty?.classList.add('d-none');
+
+  const labelColor = { '寄放':'text-success', '領回':'text-warning', '記帳':'text-secondary', '還鑽':'text-primary' };
+  tbody.innerHTML = data.map(r => `
+    <tr>
+      <td class="text-muted" style="white-space:nowrap">${r.time||''}</td>
+      <td><span class="fw-bold ${labelColor[r.label]||''}">${r.label}</span></td>
+      <td>${r.nickname||''}</td>
+      <td class="text-end">${r.amount||''}</td>
+      <td class="text-end">${r.diamonds?r.diamonds+'顆':''}</td>
+      <td class="text-muted small">${r.note||''}</td>
+    </tr>`).join('');
 }
 
 function renderLog() {
