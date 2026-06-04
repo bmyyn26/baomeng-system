@@ -1296,7 +1296,7 @@
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.38.4"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.50.0"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <script>
@@ -3512,11 +3512,15 @@ function renderBankDetail() {
     tbody.innerHTML = "<tr><td colspan='10' class='text-center text-muted py-4'>尚無銀行異動紀錄</td></tr>";
     return;
   }
+  // 從最舊→最新累加餘額，再反轉回顯示順序（最新在上）
   const runBal = {};
   BANK_STAT_NAMES.forEach(b => { runBal[b] = BANK_INIT[b] || 0; });
-  tbody.innerHTML = rows.map(r => {
+  const rowsWithBal = [...rows].reverse().map(r => {
     if(runBal[r.bank] !== undefined) runBal[r.bank] += (r.inAmt||0) - (r.outAmt||0);
-    const bal = runBal[r.bank];
+    return { ...r, _bal: runBal[r.bank] };
+  }).reverse();
+  tbody.innerHTML = rowsWithBal.map(r => {
+    const bal = r._bal;
     const balHtml = bal !== undefined
       ? `<span class="fw-bold" style="color:#000">${bal.toLocaleString()}</span>` : '—';
     const typeCls  = r.label==='買方'||r.label==='記帳' ? 'text-success' : r.label==='賣方'||r.label==='還鑽' ? 'text-danger' : 'text-primary';
