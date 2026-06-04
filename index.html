@@ -3127,24 +3127,31 @@ function confirmStorageAction() {
     const wdAmt = parseInt(document.getElementById("sm_withdraw_amount")?.value)||0;
     if(!wdAmt)            { alert("請填寫領回金額"); return; }
     if(wdAmt > row.amount){ alert(`領回金額不能超過 ${row.amount}`); return; }
-    const wdDiaSell = Math.round(wdAmt * 1.5);   // 賣方：×1.5
-    const wdDiaBuy  = Math.round(wdAmt * 1.35);  // 買方（買回）：×1.3
+    const wdDiaSell = Math.round(wdAmt * 1.44);  // 賣方：×1.44
+    const wdDiaBuy  = Math.round(wdAmt * 1.3);   // 買方（買回）：×1.3
+    const wdDate = today;
+    const sellLog = { type:"sell", label:"賣方", nickname:row.nickname,
+      diamonds:wdDiaSell, amount:wdAmt, time:timeStr, note:"寄放領回", giftTime:"", bank:"寄放",
+      date:wdDate, cvsCode:"", orderNo:genOrderNo("sell", wdDate, timeStr), bankAccount:"" };
+    const buyLog  = { type:"buy",  label:"買方", nickname:row.nickname,
+      diamonds:wdDiaBuy,  amount:wdAmt, time:timeStr, note:"寄放領回", giftTime:timeStr, bank:"寄放",
+      date:wdDate, cvsCode:"", orderNo:genOrderNo("buy", wdDate, timeStr), bankAccount:"" };
+    // 更新記憶體
     if(wdAmt >= row.amount) {
       STORAGE_DATA = STORAGE_DATA.filter(r=>r.id!==row.id);
     } else {
       row.amount   -= wdAmt;
       row.diamonds  = Math.round(row.amount * 1.44);
     }
-    // 備註1：賣方（×1.44）＋ 買方（×1.3）各一筆
-    const wdDate = today;
-    TODAY_LOGS.push({ type:"sell", label:"賣方", nickname:row.nickname,
-      diamonds:wdDiaSell, amount:wdAmt, time:timeStr, note:"寄放領回", giftTime:"", bank:"寄放",
-      date:wdDate, cvsCode:"", orderNo:genOrderNo("sell", wdDate, timeStr) });
-    TODAY_LOGS.push({ type:"buy",  label:"買方", nickname:row.nickname,
-      diamonds:wdDiaBuy,  amount:wdAmt, time:timeStr, note:"寄放領回", giftTime:timeStr, bank:"寄放",
-      date:wdDate, cvsCode:"", orderNo:genOrderNo("buy", wdDate, timeStr) });
+    TODAY_LOGS.push(sellLog);
+    TODAY_LOGS.push(buyLog);
     modal.hide(); renderStorageTable();
     showStorageAlert(true, `${row.nickname} 領回 ${wdAmt} 已記入今日交易（賣方 ${wdDiaSell} 顆 ／ 買方 ${wdDiaBuy} 顆）`);
+    // 寫入 DB（記憶體先更新確保 UI 即時，DB 在背景寫入）
+    const stillExists = STORAGE_DATA.find(r=>r.id===row.id);
+    stillExists ? storageUpdateDB(row) : storageDeleteDB([row.id]);
+    appendTransaction(sellLog);
+    appendTransaction(buyLog);
 
   } else if(currentStorageAction === "debit") {
     const nickname = (document.getElementById("sm_nickname")?.value||"").trim();
@@ -3669,15 +3676,23 @@ function renderBankDetail() {
     tbody.innerHTML = "<tr><td colspan='10' class='text-center text-muted py-4'>尚無銀行異動紀錄</td></tr>";
     return;
   }
-  // 從最舊→最新累加餘額，再反轉回顯示順序（最新在上）
+  // 固定用舊→新順序計算累積餘額，再依顯示排序重排
+  const chronRows = [...rows].sort((a,b) =>
+    (a.date||'').localeCompare(b.date||'') || (a.time||'').localeCompare(b.time||'')
+  );
   const runBal = {};
   BANK_STAT_NAMES.forEach(b => { runBal[b] = BANK_INIT[b] || 0; });
-  const rowsWithBal = [...rows].reverse().map(r => {
+  const rowsWithBal = chronRows.map(r => {
     const feeMatch = !r.isOther && r.note ? r.note.match(/手續費(\d+)元/) : null;
     const fee = feeMatch ? parseInt(feeMatch[1]) : 0;
     if(runBal[r.bank] !== undefined) runBal[r.bank] += (r.inAmt||0) - (r.outAmt||0) - fee;
     return { ...r, _bal: runBal[r.bank] };
-  }).reverse();
+  });
+  // 依使用者選擇的顯示順序排列
+  rowsWithBal.sort((a,b) => {
+    const cmp = (a.date||'').localeCompare(b.date||'') || (a.time||'').localeCompare(b.time||'');
+    return _bankTimeSortAsc ? cmp : -cmp;
+  });
   tbody.innerHTML = rowsWithBal.map(r => {
     const bal = r._bal;
     const balHtml = bal !== undefined
