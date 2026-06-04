@@ -6,10 +6,10 @@ services:
     startCommand: gunicorn app:app
     envVars:
       - key: LINE_CHANNEL_SECRET
-        value: 83e0cd34acc4b2e52ee311f0c0e8f0a2
+        sync: false
       - key: LINE_ACCESS_TOKEN
-        value: brcndl2dk1OmPOmUl3xm0L0xXVwLg8TeGbbRenHdnOTuiO1RKHxZxE7qs96wT2g2SVVotGgfDDVYTa7YvALkoz3Wy7cysmp/xllK7D+OZisjO0M6SpU9h+37ZQnzR+fnth+DJQxMTEM0wLytDdbvDAdB04t89/1O/w1cDnyilFU=
+        sync: false
       - key: SUPABASE_URL
-        value: https://swleodnzuojaavrzivcv.supabase.co
+        sync: false
       - key: SUPABASE_KEY
-        value: sb_publishable_FRN828NmQnE-bO2fP9KZ7A_i3A76-h-
+        sync: false

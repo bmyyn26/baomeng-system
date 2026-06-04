@@ -37,8 +37,9 @@ def verify(body, sig):
 
 # ── LINE 訊息工具 ──────────────────────────────────────────
 def reply(token, messages):
-    requests.post(LINE_REPLY, headers=LINE_HDR(),
-                  json={'replyToken': token, 'messages': messages})
+    r = requests.post(LINE_REPLY, headers=LINE_HDR(),
+                      json={'replyToken': token, 'messages': messages})
+    print(f'[REPLY] status={r.status_code} body={r.text[:200]}', flush=True)
 
 def txt(text):
     return {'type': 'text', 'text': text}
