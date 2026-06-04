@@ -104,6 +104,51 @@
   #orderDrawer .card.p-4 { padding:12px !important; }
   #orderDrawer .mb-3 { margin-bottom:8px !important; }
   #orderDrawer h6 { font-size:13px; margin-bottom:8px !important; }
+
+  /* ── 底部導覽列 ── */
+  #bottom-nav {
+    display:none;
+    position:fixed; bottom:0; left:0; right:0; z-index:1045;
+    background:#d63384; height:60px;
+    align-items:stretch;
+    box-shadow:0 -2px 12px rgba(0,0,0,.18);
+  }
+  #bottom-nav button {
+    flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:none; border:none; color:rgba(255,255,255,.75);
+    font-size:11px; gap:2px; padding:0; transition:color .15s;
+  }
+  #bottom-nav button i { font-size:22px; }
+  #bottom-nav button.active-nav { color:#fff; }
+  #bottom-more-menu {
+    display:none; position:fixed; bottom:60px; left:0; right:0; z-index:1044;
+    background:#c02070;
+    box-shadow:0 -2px 12px rgba(0,0,0,.2);
+  }
+  #bottom-more-menu button {
+    display:flex; align-items:center; gap:12px;
+    width:100%; background:none; border:none; color:#fff;
+    padding:13px 24px; font-size:15px; border-bottom:1px solid rgba(255,255,255,.1);
+  }
+  #bottom-more-menu button:last-child { border-bottom:none; }
+
+  /* ── 手機：隱藏側邊欄，改用底部導覽 ── */
+  @media (max-width:767px) {
+    body { padding-left:0 !important; padding-bottom:68px; }
+    #sidebar, #sidebar-toggle { display:none !important; }
+    #bottom-nav { display:flex !important; }
+  }
+
+  /* ── 平板：緊湊 icon 側邊欄 ── */
+  @media (min-width:768px) and (max-width:1024px) {
+    #sidebar { width:60px; }
+    body { padding-left:60px; }
+    #sidebar-toggle { left:24px; }
+    #sidebar-brand { padding:12px 0 16px; text-align:center; }
+    #sidebar-brand span { display:none; }
+    .sidebar-btn { padding:12px 0; justify-content:center; gap:0; }
+    .sidebar-btn .btn-label { display:none; }
+  }
 </style>
 </head>
 <body>
@@ -147,17 +192,32 @@
 <!-- ── 側邊欄遮罩（已停用）── -->
 <div id="sidebar-overlay"></div>
 
+<!-- ── 手機底部導覽列 ── -->
+<nav id="bottom-nav">
+  <button id="bnav-home"    onclick="showPage('home')">   <i class="bi bi-house-fill"></i>   <span>首頁</span></button>
+  <button id="bnav-order"   onclick="openOrderDrawer()">  <i class="bi bi-plus-circle-fill"></i><span>開單</span></button>
+  <button id="bnav-storage" onclick="showPage('storage')"><i class="bi bi-box-seam-fill"></i> <span>寄放</span></button>
+  <button id="bnav-bank"    onclick="showPage('bank')">   <i class="bi bi-bank2"></i>         <span>銀行</span></button>
+  <button id="bnav-more"    onclick="toggleBottomMore()"> <i class="bi bi-grid-fill"></i>     <span>更多</span></button>
+</nav>
+<div id="bottom-more-menu">
+  <button onclick="showPage('customer');toggleBottomMore(false)"><i class="bi bi-search"></i>會員</button>
+  <button onclick="showPage('rebate');toggleBottomMore(false)"><i class="bi bi-gem"></i>回分計算</button>
+  <button onclick="showPage('checkout');toggleBottomMore(false)"><i class="bi bi-receipt-cutoff"></i>結帳</button>
+  <button onclick="showPage('database');toggleBottomMore(false)"><i class="bi bi-database"></i>資料庫</button>
+</div>
+
 <!-- ── 左側導覽列 ── -->
 <nav id="sidebar">
-  <div id="sidebar-brand"><i class="bi bi-heart-fill me-2"></i>寶萌管理系統</div>
-  <button class="sidebar-btn" id="nav-home"      onclick="showPage('home')"><i class="bi bi-house"></i> 首頁</button>
-  <button class="sidebar-btn" id="nav-customer"  onclick="showPage('customer')"><i class="bi bi-search"></i> 會員</button>
-  <button class="sidebar-btn" id="nav-storage"   onclick="showPage('storage')"><i class="bi bi-box-seam"></i> 寄放</button>
-  <button class="sidebar-btn" id="nav-order"     onclick="showPage('order')"><i class="bi bi-plus-circle"></i> 開單</button>
-  <button class="sidebar-btn" id="nav-bank"      onclick="showPage('bank')"><i class="bi bi-bank"></i> 銀行</button>
-  <button class="sidebar-btn" id="nav-rebate"    onclick="showPage('rebate')"><i class="bi bi-gem"></i> 回分計算</button>
-  <button class="sidebar-btn" id="nav-checkout"  onclick="showPage('checkout')"><i class="bi bi-receipt-cutoff"></i> 結帳</button>
-  <button class="sidebar-btn" id="nav-database"  onclick="showPage('database')"><i class="bi bi-database"></i> 資料庫</button>
+  <div id="sidebar-brand"><i class="bi bi-heart-fill me-2"></i><span>寶萌管理系統</span></div>
+  <button class="sidebar-btn" id="nav-home"      onclick="showPage('home')"><i class="bi bi-house"></i><span class="btn-label"> 首頁</span></button>
+  <button class="sidebar-btn" id="nav-customer"  onclick="showPage('customer')"><i class="bi bi-search"></i><span class="btn-label"> 會員</span></button>
+  <button class="sidebar-btn" id="nav-storage"   onclick="showPage('storage')"><i class="bi bi-box-seam"></i><span class="btn-label"> 寄放</span></button>
+  <button class="sidebar-btn" id="nav-order"     onclick="showPage('order')"><i class="bi bi-plus-circle"></i><span class="btn-label"> 開單</span></button>
+  <button class="sidebar-btn" id="nav-bank"      onclick="showPage('bank')"><i class="bi bi-bank"></i><span class="btn-label"> 銀行</span></button>
+  <button class="sidebar-btn" id="nav-rebate"    onclick="showPage('rebate')"><i class="bi bi-gem"></i><span class="btn-label"> 回分計算</span></button>
+  <button class="sidebar-btn" id="nav-checkout"  onclick="showPage('checkout')"><i class="bi bi-receipt-cutoff"></i><span class="btn-label"> 結帳</span></button>
+  <button class="sidebar-btn" id="nav-database"  onclick="showPage('database')"><i class="bi bi-database"></i><span class="btn-label"> 資料庫</span></button>
 </nav>
 
 <div class="container py-4">
@@ -307,21 +367,7 @@
   <div class="card p-4" id="order-buyer-panel">
     <h6 class="fw-bold mb-3 text-success"><i class="bi bi-arrow-down-circle me-1"></i>買方 — 現金匯入</h6>
 
-    <div class="mb-3">
-      <label class="form-label fw-semibold small">付款方式</label>
-      <div class="d-flex gap-2 flex-wrap">
-        <button class="btn btn-pink btn-sm pay-buyer-btn" id="buyer-pay-合庫" onclick="selectBuyerPay('合庫')">合庫</button>
-        <button class="btn btn-outline-secondary btn-sm pay-buyer-btn" id="buyer-pay-超商" onclick="selectBuyerPay('超商')">超商</button>
-        <button class="btn btn-outline-secondary btn-sm pay-buyer-btn" id="buyer-pay-玉山" onclick="selectBuyerPay('玉山')">玉山</button>
-        <button class="btn btn-outline-secondary btn-sm pay-buyer-btn" id="buyer-pay-其他" onclick="selectBuyerPay('其他')">其他</button>
-      </div>
-    </div>
-
-    <div class="mb-3">
-      <label class="form-label fw-semibold">日期</label>
-      <input type="date" class="form-control" id="buyer_date">
-    </div>
-
+    <!-- 1. 暱稱（最常用，優先） -->
     <div class="mb-3">
       <label class="form-label fw-semibold">暱稱 <span class="text-danger">*</span></label>
       <input type="text" class="form-control" id="buyer_nickname" placeholder="" autocomplete="off">
@@ -330,22 +376,27 @@
       </div>
     </div>
 
+    <!-- 2. 金額 + 快選 + 紅鑽換算 -->
     <div class="mb-3">
       <label class="form-label fw-semibold">金額</label>
       <div class="input-group">
         <input type="number" class="form-control form-control-lg" id="buyer_amount" placeholder="" min="0" oninput="calcBuyerDiamonds()">
         <span class="input-group-text">元</span>
       </div>
-      <!-- 快選金額 -->
-      <div class="d-flex flex-wrap gap-1 mt-2">
-        <button class="btn btn-sm btn-outline-secondary" onclick="setBuyerAmount(500)">500</button>
-        <button class="btn btn-sm btn-outline-secondary" onclick="setBuyerAmount(1000)">1000</button>
-        <button class="btn btn-sm btn-outline-secondary" onclick="setBuyerAmount(2000)">2000</button>
-        <button class="btn btn-sm btn-outline-secondary" onclick="setBuyerAmount(3000)">3000</button>
-        <button class="btn btn-sm btn-outline-secondary" onclick="setBuyerAmount(5000)">5000</button>
-        <button class="btn btn-sm btn-outline-secondary" onclick="setBuyerAmount(10000)">10000</button>
-        <button class="btn btn-sm btn-outline-secondary" onclick="setBuyerAmount(15000)">15000</button>
-        <button class="btn btn-sm btn-outline-secondary" onclick="setBuyerAmount(20000)">20000</button>
+      <!-- 快選金額：兩排各4顆 -->
+      <div class="d-flex flex-column gap-1 mt-2">
+        <div class="d-flex gap-1">
+          <button class="btn btn-sm btn-outline-secondary flex-fill" style="min-height:40px" onclick="setBuyerAmount(500)">500</button>
+          <button class="btn btn-sm btn-outline-secondary flex-fill" style="min-height:40px" onclick="setBuyerAmount(1000)">1000</button>
+          <button class="btn btn-sm btn-outline-secondary flex-fill" style="min-height:40px" onclick="setBuyerAmount(2000)">2000</button>
+          <button class="btn btn-sm btn-outline-secondary flex-fill" style="min-height:40px" onclick="setBuyerAmount(3000)">3000</button>
+        </div>
+        <div class="d-flex gap-1">
+          <button class="btn btn-sm btn-outline-secondary flex-fill" style="min-height:40px" onclick="setBuyerAmount(5000)">5000</button>
+          <button class="btn btn-sm btn-outline-secondary flex-fill" style="min-height:40px" onclick="setBuyerAmount(10000)">10000</button>
+          <button class="btn btn-sm btn-outline-secondary flex-fill" style="min-height:40px" onclick="setBuyerAmount(15000)">15000</button>
+          <button class="btn btn-sm btn-outline-secondary flex-fill" style="min-height:40px" onclick="setBuyerAmount(20000)">20000</button>
+        </div>
       </div>
       <!-- 紅鑽換算（可複製）-->
       <div id="buyer_diamond_hint" class="d-none mt-2 p-2 rounded" style="background:#f0fff4;border:1px solid #b7ebc8">
@@ -356,6 +407,17 @@
           onclick="copyText(document.getElementById('buyer_diamond_val').textContent,this)" title="複製顆數">
           <i class="bi bi-clipboard"></i>
         </button>
+      </div>
+    </div>
+
+    <!-- 3. 付款方式 -->
+    <div class="mb-3">
+      <label class="form-label fw-semibold small">付款方式</label>
+      <div class="d-flex gap-2 flex-wrap">
+        <button class="btn btn-pink btn-sm pay-buyer-btn" id="buyer-pay-合庫" onclick="selectBuyerPay('合庫')">合庫</button>
+        <button class="btn btn-outline-secondary btn-sm pay-buyer-btn" id="buyer-pay-超商" onclick="selectBuyerPay('超商')">超商</button>
+        <button class="btn btn-outline-secondary btn-sm pay-buyer-btn" id="buyer-pay-玉山" onclick="selectBuyerPay('玉山')">玉山</button>
+        <button class="btn btn-outline-secondary btn-sm pay-buyer-btn" id="buyer-pay-其他" onclick="selectBuyerPay('其他')">其他</button>
       </div>
     </div>
 
@@ -376,6 +438,12 @@
       <input type="text" class="form-control" id="buyer_note" placeholder="">
     </div>
 
+    <!-- 日期（預設今日，通常不改）-->
+    <div class="mb-3">
+      <label class="form-label fw-semibold text-muted">日期</label>
+      <input type="date" class="form-control" id="buyer_date">
+    </div>
+
     <div id="buyer_result" class="alert d-none mb-3"></div>
     <div class="d-flex gap-2">
       <button class="btn btn-pink flex-grow-1 py-2 fw-bold fs-5" onclick="submitBuyerOrder(false)">
@@ -388,41 +456,28 @@
   <div class="card p-4 d-none" id="order-seller-panel">
     <h6 class="fw-bold mb-3 text-danger"><i class="bi bi-arrow-up-circle me-1"></i>賣方 — 現金轉出</h6>
 
+    <!-- 1. 暱稱 -->
     <div class="mb-3">
-      <div class="d-flex align-items-center gap-2 flex-wrap">
-        <input type="date" id="importSellerDate" class="form-control form-control-sm" style="width:140px">
-        <button class="btn btn-outline-primary btn-sm fw-bold" onclick="document.getElementById('importSellerFile').click()">
-          <i class="bi bi-file-earmark-arrow-up me-1"></i>匯入轉帳
-        </button>
-        <input type="file" id="importSellerFile" accept=".xls,.xlsx" class="d-none" onchange="importSellerTransfer(this)">
-      </div>
-      <span class="text-muted small ms-2">從賣方範本 XLS 批次匯入（第3列起）</span>
+      <label class="form-label fw-semibold">暱稱 <span class="text-danger">*</span></label>
+      <input type="text" class="form-control" id="seller_nickname" placeholder="" autocomplete="off">
     </div>
 
+    <!-- 2. 金額 -->
+    <div class="mb-3">
+      <label class="form-label fw-semibold">金額</label>
+      <div class="input-group">
+        <input type="number" class="form-control form-control-lg" id="seller_amount" placeholder="" min="0">
+        <span class="input-group-text">元</span>
+      </div>
+    </div>
+
+    <!-- 3. 付款方式 -->
     <div class="mb-3">
       <label class="form-label fw-semibold small">付款方式</label>
       <div class="d-flex gap-2 flex-wrap">
         <button class="btn btn-pink btn-sm pay-seller-btn" id="seller-pay-合庫" onclick="selectSellerPay('合庫')">合庫</button>
         <button class="btn btn-outline-secondary btn-sm pay-seller-btn" id="seller-pay-國泰" onclick="selectSellerPay('國泰')">國泰</button>
         <button class="btn btn-outline-secondary btn-sm pay-seller-btn" id="seller-pay-中信" onclick="selectSellerPay('中信')">中信</button>
-      </div>
-    </div>
-
-    <div class="mb-3">
-      <label class="form-label fw-semibold">日期</label>
-      <input type="date" class="form-control" id="seller_date">
-    </div>
-
-    <div class="mb-3">
-      <label class="form-label fw-semibold">暱稱 <span class="text-danger">*</span></label>
-      <input type="text" class="form-control" id="seller_nickname" placeholder="" autocomplete="off">
-    </div>
-
-    <div class="mb-3">
-      <label class="form-label fw-semibold">金額</label>
-      <div class="input-group">
-        <input type="number" class="form-control form-control-lg" id="seller_amount" placeholder="" min="0">
-        <span class="input-group-text">元</span>
       </div>
     </div>
 
@@ -444,6 +499,24 @@
         <button class="btn btn-outline-secondary btn-sm fee-btn" id="fee-btn-10" onclick="selectFee(10)">10 元</button>
         <button class="btn btn-outline-secondary btn-sm fee-btn" id="fee-btn-15" onclick="selectFee(15)">15 元</button>
       </div>
+    </div>
+
+    <!-- 日期（預設今日，通常不改）-->
+    <div class="mb-3">
+      <label class="form-label fw-semibold text-muted">日期</label>
+      <input type="date" class="form-control" id="seller_date">
+    </div>
+
+    <!-- 匯入轉帳（進階功能，放最後）-->
+    <div class="mb-3">
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <input type="date" id="importSellerDate" class="form-control form-control-sm" style="width:140px">
+        <button class="btn btn-outline-primary btn-sm fw-bold" onclick="document.getElementById('importSellerFile').click()">
+          <i class="bi bi-file-earmark-arrow-up me-1"></i>匯入轉帳
+        </button>
+        <input type="file" id="importSellerFile" accept=".xls,.xlsx" class="d-none" onchange="importSellerTransfer(this)">
+      </div>
+      <span class="text-muted small ms-2">從賣方範本 XLS 批次匯入（第3列起）</span>
     </div>
 
     <div id="seller_result" class="alert d-none mb-3"></div>
@@ -1607,11 +1680,22 @@ function showPage(name) {
     if(fromEl&&!fromEl.value){const t=_fmtDate(new Date());const d=new Date();d.setDate(d.getDate()-6);fromEl.value=_fmtDate(d);toEl.value=t;}
     loadBankByRange();
   }
-  // 手機版：點選頁面後自動收起側邊欄
+  // 手機版：更新底部導覽 active 狀態
   if(window.innerWidth < 768) {
-    document.getElementById("sidebar").classList.add("closed");
-    document.body.classList.add("sidebar-closed");
+    const bnavMap = { home:"bnav-home", storage:"bnav-storage", bank:"bnav-bank", customer:"bnav-more", rebate:"bnav-more", checkout:"bnav-more", database:"bnav-more" };
+    document.querySelectorAll("#bottom-nav button").forEach(b => b.classList.remove("active-nav"));
+    const bnavId = bnavMap[name];
+    if(bnavId) { const el=document.getElementById(bnavId); if(el) el.classList.add("active-nav"); }
+    toggleBottomMore(false);
   }
+}
+
+function toggleBottomMore(force) {
+  const menu = document.getElementById("bottom-more-menu");
+  const btn  = document.getElementById("bnav-more");
+  const show = (force === undefined) ? menu.style.display === "none" : force;
+  menu.style.display = show ? "block" : "none";
+  if(btn) btn.classList.toggle("active-nav", show);
 }
 
 function toggleSidebar() {
@@ -2763,18 +2847,45 @@ function renderStorageTable() {
     return;
   }
   empty.classList.add("d-none");
-  tbody.innerHTML = STORAGE_DATA.map(r => `
-    <tr>
-      <td class="ps-3">
-        <input type="checkbox" class="form-check-input storage-row-check" data-id="${r.id}">
-      </td>
-      <td class="fw-semibold">${r.nickname}</td>
-      <td class="text-end fw-bold">${r.amount}</td>
-      <td class="text-end">${r.diamonds}</td>
-      <td class="text-muted small">${r.note||"—"}</td>
-      <td><button class="btn btn-outline-secondary py-0 px-1" style="font-size:11px" onclick="editStorageRow(${r.id})" title="編輯"><i class="bi bi-pencil"></i></button></td>
-      <td class="text-muted" style="font-size:11px">${r.date}</td>
-    </tr>`).join("");
+
+  if(window.innerWidth < 768) {
+    // ── 手機：卡片式列表 ──
+    tbody.innerHTML = STORAGE_DATA.map(r => `
+      <tr>
+        <td colspan="7" style="padding:6px 4px;border:none">
+          <div style="background:#fff;border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,.08);padding:10px 12px;display:flex;align-items:center;gap:10px">
+            <input type="checkbox" class="form-check-input storage-row-check flex-shrink-0" data-id="${r.id}" style="width:20px;height:20px">
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span style="font-weight:700;font-size:16px">${r.nickname}</span>
+                <span style="font-weight:700;font-size:16px">${r.amount}<span style="font-size:12px;color:#888;font-weight:400">元</span></span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:2px">
+                <span style="color:#d63384;font-size:14px">${r.diamonds}顆</span>
+                <span style="color:#999;font-size:12px">${r.note||""}</span>
+              </div>
+              <div style="color:#bbb;font-size:11px;margin-top:2px">${r.date}</div>
+            </div>
+            <button class="btn btn-outline-secondary py-1 px-2 flex-shrink-0" style="font-size:13px" onclick="editStorageRow(${r.id})" title="編輯"><i class="bi bi-pencil"></i></button>
+          </div>
+        </td>
+      </tr>`).join("");
+  } else {
+    // ── 電腦/平板：原有表格 ──
+    tbody.innerHTML = STORAGE_DATA.map(r => `
+      <tr>
+        <td class="ps-3">
+          <input type="checkbox" class="form-check-input storage-row-check" data-id="${r.id}">
+        </td>
+        <td class="fw-semibold">${r.nickname}</td>
+        <td class="text-end fw-bold">${r.amount}</td>
+        <td class="text-end">${r.diamonds}</td>
+        <td class="text-muted small">${r.note||"—"}</td>
+        <td><button class="btn btn-outline-secondary py-0 px-1" style="font-size:11px" onclick="editStorageRow(${r.id})" title="編輯"><i class="bi bi-pencil"></i></button></td>
+        <td class="text-muted" style="font-size:11px">${r.date}</td>
+      </tr>`).join("");
+  }
+
   const totalAmt = STORAGE_DATA.reduce((s,r)=>s+r.amount,0);
   const totalDia = STORAGE_DATA.reduce((s,r)=>s+r.diamonds,0);
   total.textContent = `共 ${STORAGE_DATA.length} 筆 ｜ 合計 ${totalAmt} ／ ${totalDia} 顆`;
