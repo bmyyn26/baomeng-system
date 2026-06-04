@@ -870,6 +870,22 @@
     </button>
   </div>
 
+  <!-- 當日初始金額（測試中）-->
+  <div class="card p-3 mb-3" style="border:1px dashed #ccc">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <div class="d-flex align-items-center gap-2">
+        <span class="fw-bold" style="font-size:14px">當日初始金額</span>
+        <span class="badge bg-secondary" style="font-size:10px">測試中</span>
+      </div>
+      <button class="btn btn-sm btn-outline-secondary" onclick="showBankEditModal()">
+        <i class="bi bi-pencil me-1"></i>修改
+      </button>
+    </div>
+    <div class="d-flex gap-3 flex-wrap" id="bank_init_display">
+      <!-- 由 renderBankInitDisplay() 填入 -->
+    </div>
+  </div>
+
   <!-- 明細表格 -->
   <div class="card">
     <div class="table-log-wrap">
@@ -1664,6 +1680,7 @@ function showPage(name) {
   if(name === "bank") {
     const dateEl=document.getElementById("bfilter-date");
     if(dateEl&&!dateEl.value) dateEl.value=_fmtDate(new Date());
+    renderBankInitDisplay();
     loadBankByRange();
   }
   // 手機版：更新底部導覽 active 狀態
@@ -3552,26 +3569,33 @@ function toggleBankBalance() {
 }
 
 // ── 銀行餘額跨日結轉 ─────────────────────────────────────
+// 僅計算今日結帳後的收盤餘額並存入 DB，供明日起始使用。
+// 不修改記憶體中的 BANK_INIT，避免 renderBankDetail 雙重計算。
 async function carryoverBankBalances() {
   const flow = {};
   BANK_STAT_NAMES.forEach(b => { flow[b] = {in:0, out:0}; });
   TODAY_LOGS.forEach(r => {
     if(!BANK_STAT_NAMES.includes(r.bank)) return;
     if(r.type==='buy')  flow[r.bank].in  += r.amount;
-    if(r.type==='sell') flow[r.bank].out += r.amount;
+    if(r.type==='sell') {
+      flow[r.bank].out += r.amount;
+      const fm = r.note ? r.note.match(/手續費(\d+)元/) : null;
+      if(fm) flow[r.bank].out += parseInt(fm[1]);  // 手續費也算出去
+    }
   });
   BANK_OTHER_LOGS.forEach(r => {
     if(!BANK_STAT_NAMES.includes(r.bank)) return;
     if(r.dir==='in')  flow[r.bank].in  += r.amount;
     if(r.dir==='out') flow[r.bank].out += r.amount;
   });
+  // 計算收盤餘額，直接存 DB，不更動 BANK_INIT（避免當日雙重計算）
+  const newBal = {};
   BANK_STAT_NAMES.forEach(b => {
-    BANK_INIT[b] = (BANK_INIT[b]||0) + (flow[b]?.in||0) - (flow[b]?.out||0);
+    newBal[b] = (BANK_INIT[b]||0) + (flow[b]?.in||0) - (flow[b]?.out||0);
   });
-  await syncBankBalances();
-  renderBankPage();
-  const summary = BANK_STAT_NAMES.map(b=>`${b} ${BANK_INIT[b].toLocaleString()}`).join('　');
-  alert(`✅ 結轉完成\n${summary}`);
+  await Promise.all(BANK_STAT_NAMES.map(b =>
+    _supa.from('bank_balances').update({ balance: newBal[b] }).eq('bank_name', b)
+  ));
 }
 
 function renderBankPage() {
@@ -3697,6 +3721,16 @@ function filterBankDetail(f) {
   renderBankDetail();
 }
 
+function renderBankInitDisplay() {
+  const el = document.getElementById("bank_init_display");
+  if(!el) return;
+  el.innerHTML = ["合庫","玉山","國泰","中信"].map(b => `
+    <div style="min-width:70px;text-align:center">
+      <div style="font-size:11px;color:#888">${b}</div>
+      <div style="font-size:17px;font-weight:700">${(BANK_INIT[b]||0).toLocaleString()}</div>
+    </div>`).join("");
+}
+
 function showBankEditModal() {
   const banks = ["合庫","玉山","國泰","中信"];
   const fields = banks.map(b => `
@@ -3726,6 +3760,7 @@ async function saveBankEdit() {
   });
   document.getElementById("beditOverlay")?.remove();
   await syncBankBalances();
+  renderBankInitDisplay();
   renderBankPage();
 }
 
