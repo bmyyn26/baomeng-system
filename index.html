@@ -2089,7 +2089,7 @@ async function export9188(type) {
   const label = type === 'sell' ? '賣方' : '買方';
   const { data, error } = await _supa.from('transactions')
     .select('*').eq('label', label)
-    .gte('date', fromVal).lte('date', toVal).order('date');
+    .gte('date', fromVal).lte('date', toVal).order('date').order('transaction_time');
 
   if (error) { msgEl.innerHTML = `<span class="text-danger">查詢失敗：${error.message}</span>`; return; }
   if (!data || data.length === 0) {
