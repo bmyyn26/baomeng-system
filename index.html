@@ -979,13 +979,31 @@
     <div class="px-3 py-2 text-end text-muted small border-top" id="storage_total"></div>
   </div>
 
-  <!-- 快捷：查看今日交易紀錄（寄放篩選） -->
-  <div class="mt-3 text-end">
-    <button class="btn btn-sm fw-bold px-3"
-      style="border:1.5px solid #000;color:#000;background:transparent"
-      onclick="filterLog('storage'); showPage('today_log')">
-      <i class="bi bi-list-ul me-1"></i>查看今日記帳／還鑽紀錄
-    </button>
+  <!-- 今日記帳／還鑽紀錄（嵌入） -->
+  <div class="card mt-3">
+    <div class="px-3 pt-3 pb-1 d-flex justify-content-between align-items-center">
+      <span class="fw-bold" style="font-size:14px"><i class="bi bi-list-ul me-1"></i>今日記帳／還鑽紀錄</span>
+      <span class="text-muted small" id="storage_log_count"></span>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="table table-hover align-middle mb-0 table-log">
+        <thead class="table-light">
+          <tr>
+            <th>時間</th>
+            <th>類型</th>
+            <th>暱稱</th>
+            <th class="text-end">金額</th>
+            <th class="text-end">紅鑽</th>
+            <th>備註</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="storage_log_tbody"></tbody>
+      </table>
+      <div id="storage_log_empty" class="text-center text-muted py-4 d-none">
+        <p class="small mb-0">今日尚無記帳或還鑽紀錄</p>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1688,7 +1706,7 @@ function showPage(name) {
   document.getElementById("nav-"+name)?.classList.add("active-nav");
   currentPage = name;
   if(name === "today_log") renderLog();
-  if(name === "storage") { reloadStorageFromDB(); renderLog(); }
+  if(name === "storage") { reloadStorageFromDB(); renderLog(); renderStorageLog(); }
   if(name === "checkout") loadCheckout();
   if(name === "bank") {
     const dateEl=document.getElementById("bfilter-date");
@@ -3017,6 +3035,36 @@ function renderStorageTable() {
   total.textContent = `共 ${STORAGE_DATA.length} 筆 ｜ 合計 ${totalAmt} ／ ${totalDia} 顆`;
 }
 
+function renderStorageLog() {
+  const tbody = document.getElementById("storage_log_tbody");
+  const empty = document.getElementById("storage_log_empty");
+  const count = document.getElementById("storage_log_count");
+  if(!tbody) return;
+  const data = TODAY_LOGS.filter(r => r.label==="記帳" || r.label==="還鑽");
+  if(count) count.textContent = data.length ? `共 ${data.length} 筆` : "";
+  if(!data.length) {
+    tbody.innerHTML = "";
+    empty?.classList.remove("d-none");
+    return;
+  }
+  empty?.classList.add("d-none");
+  tbody.innerHTML = data.map(r => {
+    const logIdx = TODAY_LOGS.indexOf(r);
+    const badgeCls = r.label==="記帳" ? "bg-secondary" : "bg-primary";
+    const amtCls   = r.label==="記帳" ? "text-secondary" : "text-primary";
+    return `<tr>
+      <td style="white-space:nowrap">${r.time||""}</td>
+      <td><span class="badge ${badgeCls}" style="font-size:10px">${r.label}</span></td>
+      <td class="fw-semibold">${r.nickname}</td>
+      <td class="${amtCls} text-end fw-bold">${r.amount||""}</td>
+      <td class="${amtCls} text-end">${r.diamonds}顆</td>
+      <td class="text-muted small">${r.note||""}</td>
+      <td><button class="btn btn-outline-danger py-0 px-1" style="font-size:10px"
+        onclick="deleteLog(${logIdx})" title="刪除"><i class="bi bi-trash"></i></button></td>
+    </tr>`;
+  }).join("");
+}
+
 function showStorageAlert(ok, msg) {
   const el = document.getElementById("storage_alert");
   el.className = `alert ${ok?"alert-success":"alert-warning"} mb-3`;
@@ -3266,7 +3314,7 @@ function confirmStorageAction() {
     TODAY_LOGS.push({ type:"buy", label:"記帳", nickname, diamonds, amount,
       time:timeStr, note:"記帳"+(note?" "+note:""), giftTime:"", bank:"其他",
       date:today, cvsCode:"", orderNo:genOrderNo("buy", today, timeStr) });
-    modal.hide();
+    modal.hide(); renderStorageLog();
     showStorageAlert(true, `${nickname} 記帳 ${amount} 已加入今日交易紀錄`);
 
   } else if(currentStorageAction === "repay") {
@@ -3278,7 +3326,7 @@ function confirmStorageAction() {
     TODAY_LOGS.push({ type:"sell", label:"還鑽", nickname, diamonds, amount:0,
       time:timeStr, note:"還鑽"+(note?" "+note:""), giftTime:"", bank:"其他",
       date:today, cvsCode:"", orderNo:genOrderNo("sell", today, timeStr) });
-    modal.hide();
+    modal.hide(); renderStorageLog();
     showStorageAlert(true, `${nickname} 還鑽 ${diamonds} 顆已加入今日交易紀錄`);
 
   } else if(currentStorageAction === "delete") {
