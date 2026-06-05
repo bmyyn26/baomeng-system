@@ -4442,18 +4442,51 @@ async function exportReport(type) {
   if(type==='transaction') {
     const {data,error}=await _supa.from('transactions').select('*').gte('date',from).lte('date',to).order('date').order('created_at');
     if(error||!data?.length){msgEl.textContent='查無資料';return;}
-    exportXlsx('交易報表',['日期','類型','暱稱','金額','紅鑽','收支銀行','超商代碼','交易單號','備註','時間'],
-      data.map(r=>[r.date,r.label,r.nickname,r.amount,r.diamonds,r.bank,r.cvs_code,r.order_no,r.note,r.transaction_time]),
+    const excluded = ['其他收入','其他支出'];
+    const filtered = data.filter(r=>!excluded.includes(r.label));
+    exportXlsx('交易報表',
+      ['日期','類型','紅鑽','暱稱','買方領回','賣方領回','記帳','還鑽','收支銀行','超商代碼','交易單號','備註','時間'],
+      filtered.map(r => [
+        r.date,
+        r.label,
+        r.diamonds||'',
+        r.nickname||'',
+        r.label==='買方' ? (r.amount||'') : '',
+        r.label==='賣方' ? (r.amount||'') : '',
+        r.label==='記帳' ? (r.amount||'') : '',
+        r.label==='還鑽' ? Math.round((r.diamonds||0)/1.44) : '',
+        r.bank||'',
+        r.cvs_code||'',
+        r.order_no||'',
+        r.note||'',
+        _fmtTime(r.transaction_time)
+      ]),
       `交易報表_${from}_${to}.xlsx`);
-    msgEl.textContent=`✅ 已匯出 ${data.length} 筆`;
+    msgEl.textContent=`✅ 已匯出 ${filtered.length} 筆`;
   } else if(type==='bank') {
     const {data,error}=await _supa.from('transactions').select('*').gte('date',from).lte('date',to).order('date').order('created_at');
     if(error||!data?.length){msgEl.textContent='查無資料';return;}
-    const filtered=data.filter(r=>['合庫','玉山','超商','國泰','中信'].includes(r.bank));
-    exportXlsx('銀行明細報表',['日期','銀行','類型','暱稱','金額','紅鑽','手續費','交易單號','備註','時間'],
+    const filtered=data.filter(r=>['合庫','玉山','國泰','中信'].includes(r.bank));
+    exportXlsx('銀行明細報表',
+      ['日期','類型','紅鑽','暱稱','收入','支出','手續費','收支銀行','交易單號','備註','時間'],
       filtered.map(r=>{
         const fm=r.note?r.note.match(/手續費(\d+)元/):null;
-        return [r.date,r.bank,r.label,r.nickname,r.amount,r.diamonds,fm?parseInt(fm[1]):'',r.order_no,(r.note||'').replace(/[\/／]?手續費\d+元[\/／]?/g,'').trim(),r.transaction_time];
+        const isIn  = r.label==='買方'||r.label==='其他收入';
+        const isOut = r.label==='賣方'||r.label==='其他支出';
+        const noteClean=(r.note||'').replace(/[\/／]?手續費\d+元[\/／]?/g,'').trim();
+        return [
+          r.date,
+          r.label||'',
+          r.diamonds||'',
+          r.nickname||'',
+          isIn  ? (r.amount||'') : '',
+          isOut ? (r.amount||'') : '',
+          fm ? parseInt(fm[1]) : '',
+          r.bank||'',
+          r.order_no||'',
+          noteClean,
+          _fmtTime(r.transaction_time)
+        ];
       }), `銀行明細報表_${from}_${to}.xlsx`);
     msgEl.textContent=`✅ 已匯出 ${filtered.length} 筆`;
   } else if(type==='checkout') {
