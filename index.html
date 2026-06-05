@@ -4122,9 +4122,23 @@ async function submitBankOther(dir) {
   renderBankPage();
 }
 
+let _boeFee = 0;
+function selectBoeFee(val) {
+  _boeFee = val;
+  document.querySelectorAll('.boe-fee-btn').forEach(b => {
+    const sel = parseInt(b.dataset.fee) === val;
+    b.classList.toggle('btn-pink', sel);
+    b.classList.toggle('btn-outline-secondary', !sel);
+  });
+}
+
 function editBankOther(id) {
   const r = BANK_OTHER_LOGS.find(r => r.id === id);
   if(!r) return;
+  const feeM = (r.note||'').match(/手續費(\d+)元/);
+  const initFee = feeM ? parseInt(feeM[1]) : 0;
+  _boeFee = initFee;
+  const noteClean = (r.note||'').replace(/[\/／]?手續費\d+元[\/／]?/g,'').trim();
   document.getElementById('bankOtherEditOverlay')?.remove();
   document.body.insertAdjacentHTML('beforeend', `
     <div id="bankOtherEditOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;display:flex;align-items:center;justify-content:center">
@@ -4138,8 +4152,14 @@ function editBankOther(id) {
           </div></div>
         <div class="mb-3"><label class="form-label fw-semibold">金額</label>
           <div class="input-group"><input type="number" class="form-control" id="boe_amount" value="${r.amount}" min="1"><span class="input-group-text">元</span></div></div>
+        <div class="mb-3"><label class="form-label fw-semibold">手續費</label>
+          <div class="d-flex gap-2">
+            <button class="btn btn-sm ${initFee===0?'btn-pink':'btn-outline-secondary'} boe-fee-btn" data-fee="0"  onclick="selectBoeFee(0)">0元</button>
+            <button class="btn btn-sm ${initFee===10?'btn-pink':'btn-outline-secondary'} boe-fee-btn" data-fee="10" onclick="selectBoeFee(10)">10元</button>
+            <button class="btn btn-sm ${initFee===15?'btn-pink':'btn-outline-secondary'} boe-fee-btn" data-fee="15" onclick="selectBoeFee(15)">15元</button>
+          </div></div>
         <div class="mb-3"><label class="form-label fw-semibold">說明</label>
-          <input type="text" class="form-control" id="boe_note" value="${r.note||''}"></div>
+          <input type="text" class="form-control" id="boe_note" value="${noteClean}"></div>
         <div class="d-flex gap-2">
           <button class="btn btn-outline-secondary flex-grow-1" onclick="document.getElementById('bankOtherEditOverlay').remove()">取消</button>
           <button class="btn btn-pink flex-grow-1 fw-bold" onclick="saveBankOtherEdit(${id})">儲存</button>
@@ -4155,9 +4175,10 @@ function saveBankOtherEdit(id) {
   if(!bankBtn) { alert('請選擇銀行'); return; }
   const amount = parseInt(document.getElementById('boe_amount').value);
   if(!amount || amount <= 0) { alert('請填寫金額'); return; }
+  const boeNote = document.getElementById('boe_note').value.trim();
   r.bank   = bankBtn.dataset.bank;
   r.amount = amount;
-  r.note   = document.getElementById('boe_note').value.trim();
+  r.note   = _boeFee > 0 ? (boeNote ? boeNote + '／手續費' + _boeFee + '元' : '手續費' + _boeFee + '元') : boeNote;
   r.date   = document.getElementById('boe_date').value || r.date;
   document.getElementById('bankOtherEditOverlay').remove();
   renderBankPage();
