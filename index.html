@@ -1248,7 +1248,6 @@
             <th class="text-end">買方（元）</th>
             <th class="text-end">手續費</th>
             <th class="text-end">賣方（元）</th>
-            <th class="text-end">差額小計</th>
             <th class="text-end fw-bold">總結紅鑽</th>
             <th>備註</th>
             <th class="text-end">誤差</th>
@@ -4255,10 +4254,10 @@ function renderCheckoutTable(rows) {
   empty?.classList.add('d-none');
   tbody.innerHTML = rows.map(r => {
     const details = r.details ? (Array.isArray(r.details)?r.details:JSON.parse(r.details)) : [];
-    const adjTotal = details.reduce((s,d)=>s+(d.diamonds||0), 0);
-    const detailHtml = details.length
-      ? details.map(d=>`<span class="badge bg-dark text-white me-1">${d.nickname} ${d.diamonds>=0?'+':''}${d.diamonds}顆</span>`).join('')
-      : '<span class="text-muted small">無</span>';
+    const detailHtml = details.map((d,i)=>
+      `<span class="badge bg-dark text-white me-1" style="cursor:pointer" onclick="removeCheckoutAdj(${r.id},${i})" title="點擊刪除">${d.nickname} ${d.diamonds>=0?'+':''}${d.diamonds}顆 ×</span>`
+    ).join('') + `<button class="btn btn-outline-secondary py-0 px-1 ms-1" style="font-size:10px" onclick="openCheckoutAdjModal(${r.id})" title="新增差額"><i class="bi bi-plus"></i></button>`;
+    const variance = r.variance||0;
     return `<tr>
       <td class="ps-3 fw-semibold">${r.date}</td>
       <td class="text-end">${r.today_diamonds||'—'}</td>
@@ -4266,13 +4265,56 @@ function renderCheckoutTable(rows) {
       <td class="text-end">${r.buy_amount||0}</td>
       <td class="text-end">${Math.round((r.buy_amount||0)*1.3*0.003)}</td>
       <td class="text-end">${r.sell_amount||0}</td>
-      <td class="text-end text-muted">${adjTotal!==0?(adjTotal>0?'+':'')+adjTotal:''}</td>
       <td class="text-end fw-bold">${r.total_diamonds||'—'}</td>
       <td>${detailHtml}</td>
-      <td class="text-end ${r.variance>0?'text-danger':r.variance<0?'text-success':''}">${r.variance||0}</td>
+      <td class="text-end ${variance>0?'text-danger':variance<0?'text-success':''}">${variance||''}</td>
       <td><button class="btn btn-outline-danger btn-sm py-0 px-1" onclick="deleteCheckout(${r.id})"><i class="bi bi-trash"></i></button></td>
     </tr>`;
   }).join('');
+}
+
+// ── 結帳差額事後新增 ─────────────────────────────────────
+function openCheckoutAdjModal(checkoutId) {
+  document.getElementById('coAdjOverlay')?.remove();
+  document.body.insertAdjacentHTML('beforeend', `
+    <div id="coAdjOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;display:flex;align-items:center;justify-content:center">
+      <div style="background:#fff;padding:24px;border-radius:16px;width:300px;max-width:92%">
+        <h5 class="fw-bold mb-3"><i class="bi bi-plus-circle me-2"></i>新增差額</h5>
+        <div class="mb-3"><label class="form-label fw-semibold">暱稱</label>
+          <input type="text" class="form-control" id="coa_nickname"></div>
+        <div class="mb-3"><label class="form-label fw-semibold">紅鑽差額（可負數）</label>
+          <div class="input-group"><input type="number" class="form-control" id="coa_diamonds"><span class="input-group-text">顆</span></div></div>
+        <div class="d-flex gap-2">
+          <button class="btn btn-outline-secondary flex-grow-1" onclick="document.getElementById('coAdjOverlay').remove()">取消</button>
+          <button class="btn btn-pink flex-grow-1 fw-bold" onclick="saveCheckoutAdj(${checkoutId})">新增</button>
+        </div>
+      </div>
+    </div>`);
+}
+
+async function saveCheckoutAdj(checkoutId) {
+  const nickname = document.getElementById('coa_nickname')?.value.trim();
+  const diamonds = parseInt(document.getElementById('coa_diamonds')?.value);
+  if(!nickname) { alert('請填寫暱稱'); return; }
+  if(isNaN(diamonds)) { alert('請填寫顆數'); return; }
+  // 從 DB 讀取目前的 details
+  const { data } = await _supa.from('daily_checkout').select('details,variance').eq('id', checkoutId).single();
+  const details = data?.details ? (Array.isArray(data.details)?data.details:JSON.parse(data.details)) : [];
+  details.push({ nickname, diamonds });
+  const newVariance = details.reduce((s,d)=>s+(d.diamonds||0), 0);
+  await _supa.from('daily_checkout').update({ details: JSON.stringify(details), variance: newVariance }).eq('id', checkoutId);
+  document.getElementById('coAdjOverlay')?.remove();
+  loadCheckout();
+}
+
+async function removeCheckoutAdj(checkoutId, idx) {
+  if(!confirm('確定刪除這筆差額？')) return;
+  const { data } = await _supa.from('daily_checkout').select('details').eq('id', checkoutId).single();
+  const details = data?.details ? (Array.isArray(data.details)?data.details:JSON.parse(data.details)) : [];
+  details.splice(idx, 1);
+  const newVariance = details.reduce((s,d)=>s+(d.diamonds||0), 0);
+  await _supa.from('daily_checkout').update({ details: JSON.stringify(details), variance: newVariance }).eq('id', checkoutId);
+  loadCheckout();
 }
 
 async function deleteCheckout(id) {
@@ -4336,11 +4378,10 @@ async function submitCheckout() {
   const repayDia = parseInt(modal.dataset.repayDia)||0;
   const adjTotal = _adjustments.reduce((s,r)=>s+r.diamonds,0);
   const subDia   = todayDia - storageDia - Math.round(buyAmt*1.3) - feeAmt + Math.round(sellAmt*1.44) + repayDia;
-  const totalDia = subDia + adjTotal;
   const today    = _fmtDate(new Date());
   const { error } = await _supa.from('daily_checkout').upsert({
     date:today, today_diamonds:todayDia, buy_amount:buyAmt,
-    sell_amount:sellAmt, total_diamonds:totalDia, variance:0,
+    sell_amount:sellAmt, total_diamonds:subDia, variance:adjTotal,
     storage_diamonds:storageDia,
     details:JSON.stringify(_adjustments)
   }, {onConflict:'date'});
