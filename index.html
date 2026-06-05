@@ -3956,7 +3956,7 @@ function renderBankDetail() {
   const runBal = {};
   BANK_STAT_NAMES.forEach(b => { runBal[b] = BANK_INIT[b] || 0; });
   const rowsWithBal = chronRows.map(r => {
-    const feeMatch = !r.isOther && r.note ? r.note.match(/手續費(\d+)元/) : null;
+    const feeMatch = r.note ? r.note.match(/手續費(\d+)元/) : null;
     const fee = feeMatch ? parseInt(feeMatch[1]) : 0;
     if(runBal[r.bank] !== undefined) runBal[r.bank] += (r.inAmt||0) - (r.outAmt||0) - fee;
     return { ...r, _bal: runBal[r.bank] };
