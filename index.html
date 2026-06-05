@@ -1011,14 +1011,7 @@
     <!-- 明細表格 -->
     <div style="overflow-x:auto">
       <table class="table table-hover align-middle mb-0 table-log">
-        <thead class="table-light">
-          <tr>
-            <th>日期</th><th>暱稱</th>
-            <th class="text-end">金額</th><th class="text-end">紅鑽</th>
-            <th>收支銀行</th><th>超商代碼</th><th>交易單號</th>
-            <th>時間</th><th>備註</th><th>贈出</th><th></th>
-          </tr>
-        </thead>
+        <thead class="table-light" id="sl_log_thead"></thead>
         <tbody id="sl_log_tbody"></tbody>
       </table>
       <div id="sl_log_empty" class="text-center text-muted py-4 d-none">
@@ -3082,37 +3075,69 @@ function renderStorageLogFull(filter) {
   else if(_slFilter==="超商")    data = TODAY_LOGS.filter(r=>r.bank==="超商");
   else                           data = TODAY_LOGS.filter(r=>r.type===_slFilter);
 
+  const thead = document.getElementById("sl_log_thead");
+
   if(!data.length) {
     tbody.innerHTML = "";
+    if(thead) thead.innerHTML = "";
     empty?.classList.remove("d-none");
     return;
   }
   empty?.classList.add("d-none");
 
-  tbody.innerHTML = data.map(r => {
-    const logIdx  = TODAY_LOGS.indexOf(r);
-    const typeCls = r.type==="buy" ? "bg-success" : r.type==="sell" ? "bg-danger" : "bg-primary";
-    const amtCls  = r.type==="buy" ? "text-success" : r.type==="sell" ? "text-danger" : "text-primary";
-    let giftCell  = "";
-    if(r.type==="buy") {
-      giftCell = r.giftTime
-        ? `<span style="background:#ffc107;color:#000;font-size:10px;padding:2px 5px;border-radius:4px;white-space:nowrap;font-weight:600">${r.giftTime}</span>`
-        : `<button class="btn btn-outline-success py-0 px-1" style="font-size:10px;line-height:1.4" onclick="markGift(${logIdx})">贈出</button>`;
-    }
-    return `<tr>
-      <td style="white-space:nowrap">${r.date||""}</td>
-      <td style="white-space:nowrap"><span class="badge ${typeCls} me-1" style="font-size:10px">${r.label}</span>${r.nickname}</td>
-      <td class="${amtCls} text-end fw-bold">${r.amount||""}</td>
-      <td class="${amtCls} text-end fw-bold">${r.diamonds}顆</td>
-      <td>${r.bank||""}</td>
-      <td>${r.cvsCode||""}</td>
-      <td class="text-muted" style="font-size:11px">${r.orderNo||""}</td>
-      <td style="white-space:nowrap">${r.time||""}</td>
-      <td class="text-muted">${r.note||""}</td>
-      <td style="white-space:nowrap">${giftCell}</td>
-      <td><button class="btn btn-outline-danger py-0 px-1" style="font-size:10px" onclick="deleteLog(${logIdx})" title="刪除"><i class="bi bi-trash"></i></button></td>
+  if(_slFilter === "storage") {
+    // ── 寄放篩選：同暱稱累積四欄 ──
+    if(thead) thead.innerHTML = `<tr>
+      <th>暱稱</th>
+      <th class="text-end">買方（領回）</th>
+      <th class="text-end">賣方（領回）</th>
+      <th class="text-end">記帳</th>
+      <th class="text-end">還鑽（台幣）</th>
     </tr>`;
-  }).join("");
+    const grouped = {};
+    data.forEach(r => {
+      const k = r.nickname || "（無暱稱）";
+      if(!grouped[k]) grouped[k] = {buyAmt:0, sellAmt:0, debitAmt:0, repayTwd:0};
+      if(r.bank==="寄放" && r.type==="buy")  grouped[k].buyAmt   += r.amount;
+      if(r.bank==="寄放" && r.type==="sell") grouped[k].sellAmt  += r.amount;
+      if(r.label==="記帳")                   grouped[k].debitAmt += r.amount;
+      if(r.label==="還鑽")                   grouped[k].repayTwd += Math.round(r.diamonds / 1.44);
+    });
+    tbody.innerHTML = Object.entries(grouped).map(([name, v]) => `<tr>
+      <td class="fw-semibold">${name}</td>
+      <td class="text-end text-success fw-bold">${v.buyAmt   || ""}</td>
+      <td class="text-end text-danger  fw-bold">${v.sellAmt  || ""}</td>
+      <td class="text-end">${v.debitAmt || ""}</td>
+      <td class="text-end">${v.repayTwd || ""}</td>
+    </tr>`).join("");
+
+  } else {
+    // ── 其他篩選：原有欄位格式 ──
+    if(thead) thead.innerHTML = `<tr>
+      <th>日期</th><th class="text-end">紅鑽</th><th>暱稱</th>
+      <th class="text-end">買方金額</th><th class="text-end">賣方金額</th>
+      <th>收支銀行</th><th>超商代碼</th><th>交易單號</th>
+      <th>時間</th><th>備註</th><th></th>
+    </tr>`;
+    tbody.innerHTML = data.map(r => {
+      const logIdx  = TODAY_LOGS.indexOf(r);
+      const buyAmt  = r.type==="buy"  ? `<span class="text-success fw-bold">${r.amount}</span>` : "";
+      const sellAmt = r.type==="sell" ? `<span class="text-danger fw-bold">${r.amount}</span>`  : "";
+      return `<tr>
+        <td style="white-space:nowrap">${r.date||""}</td>
+        <td class="text-end fw-bold">${r.diamonds?r.diamonds+"顆":""}</td>
+        <td style="white-space:nowrap">${r.nickname}</td>
+        <td class="text-end">${buyAmt}</td>
+        <td class="text-end">${sellAmt}</td>
+        <td>${r.bank||""}</td>
+        <td>${r.cvsCode||""}</td>
+        <td class="text-muted" style="font-size:11px">${r.orderNo||""}</td>
+        <td style="white-space:nowrap">${r.time||""}</td>
+        <td class="text-muted">${r.note||""}</td>
+        <td><button class="btn btn-outline-danger py-0 px-1" style="font-size:10px" onclick="deleteLog(${logIdx})" title="刪除"><i class="bi bi-trash"></i></button></td>
+      </tr>`;
+    }).join("");
+  }
 }
 
 function renderStorageLog() {
