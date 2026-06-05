@@ -706,9 +706,6 @@
       <button class="btn btn-sm btn-outline-secondary" onclick="filterLog('buy')"     id="filter-buy">買方</button>
       <button class="btn btn-sm btn-outline-secondary" onclick="filterLog('sell')"    id="filter-sell">賣方</button>
       <button class="btn btn-sm btn-outline-secondary" onclick="filterLog('storage')" id="filter-storage">寄放</button>
-      <button class="btn btn-sm btn-outline-secondary" onclick="filterLog('合庫')"    id="filter-合庫">合庫</button>
-      <button class="btn btn-sm btn-outline-secondary" onclick="filterLog('玉山')"    id="filter-玉山">玉山</button>
-      <button class="btn btn-sm btn-outline-secondary" onclick="filterLog('超商')"    id="filter-超商">超商</button>
     </div>
 
     <!-- 明細表格 -->
@@ -717,15 +714,15 @@
         <thead class="table-light">
           <tr>
             <th>日期</th>
-            <th>暱稱</th>
-            <th class="text-end">金額</th>
             <th class="text-end">紅鑽</th>
+            <th>暱稱</th>
+            <th class="text-end">買方金額</th>
+            <th class="text-end">賣方金額</th>
             <th>收支銀行</th>
             <th>超商代碼</th>
             <th>交易單號</th>
             <th>時間</th>
             <th>備註</th>
-            <th>贈出</th>
             <th></th>
           </tr>
         </thead>
@@ -979,29 +976,53 @@
     <div class="px-3 py-2 text-end text-muted small border-top" id="storage_total"></div>
   </div>
 
-  <!-- 今日記帳／還鑽紀錄（嵌入） -->
-  <div class="card mt-3">
-    <div class="px-3 pt-3 pb-1 d-flex justify-content-between align-items-center">
-      <span class="fw-bold" style="font-size:14px"><i class="bi bi-list-ul me-1"></i>今日記帳／還鑽紀錄</span>
-      <span class="text-muted small" id="storage_log_count"></span>
+  <!-- 交易紀錄（嵌入，預設寄放篩選） -->
+  <div class="card p-3 mt-3">
+    <h6 class="fw-bold mb-3"><i class="bi bi-calendar-check me-2"></i>今日交易紀錄</h6>
+
+    <!-- 統計列 -->
+    <div class="row g-2 mb-3 text-center">
+      <div class="col-3"><div class="card p-2 bg-light">
+        <div class="text-success fw-bold" id="sl_stat_buy_amt">0</div>
+        <div class="text-muted" style="font-size:10px">買方收入</div>
+      </div></div>
+      <div class="col-3"><div class="card p-2 bg-light">
+        <div class="text-danger fw-bold" id="sl_stat_sell_amt">0</div>
+        <div class="text-muted" style="font-size:10px">賣方支出</div>
+      </div></div>
+      <div class="col-3"><div class="card p-2 bg-light">
+        <div class="text-success fw-bold" id="sl_stat_buy_cnt">0</div>
+        <div class="text-muted" style="font-size:10px">買方筆數</div>
+      </div></div>
+      <div class="col-3"><div class="card p-2 bg-light">
+        <div class="text-danger fw-bold" id="sl_stat_sell_cnt">0</div>
+        <div class="text-muted" style="font-size:10px">賣方筆數</div>
+      </div></div>
     </div>
+
+    <!-- 篩選 -->
+    <div class="d-flex gap-2 mb-3 flex-wrap">
+      <button class="btn btn-sm btn-outline-secondary" onclick="renderStorageLogFull('all')"     id="sl_filter_all">全部</button>
+      <button class="btn btn-sm btn-outline-secondary" onclick="renderStorageLogFull('buy')"     id="sl_filter_buy">買方</button>
+      <button class="btn btn-sm btn-outline-secondary" onclick="renderStorageLogFull('sell')"    id="sl_filter_sell">賣方</button>
+      <button class="btn btn-sm btn-pink"              onclick="renderStorageLogFull('storage')" id="sl_filter_storage">寄放</button>
+    </div>
+
+    <!-- 明細表格 -->
     <div style="overflow-x:auto">
       <table class="table table-hover align-middle mb-0 table-log">
         <thead class="table-light">
           <tr>
-            <th>時間</th>
-            <th>類型</th>
-            <th>暱稱</th>
-            <th class="text-end">金額</th>
-            <th class="text-end">紅鑽</th>
-            <th>備註</th>
-            <th></th>
+            <th>日期</th><th>暱稱</th>
+            <th class="text-end">金額</th><th class="text-end">紅鑽</th>
+            <th>收支銀行</th><th>超商代碼</th><th>交易單號</th>
+            <th>時間</th><th>備註</th><th>贈出</th><th></th>
           </tr>
         </thead>
-        <tbody id="storage_log_tbody"></tbody>
+        <tbody id="sl_log_tbody"></tbody>
       </table>
-      <div id="storage_log_empty" class="text-center text-muted py-4 d-none">
-        <p class="small mb-0">今日尚無記帳或還鑽紀錄</p>
+      <div id="sl_log_empty" class="text-center text-muted py-4 d-none">
+        <p class="small mb-0">無符合條件的紀錄</p>
       </div>
     </div>
   </div>
@@ -1706,7 +1727,7 @@ function showPage(name) {
   document.getElementById("nav-"+name)?.classList.add("active-nav");
   currentPage = name;
   if(name === "today_log") renderLog();
-  if(name === "storage") { reloadStorageFromDB(); renderLog(); renderStorageLog(); }
+  if(name === "storage") { reloadStorageFromDB(); renderLog(); _slFilter='storage'; renderStorageLogFull(); }
   if(name === "checkout") loadCheckout();
   if(name === "bank") {
     const dateEl=document.getElementById("bfilter-date");
@@ -2812,29 +2833,20 @@ function renderLog() {
   empty && empty.classList.add("d-none");
 
   tbody.innerHTML = data.map(r => {
-    const logIdx = TODAY_LOGS.indexOf(r);
-    const typeCls = r.type==="buy" ? "bg-success" : r.type==="sell" ? "bg-danger" : "bg-primary";
-    const amtCls  = r.type==="buy" ? "text-success" : r.type==="sell" ? "text-danger" : "text-primary";
-    // 贈出時間欄：已贈出→黃底黑字，未贈出且買方→贈出按鈕，其他→空
-    let giftCell = "";
-    if(r.type==="buy") {
-      giftCell = r.giftTime
-        ? `<span style="background:#ffc107;color:#000;font-size:10px;padding:2px 5px;border-radius:4px;white-space:nowrap;font-weight:600">${r.giftTime}</span>`
-        : `<button class="btn btn-outline-success py-0 px-1" style="font-size:10px;line-height:1.4" onclick="markGift(${logIdx})">贈出</button>`;
-    }
+    const logIdx  = TODAY_LOGS.indexOf(r);
+    const buyAmt  = r.type==="buy"  ? `<span class="text-success fw-bold">${r.amount}</span>` : "";
+    const sellAmt = r.type==="sell" ? `<span class="text-danger fw-bold">${r.amount}</span>`  : "";
     return `<tr>
       <td style="white-space:nowrap">${r.date||""}</td>
-      <td style="white-space:nowrap">
-        <span class="badge ${typeCls} me-1" style="font-size:10px">${r.label}</span>${r.nickname}
-      </td>
-      <td class="${amtCls} text-end fw-bold">${r.amount||""}</td>
-      <td class="${amtCls} text-end fw-bold">${r.diamonds}顆</td>
+      <td class="text-end fw-bold">${r.diamonds?r.diamonds+"顆":""}</td>
+      <td style="white-space:nowrap">${r.nickname}</td>
+      <td class="text-end">${buyAmt}</td>
+      <td class="text-end">${sellAmt}</td>
       <td>${r.bank||""}</td>
       <td>${r.cvsCode||""}</td>
       <td class="text-muted" style="font-size:11px">${r.orderNo||""}</td>
       <td style="white-space:nowrap">${r.time||""}</td>
       <td class="text-muted">${r.note||""}</td>
-      <td style="white-space:nowrap">${giftCell}</td>
       <td style="white-space:nowrap">
         <button class="btn btn-outline-secondary py-0 px-1" style="font-size:10px;line-height:1.4" onclick="editLog(${logIdx})" title="編輯"><i class="bi bi-pencil"></i></button>
         <button class="btn btn-outline-danger py-0 px-1 ms-1" style="font-size:10px;line-height:1.4" onclick="deleteLog(${logIdx})" title="刪除"><i class="bi bi-trash"></i></button>
@@ -3033,6 +3045,74 @@ function renderStorageTable() {
   const totalAmt = STORAGE_DATA.reduce((s,r)=>s+r.amount,0);
   const totalDia = STORAGE_DATA.reduce((s,r)=>s+r.diamonds,0);
   total.textContent = `共 ${STORAGE_DATA.length} 筆 ｜ 合計 ${totalAmt} ／ ${totalDia} 顆`;
+}
+
+let _slFilter = 'storage';
+function renderStorageLogFull(filter) {
+  if(filter !== undefined) _slFilter = filter;
+  const tbody = document.getElementById("sl_log_tbody");
+  const empty = document.getElementById("sl_log_empty");
+  if(!tbody) return;
+
+  // 篩選按鈕 active 狀態
+  ['all','buy','sell','storage','合庫','玉山','超商'].forEach(f => {
+    const btn = document.getElementById(`sl_filter_${f}`);
+    if(!btn) return;
+    const isActive = f === _slFilter;
+    btn.className = `btn btn-sm ${isActive ? 'btn-pink' : 'btn-outline-secondary'}`;
+  });
+
+  // 統計（全部資料）
+  const buyAmt  = TODAY_LOGS.filter(r=>r.type==="buy").reduce((s,r)=>s+r.amount,0);
+  const sellAmt = TODAY_LOGS.filter(r=>r.type==="sell").reduce((s,r)=>s+r.amount,0);
+  const buyCnt  = TODAY_LOGS.filter(r=>r.type==="buy").length;
+  const sellCnt = TODAY_LOGS.filter(r=>r.type==="sell").length;
+  const e = id => document.getElementById(id);
+  if(e('sl_stat_buy_amt'))  e('sl_stat_buy_amt').textContent  = buyAmt;
+  if(e('sl_stat_sell_amt')) e('sl_stat_sell_amt').textContent = sellAmt;
+  if(e('sl_stat_buy_cnt'))  e('sl_stat_buy_cnt').textContent  = buyCnt;
+  if(e('sl_stat_sell_cnt')) e('sl_stat_sell_cnt').textContent = sellCnt;
+
+  // 篩選資料
+  let data;
+  if(_slFilter==="all")          data = TODAY_LOGS;
+  else if(_slFilter==="storage") data = TODAY_LOGS.filter(isStorageEntry);
+  else if(_slFilter==="合庫")    data = TODAY_LOGS.filter(r=>r.bank==="合庫");
+  else if(_slFilter==="玉山")    data = TODAY_LOGS.filter(r=>r.bank==="玉山");
+  else if(_slFilter==="超商")    data = TODAY_LOGS.filter(r=>r.bank==="超商");
+  else                           data = TODAY_LOGS.filter(r=>r.type===_slFilter);
+
+  if(!data.length) {
+    tbody.innerHTML = "";
+    empty?.classList.remove("d-none");
+    return;
+  }
+  empty?.classList.add("d-none");
+
+  tbody.innerHTML = data.map(r => {
+    const logIdx  = TODAY_LOGS.indexOf(r);
+    const typeCls = r.type==="buy" ? "bg-success" : r.type==="sell" ? "bg-danger" : "bg-primary";
+    const amtCls  = r.type==="buy" ? "text-success" : r.type==="sell" ? "text-danger" : "text-primary";
+    let giftCell  = "";
+    if(r.type==="buy") {
+      giftCell = r.giftTime
+        ? `<span style="background:#ffc107;color:#000;font-size:10px;padding:2px 5px;border-radius:4px;white-space:nowrap;font-weight:600">${r.giftTime}</span>`
+        : `<button class="btn btn-outline-success py-0 px-1" style="font-size:10px;line-height:1.4" onclick="markGift(${logIdx})">贈出</button>`;
+    }
+    return `<tr>
+      <td style="white-space:nowrap">${r.date||""}</td>
+      <td style="white-space:nowrap"><span class="badge ${typeCls} me-1" style="font-size:10px">${r.label}</span>${r.nickname}</td>
+      <td class="${amtCls} text-end fw-bold">${r.amount||""}</td>
+      <td class="${amtCls} text-end fw-bold">${r.diamonds}顆</td>
+      <td>${r.bank||""}</td>
+      <td>${r.cvsCode||""}</td>
+      <td class="text-muted" style="font-size:11px">${r.orderNo||""}</td>
+      <td style="white-space:nowrap">${r.time||""}</td>
+      <td class="text-muted">${r.note||""}</td>
+      <td style="white-space:nowrap">${giftCell}</td>
+      <td><button class="btn btn-outline-danger py-0 px-1" style="font-size:10px" onclick="deleteLog(${logIdx})" title="刪除"><i class="bi bi-trash"></i></button></td>
+    </tr>`;
+  }).join("");
 }
 
 function renderStorageLog() {
@@ -3314,7 +3394,7 @@ function confirmStorageAction() {
     TODAY_LOGS.push({ type:"buy", label:"記帳", nickname, diamonds, amount,
       time:timeStr, note:"記帳"+(note?" "+note:""), giftTime:"", bank:"其他",
       date:today, cvsCode:"", orderNo:genOrderNo("buy", today, timeStr) });
-    modal.hide(); renderStorageLog();
+    modal.hide(); renderStorageLogFull();
     showStorageAlert(true, `${nickname} 記帳 ${amount} 已加入今日交易紀錄`);
 
   } else if(currentStorageAction === "repay") {
@@ -3326,7 +3406,7 @@ function confirmStorageAction() {
     TODAY_LOGS.push({ type:"sell", label:"還鑽", nickname, diamonds, amount:0,
       time:timeStr, note:"還鑽"+(note?" "+note:""), giftTime:"", bank:"其他",
       date:today, cvsCode:"", orderNo:genOrderNo("sell", today, timeStr) });
-    modal.hide(); renderStorageLog();
+    modal.hide(); renderStorageLogFull();
     showStorageAlert(true, `${nickname} 還鑽 ${diamonds} 顆已加入今日交易紀錄`);
 
   } else if(currentStorageAction === "delete") {
@@ -3855,7 +3935,7 @@ function renderBankDetail() {
     const noteClean = r.note ? r.note.replace(/[\/／]?手續費\d+元[\/／]?/g,'').trim() : '';
     const detailHtml = r.isOther
       ? `${r.note || r.label}${r.nickname && r.nickname !== (r.note||r.label) ? ' '+r.nickname : ''}`
-      : `<span class="badge ${badgeCls} me-1" style="font-size:10px">${r.label}</span>${r.nickname ? `<span class="bank-nick" onclick="copyNicknamePopup(event,'${r.nickname.replace(/'/g,"\\'")}')"> ${r.nickname}</span>` : ''}${r.cvsCode?' <span class="text-muted" style="font-size:11px">'+r.cvsCode+'</span>':''}`;
+      : `${r.nickname ? `<span class="bank-nick" onclick="copyNicknamePopup(event,'${r.nickname.replace(/'/g,"\\'")}')"> ${r.nickname}</span>` : ''}${r.cvsCode?' <span class="text-muted" style="font-size:11px">'+r.cvsCode+'</span>':''}`;
     const ops = r.isOther
       ? `<button class="btn btn-outline-secondary py-0 px-1 me-1" style="font-size:10px" onclick="editBankOther(${r.otherId})" title="編輯"><i class="bi bi-pencil"></i></button>
          <button class="btn btn-outline-danger py-0 px-1" style="font-size:10px" onclick="deleteBankOther(${r.otherId})" title="刪除"><i class="bi bi-trash"></i></button>`
