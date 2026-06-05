@@ -1468,6 +1468,7 @@ async function loadAllData() {
 
     TODAY_LOGS.length = 0;
     (txRes.data || []).forEach(row => {
+      if(row.label==='其他收入' || row.label==='其他支出') return;
       const type = (row.label==='買方'||row.label==='記帳') ? 'buy'
                  : (row.label==='賣方'||row.label==='還鑽') ? 'sell' : 'storage';
       TODAY_LOGS.push({
