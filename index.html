@@ -105,6 +105,16 @@
   #orderDrawer .mb-3 { margin-bottom:8px !important; }
   #orderDrawer h6 { font-size:13px; margin-bottom:8px !important; }
 
+  /* ── 暫存區拖曳排序 ── */
+  .storage-drag-handle {
+    cursor:grab; color:#bbb; padding:0 6px; user-select:none; font-size:16px; touch-action:none;
+  }
+  .storage-drag-handle:active { cursor:grabbing; }
+  .storage-row-dragging { opacity:.35; }
+  .storage-row-dragover td { border-top:2px solid #d63384 !important; }
+  .storage-card-dragging { opacity:.35; }
+  .storage-card-dragover { border-top:2px solid #d63384 !important; }
+
   /* ── 銀行暱稱可點擊 ── */
   .bank-nick {
     cursor:pointer; border-bottom:1px dashed #aaa;
@@ -1413,7 +1423,7 @@ async function loadAllData() {
       _supa.from('members').select('*').order('id'),
       fetchAllBlacklist(),
       _supa.from('transactions').select('*').eq('date', todayStr).order('created_at'),
-      _supa.from('storage').select('*').order('id'),
+      _supa.from('storage').select('*').order('sort_order').order('id'),
       _supa.from('bank_balances').select('*')
     ]);
 
@@ -1445,7 +1455,8 @@ async function loadAllData() {
       if(!row.nickname) return;
       STORAGE_DATA.push({ id: row.id, nickname: row.nickname,
         amount: parseFloat(row.amount)||0, diamonds: parseFloat(row.diamonds)||0,
-        note: row.note || '', date: row.deposit_date || '' });
+        note: row.note || '', date: row.deposit_date || '',
+        sort_order: row.sort_order||0 });
     });
     storageNextId = STORAGE_DATA.length ? Math.max(...STORAGE_DATA.map(r=>r.id)) + 1 : 1;
 
@@ -1564,7 +1575,8 @@ async function storageInsertDB(row) {
 
 async function storageUpdateDB(row) {
   await _supa.from('storage').update({
-    amount: row.amount, diamonds: row.diamonds, note: row.note||'', deposit_date: row.date
+    amount: row.amount, diamonds: row.diamonds, note: row.note||'',
+    deposit_date: row.date, sort_order: row.sort_order||0
   }).eq('id', row.id);
 }
 
@@ -1692,6 +1704,88 @@ function showPage(name) {
     if(bnavId) { const el=document.getElementById(bnavId); if(el) el.classList.add("active-nav"); }
     toggleBottomMore(false);
   }
+}
+
+// ── 暫存區拖曳排序 ────────────────────────────────────────
+let _storageDragSrcId = null;
+
+function storageDragStart(e, id) {
+  _storageDragSrcId = id;
+  e.dataTransfer.effectAllowed = 'move';
+  setTimeout(() => {
+    const tr = document.querySelector(`tr[data-storage-id="${id}"]`);
+    if(tr) tr.classList.add('storage-row-dragging');
+  }, 0);
+}
+
+function storageDragEnd() {
+  document.querySelectorAll('.storage-row-dragging,.storage-row-dragover').forEach(el =>
+    el.classList.remove('storage-row-dragging','storage-row-dragover'));
+}
+
+function storageDragOver(e, id) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  document.querySelectorAll('.storage-row-dragover').forEach(el => el.classList.remove('storage-row-dragover'));
+  if(id !== _storageDragSrcId) {
+    const tr = document.querySelector(`tr[data-storage-id="${id}"]`);
+    if(tr) tr.classList.add('storage-row-dragover');
+  }
+}
+
+async function storageDrop(e, targetId) {
+  e.preventDefault();
+  storageDragEnd();
+  if(!_storageDragSrcId || _storageDragSrcId === targetId) return;
+  _storageReorder(_storageDragSrcId, targetId);
+}
+
+// ── 手機 touch 拖曳 ──────────────────────────────────────
+let _touchDragId = null, _touchClone = null, _touchStartY = 0;
+
+function storageTouchStart(e, id) {
+  e.preventDefault();
+  _touchDragId = id;
+  _touchStartY = e.clientY || e.touches?.[0]?.clientY || 0;
+  const card = document.querySelector(`.storage-card[data-id="${id}"]`);
+  if(card) card.classList.add('storage-card-dragging');
+  document.addEventListener('pointermove', _storageTouchMove, {passive:false});
+  document.addEventListener('pointerup', _storageTouchEnd);
+}
+
+function _storageTouchMove(e) {
+  e.preventDefault();
+}
+
+function _storageTouchEnd(e) {
+  document.removeEventListener('pointermove', _storageTouchMove);
+  document.removeEventListener('pointerup', _storageTouchEnd);
+  if(!_touchDragId) return;
+  // 找落點所在卡片
+  const y = e.clientY || e.changedTouches?.[0]?.clientY || 0;
+  let targetId = null;
+  document.querySelectorAll('.storage-card').forEach(card => {
+    const rect = card.getBoundingClientRect();
+    if(y >= rect.top && y <= rect.bottom) targetId = parseInt(card.dataset.id);
+  });
+  document.querySelectorAll('.storage-card-dragging,.storage-card-dragover').forEach(el =>
+    el.classList.remove('storage-card-dragging','storage-card-dragover'));
+  if(targetId && targetId !== _touchDragId) _storageReorder(_touchDragId, targetId);
+  _touchDragId = null;
+}
+
+async function _storageReorder(srcId, targetId) {
+  const srcIdx = STORAGE_DATA.findIndex(r => r.id === srcId);
+  const tgtIdx = STORAGE_DATA.findIndex(r => r.id === targetId);
+  if(srcIdx < 0 || tgtIdx < 0) return;
+  const [moved] = STORAGE_DATA.splice(srcIdx, 1);
+  STORAGE_DATA.splice(tgtIdx, 0, moved);
+  STORAGE_DATA.forEach((r, i) => { r.sort_order = i + 1; });
+  renderStorageTable();
+  // 背景寫回 DB
+  await Promise.all(STORAGE_DATA.map(r =>
+    _supa.from('storage').update({ sort_order: r.sort_order }).eq('id', r.id)
+  ));
 }
 
 // ── 銀行暱稱複製 Popup ────────────────────────────────────
@@ -2873,11 +2967,12 @@ function renderStorageTable() {
   empty.classList.add("d-none");
 
   if(window.innerWidth < 768) {
-    // ── 手機：卡片式列表 ──
+    // ── 手機：卡片式列表（支援 touch 拖曳）──
     tbody.innerHTML = STORAGE_DATA.map(r => `
-      <tr>
+      <tr data-storage-id="${r.id}">
         <td colspan="7" style="padding:6px 4px;border:none">
-          <div style="background:#fff;border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,.08);padding:10px 12px;display:flex;align-items:center;gap:10px">
+          <div class="storage-card" data-id="${r.id}" style="background:#fff;border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,.08);padding:10px 12px;display:flex;align-items:center;gap:10px">
+            <span class="storage-drag-handle" data-id="${r.id}" onpointerdown="storageTouchStart(event,${r.id})">⠿</span>
             <input type="checkbox" class="form-check-input storage-row-check flex-shrink-0" data-id="${r.id}" style="width:20px;height:20px">
             <div style="flex:1;min-width:0">
               <div style="display:flex;justify-content:space-between;align-items:center">
@@ -2895,10 +2990,17 @@ function renderStorageTable() {
         </td>
       </tr>`).join("");
   } else {
-    // ── 電腦/平板：原有表格 ──
+    // ── 電腦/平板：表格（支援 HTML5 drag）──
     tbody.innerHTML = STORAGE_DATA.map(r => `
-      <tr>
-        <td class="ps-3">
+      <tr draggable="true" data-storage-id="${r.id}"
+          ondragstart="storageDragStart(event,${r.id})"
+          ondragend="storageDragEnd(event)"
+          ondragover="storageDragOver(event,${r.id})"
+          ondrop="storageDrop(event,${r.id})">
+        <td style="width:24px;padding:0 4px">
+          <span class="storage-drag-handle">⠿</span>
+        </td>
+        <td class="ps-1">
           <input type="checkbox" class="form-check-input storage-row-check" data-id="${r.id}">
         </td>
         <td class="fw-semibold">${r.nickname}</td>
@@ -3899,7 +4001,7 @@ async function deleteBankOther(id) {
 
 // ── 暫存區重新載入 ────────────────────────────────────────
 async function reloadStorageFromDB() {
-  const { data, error } = await _supa.from('storage').select('*').order('id');
+  const { data, error } = await _supa.from('storage').select('*').order('sort_order').order('id');
   if(error) {
     console.warn('storage error:', error.message);
     showStorageAlert(false, '資料載入失敗：' + error.message);
@@ -3911,7 +4013,8 @@ async function reloadStorageFromDB() {
     if(!row.nickname) return;
     STORAGE_DATA.push({ id:row.id, nickname:row.nickname,
       amount:parseFloat(row.amount)||0, diamonds:parseFloat(row.diamonds)||0,
-      note:row.note||'', date:row.deposit_date||'' });
+      note:row.note||'', date:row.deposit_date||'',
+      sort_order:row.sort_order||0 });
   });
   storageNextId = STORAGE_DATA.length ? Math.max(...STORAGE_DATA.map(r=>r.id)) + 1 : 1;
   renderStorageTable();
