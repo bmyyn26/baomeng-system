@@ -2960,7 +2960,7 @@ function confirmEditLog() {
   r.amount   = amount;
   r.diamonds = amount ? Math.round(amount * ratio) : r.diamonds;
   r.bank     = bank;
-  r.note     = note;
+  r.note     = _leditFee > 0 ? (note ? note + '／手續費' + _leditFee + '元' : '手續費' + _leditFee + '元') : note;
   if(newTime) r.time = newTime;
   updateTransactionDB(r);
   if(_logEditModal) _logEditModal.hide();
