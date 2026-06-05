@@ -909,7 +909,7 @@
             <th class="text-danger text-end"  style="min-width:64px">支出</th>
             <th class="text-warning text-end" style="min-width:56px">手續費</th>
             <th class="text-end" style="min-width:64px;color:#000">餘額</th>
-            <th class="text-muted" style="min-width:48px;cursor:pointer;white-space:nowrap" onclick="toggleBankTimeSort()" id="bth-time">時間 ↑</th>
+            <th class="text-muted" style="min-width:48px;cursor:pointer;white-space:nowrap" onclick="toggleBankTimeSort()" id="bth-time">時間 ↓</th>
             <th style="min-width:72px"></th>
           </tr>
         </thead>
@@ -918,6 +918,8 @@
         </tbody>
       </table>
     </div>
+    <div id="bank_detail_summary" class="px-3 py-2 border-top text-muted small d-none"
+         style="display:flex;gap:24px;flex-wrap:wrap"></div>
   </div>
 </div>
 
@@ -3035,10 +3037,7 @@ function renderStorageTable() {
           ondragend="storageDragEnd(event)"
           ondragover="storageDragOver(event,${r.id})"
           ondrop="storageDrop(event,${r.id})">
-        <td style="width:24px;padding:0 4px">
-          <span class="storage-drag-handle">⠿</span>
-        </td>
-        <td class="ps-1">
+        <td class="ps-3">
           <input type="checkbox" class="form-check-input storage-row-check" data-id="${r.id}">
         </td>
         <td class="fw-semibold">${nickSpan(r.nickname)}</td>
@@ -3047,6 +3046,9 @@ function renderStorageTable() {
         <td class="text-muted small">${r.note||"—"}</td>
         <td><button class="btn btn-outline-secondary py-0 px-1" style="font-size:11px" onclick="editStorageRow(${r.id})" title="編輯"><i class="bi bi-pencil"></i></button></td>
         <td class="text-muted" style="font-size:11px">${r.date}</td>
+        <td style="width:24px;padding:0 4px">
+          <span class="storage-drag-handle">⠿</span>
+        </td>
       </tr>`).join("");
   }
 
@@ -3831,7 +3833,7 @@ const BANK_NAMES      = ["合庫","玉山","超商","國泰","中信"];
 const BANK_STAT_NAMES = ["合庫","玉山","國泰","中信"];
 let currentBankFilter = "全部";
 let BANK_OTHER_LOGS   = [];
-let _bankTimeSortAsc  = true;
+let _bankTimeSortAsc  = false;
 
 function toggleBankTimeSort() {
   _bankTimeSortAsc = !_bankTimeSortAsc;
@@ -3994,6 +3996,20 @@ function renderBankDetail() {
       <td class="text-end" style="white-space:nowrap">${ops}</td>
     </tr>`;
   }).join("");
+
+  // ── 總結列 ──
+  const sumIn    = rowsWithBal.reduce((s,r) => s + (r.inAmt||0), 0);
+  const sumOut   = rowsWithBal.reduce((s,r) => s + (r.outAmt||0), 0);
+  const cntIn    = rowsWithBal.filter(r => r.inAmt > 0).length;
+  const cntOut   = rowsWithBal.filter(r => r.outAmt > 0).length;
+  const sumEl    = document.getElementById("bank_detail_summary");
+  if(sumEl) {
+    sumEl.style.display = "flex";
+    sumEl.classList.remove("d-none");
+    sumEl.innerHTML =
+      `<span>收入 <strong>${cntIn}</strong> 筆　合計 <strong class="text-success">${sumIn.toLocaleString()}</strong></span>` +
+      `<span>支出 <strong>${cntOut}</strong> 筆　合計 <strong class="text-danger">${sumOut.toLocaleString()}</strong></span>`;
+  }
 }
 
 function filterBankDetail(f) {
