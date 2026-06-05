@@ -97,13 +97,13 @@
     box-shadow:0 -4px 24px rgba(0,0,0,.18);
   }
   #orderDrawer.open { transform:translateX(-50%) translateY(0); }
-  #orderDrawer .form-label { font-size:12px; margin-bottom:2px; }
-  #orderDrawer .form-control, #orderDrawer .input-group-text { font-size:14px; padding:5px 10px; }
-  #orderDrawer .form-control-lg { font-size:15px; }
+  #orderDrawer .form-label { font-size:14px; font-weight:600; color:#333; margin-bottom:4px; }
+  #orderDrawer .form-control, #orderDrawer .input-group-text { font-size:16px; padding:10px 12px; }
+  #orderDrawer .form-control-lg { font-size:18px; padding:12px 14px; }
   #orderDrawer .card { border-radius:10px; }
   #orderDrawer .card.p-4 { padding:12px !important; }
-  #orderDrawer .mb-3 { margin-bottom:8px !important; }
-  #orderDrawer h6 { font-size:13px; margin-bottom:8px !important; }
+  #orderDrawer .mb-3 { margin-bottom:10px !important; }
+  #orderDrawer h6 { font-size:14px; margin-bottom:8px !important; }
 
   /* ── 暫存區拖曳排序 ── */
   .storage-drag-handle {
@@ -3733,16 +3733,26 @@ function openOrderDrawer() {
     if(el) el.classList.add('d-none');
   });
   // 清除買方輸入欄
-  ['buyer_nickname','buyer_amount','buyer_bank','buyer_cvs_code'].forEach(id => {
+  ['buyer_nickname','buyer_amount','buyer_bank','buyer_cvs_code','buyer_note'].forEach(id => {
     const el = document.getElementById(id);
     if(el) el.value = '';
   });
   const diaHint = document.getElementById('buyer_diamond_hint');
   if(diaHint) diaHint.classList.add('d-none');
+  // 清除買方 UI 殘留
+  ['buyer_nick_suggestions','buyer_bank_suggestions','buyer_blacklist_warning'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) { el.classList.add('d-none'); el.innerHTML = ''; }
+  });
   // 清除賣方輸入欄
-  ['seller_nickname','seller_amount','seller_bank'].forEach(id => {
+  ['seller_nickname','seller_amount','seller_bank','seller_note','seller_fee'].forEach(id => {
     const el = document.getElementById(id);
     if(el) el.value = '';
+  });
+  // 清除賣方 UI 殘留
+  ['seller_nick_suggestions','seller_bank_suggestions'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) { el.classList.add('d-none'); el.innerHTML = ''; }
   });
   document.getElementById("orderDrawer").classList.add("open");
   document.getElementById("orderDrawerBackdrop").classList.add("open");
