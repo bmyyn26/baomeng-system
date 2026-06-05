@@ -1198,6 +1198,7 @@
           <tr>
             <th class="ps-3">日期</th>
             <th class="text-end">今日紅鑽</th>
+            <th class="text-end">寄放</th>
             <th class="text-end">買方（元）</th>
             <th class="text-end">手續費</th>
             <th class="text-end">賣方（元）</th>
@@ -3951,6 +3952,7 @@ function renderCheckoutTable(rows) {
     return `<tr>
       <td class="ps-3 fw-semibold">${r.date}</td>
       <td class="text-end">${r.today_diamonds||'—'}</td>
+      <td class="text-end text-muted">${r.storage_diamonds!=null?r.storage_diamonds:'—'}</td>
       <td class="text-end">${r.buy_amount||0}</td>
       <td class="text-end">${Math.round((r.buy_amount||0)*1.3*0.003)}</td>
       <td class="text-end">${r.sell_amount||0}</td>
@@ -4028,6 +4030,7 @@ async function submitCheckout() {
   const { error } = await _supa.from('daily_checkout').upsert({
     date:today, today_diamonds:todayDia, buy_amount:buyAmt,
     sell_amount:sellAmt, total_diamonds:totalDia, variance:0,
+    storage_diamonds:storageDia,
     details:JSON.stringify(_adjustments)
   }, {onConflict:'date'});
   if(error) { alert('儲存失敗：'+error.message); return; }
