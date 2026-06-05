@@ -115,13 +115,13 @@
   .storage-card-dragging { opacity:.35; }
   .storage-card-dragover { border-top:2px solid #d63384 !important; }
 
-  /* ── 銀行暱稱可點擊 ── */
-  .bank-nick {
+  /* ── 暱稱可點擊（通用）── */
+  .bank-nick, .nick-clickable {
     cursor:pointer; border-bottom:1px dashed #aaa;
     padding:1px 2px; border-radius:3px;
     transition:background .1s;
   }
-  .bank-nick:hover { background:#f0f0f0; }
+  .bank-nick:hover, .nick-clickable:hover { background:#f0f0f0; }
 
   /* ── 暱稱複製 Popup ── */
   #nick-popup {
@@ -405,6 +405,7 @@
     <div class="mb-3">
       <label class="form-label fw-semibold">暱稱 <span class="text-danger">*</span></label>
       <input type="text" class="form-control" id="buyer_nickname" placeholder="" autocomplete="off">
+      <div id="buyer_nick_suggestions" class="d-none mt-2"></div>
       <div id="buyer_blacklist_warning" class="alert alert-danger mt-2 d-none py-2">
         <i class="bi bi-exclamation-triangle-fill me-1"></i>此暱稱在黑名單中！
       </div>
@@ -494,6 +495,7 @@
     <div class="mb-3">
       <label class="form-label fw-semibold">暱稱 <span class="text-danger">*</span></label>
       <input type="text" class="form-control" id="seller_nickname" placeholder="" autocomplete="off">
+      <div id="seller_nick_suggestions" class="d-none mt-2"></div>
     </div>
 
     <!-- 2. 金額 -->
@@ -1739,6 +1741,13 @@ function showPage(name) {
   }
 }
 
+// ── 暱稱可點複製通用 helper ───────────────────────────────
+function nickSpan(name) {
+  if(!name) return "";
+  const safe = name.replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+  return `<span class="nick-clickable" onclick="copyNicknamePopup(event,'${safe}')">${name}</span>`;
+}
+
 // ── 暫存區拖曳排序 ────────────────────────────────────────
 let _storageDragSrcId = null;
 
@@ -1988,6 +1997,8 @@ document.getElementById("buyer_nickname")?.addEventListener("input", function(){
     const q = this.value.trim();
     const isBlack = BLACKLIST.some(c => c.暱稱.some(n=>n.includes(q)));
     document.getElementById("buyer_blacklist_warning").classList.toggle("d-none", !q || !isBlack);
+    if(q.length >= 2) lookupNicknameSuggest(q, "buyer_nick_suggestions", "buyer_nickname");
+    else document.getElementById("buyer_nick_suggestions")?.classList.add("d-none");
     lookupBanks(q, "buyer_bank_suggestions", "buyer_bank");
   }, 350);
 });
@@ -1997,7 +2008,10 @@ let sellerNickTimer;
 document.getElementById("seller_nickname")?.addEventListener("input", function(){
   clearTimeout(sellerNickTimer);
   sellerNickTimer = setTimeout(()=>{
-    lookupBanks(this.value.trim(), "seller_bank_suggestions", "seller_bank");
+    const q = this.value.trim();
+    if(q.length >= 2) lookupNicknameSuggest(q, "seller_nick_suggestions", "seller_nickname");
+    else document.getElementById("seller_nick_suggestions")?.classList.add("d-none");
+    lookupBanks(q, "seller_bank_suggestions", "seller_bank");
   }, 350);
 });
 
@@ -2833,7 +2847,7 @@ function renderLog() {
     return `<tr>
       <td style="white-space:nowrap">${r.date||""}</td>
       <td class="text-end fw-bold">${r.diamonds?r.diamonds+"顆":""}</td>
-      <td style="white-space:nowrap">${r.nickname}</td>
+      <td style="white-space:nowrap">${nickSpan(r.nickname)}</td>
       <td class="text-end">${buyAmt}</td>
       <td class="text-end">${sellAmt}</td>
       <td>${r.bank||""}</td>
@@ -3000,7 +3014,7 @@ function renderStorageTable() {
             <input type="checkbox" class="form-check-input storage-row-check flex-shrink-0" data-id="${r.id}" style="width:20px;height:20px">
             <div style="flex:1;min-width:0">
               <div style="display:flex;justify-content:space-between;align-items:center">
-                <span style="font-weight:700;font-size:16px">${r.nickname}</span>
+                <span style="font-weight:700;font-size:16px">${nickSpan(r.nickname)}</span>
                 <span style="font-weight:700;font-size:16px">${r.amount}<span style="font-size:12px;color:#888;font-weight:400">元</span></span>
               </div>
               <div style="display:flex;justify-content:space-between;align-items:center;margin-top:2px">
@@ -3027,7 +3041,7 @@ function renderStorageTable() {
         <td class="ps-1">
           <input type="checkbox" class="form-check-input storage-row-check" data-id="${r.id}">
         </td>
-        <td class="fw-semibold">${r.nickname}</td>
+        <td class="fw-semibold">${nickSpan(r.nickname)}</td>
         <td class="text-end fw-bold">${r.amount}</td>
         <td class="text-end">${r.diamonds}</td>
         <td class="text-muted small">${r.note||"—"}</td>
@@ -3105,7 +3119,7 @@ function renderStorageLogFull(filter) {
       if(r.label==="還鑽")                   grouped[k].repayTwd += Math.round(r.diamonds / 1.44);
     });
     tbody.innerHTML = Object.entries(grouped).map(([name, v]) => `<tr>
-      <td class="fw-semibold">${name}</td>
+      <td class="fw-semibold">${nickSpan(name)}</td>
       <td class="text-end text-success fw-bold">${v.buyAmt   || ""}</td>
       <td class="text-end text-danger  fw-bold">${v.sellAmt  || ""}</td>
       <td class="text-end">${v.debitAmt || ""}</td>
@@ -3127,7 +3141,7 @@ function renderStorageLogFull(filter) {
       return `<tr>
         <td style="white-space:nowrap">${r.date||""}</td>
         <td class="text-end fw-bold">${r.diamonds?r.diamonds+"顆":""}</td>
-        <td style="white-space:nowrap">${r.nickname}</td>
+        <td style="white-space:nowrap">${nickSpan(r.nickname)}</td>
         <td class="text-end">${buyAmt}</td>
         <td class="text-end">${sellAmt}</td>
         <td>${r.bank||""}</td>
