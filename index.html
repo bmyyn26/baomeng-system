@@ -2485,12 +2485,12 @@ function renderCard(c, isBlack) {
         <div class="mb-1 ps-2 border-start border-2">
           <div class="input-group input-group-sm mb-1">
             <span class="input-group-text" style="font-size:11px">帳號</span>
-            <input type="text" class="form-control" data-ef="${cid}-帳號" value="${(b.帳號||"").replace(/"/g,'&quot;')}" placeholder="012-12345678910">
+            <input type="text" class="form-control" data-ef="${cid}-帳號" value="${(b.帳號||"").replace(/"/g,'&quot;')}" placeholder="">
             <button class="btn btn-outline-danger" type="button" onclick="removeBankRow(this)"><i class="bi bi-x"></i></button>
           </div>
           <div class="input-group input-group-sm">
             <span class="input-group-text" style="font-size:11px">備註</span>
-            <input type="text" class="form-control" data-ef="${cid}-銀行備註" value="${(b.備註||"").replace(/"/g,'&quot;')}" placeholder="合庫常用、玉山末5碼…">
+            <input type="text" class="form-control" data-ef="${cid}-銀行備註" value="${(b.備註||"").replace(/"/g,'&quot;')}" placeholder="">
           </div>
         </div>`).join("")}
       <button class="btn btn-sm btn-outline-secondary mt-1" type="button" class="dynrow-addbtn" onclick="addBankRow('${cid}')">
@@ -2532,9 +2532,9 @@ function renderCard(c, isBlack) {
       <span class="fw-semibold text-secondary"><i class="bi bi-pencil me-1"></i>編輯資料</span>
       <button class="btn btn-sm btn-outline-secondary" onclick="toggleEdit('${cid}')">取消</button>
     </div>
-    ${dynRows("暱稱","暱稱",c.暱稱,"輸入暱稱")}
+    ${dynRows("暱稱","暱稱",c.暱稱,"")}
     ${singleField("9188 編號","9188編號")}
-    ${dynRows("電話","電話",c.電話,"0912345678")}
+    ${dynRows("電話","電話",c.電話,"")}
     ${singleField("身分證","身分證")}
     ${dynBankRows(c.銀行帳號)}
     ${singleField("戶名","戶名")}
@@ -2577,12 +2577,12 @@ function addBankRow(cid) {
   div.innerHTML = `
     <div class="input-group input-group-sm mb-1">
       <span class="input-group-text" style="font-size:11px">帳號</span>
-      <input type="text" class="form-control" data-ef="${cid}-帳號" placeholder="012-12345678910">
+      <input type="text" class="form-control" data-ef="${cid}-帳號" placeholder="">
       <button class="btn btn-outline-danger" type="button" onclick="removeBankRow(this)"><i class="bi bi-x"></i></button>
     </div>
     <div class="input-group input-group-sm">
       <span class="input-group-text" style="font-size:11px">備註</span>
-      <input type="text" class="form-control" data-ef="${cid}-銀行備註" placeholder="合庫常用、玉山末5碼…">
+      <input type="text" class="form-control" data-ef="${cid}-銀行備註" placeholder="">
     </div>`;
   group.insertBefore(div, addBtn);
 }
