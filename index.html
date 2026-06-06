@@ -561,6 +561,13 @@
     </button>
   </div>
 
+  <!-- 底部關閉按鈕（手機版用） -->
+  <div class="px-2 pb-3 pt-2">
+    <button class="btn btn-outline-secondary w-100 py-2 fw-bold" onclick="closeOrderDrawer()">
+      <i class="bi bi-x-circle me-1"></i>關閉視窗
+    </button>
+  </div>
+
   </div><!-- /抽屜內容 -->
 </div><!-- /orderDrawer -->
 
@@ -829,6 +836,9 @@
         <button class="btn btn-outline-warning btn-sm fw-bold px-3" onclick="exportReport('checkout')">
           <i class="bi bi-receipt-cutoff me-1"></i>結帳報表
         </button>
+        <button class="btn btn-outline-secondary btn-sm fw-bold px-3" onclick="exportCVSReport()">
+          <i class="bi bi-shop me-1"></i>超商資料
+        </button>
       </div>
 
       <!-- 9188 建檔 -->
@@ -855,28 +865,32 @@
 ════════════════════════════════════════ -->
 <div id="page-bank" class="page">
 
-  <!-- 頂部控制列 -->
-  <div class="d-flex gap-2 flex-wrap align-items-center mb-3">
-    <div class="d-flex gap-1 flex-wrap flex-grow-1" id="bank_filter_btns">
-      <button class="btn btn-sm btn-pink fw-bold"         id="bfilter-全部" onclick="filterBankDetail('全部')">全部</button>
-      <button class="btn btn-sm btn-outline-secondary"    id="bfilter-合庫" onclick="filterBankDetail('合庫')">合庫</button>
-      <button class="btn btn-sm btn-outline-secondary"    id="bfilter-玉山" onclick="filterBankDetail('玉山')">玉山</button>
-      <button class="btn btn-sm btn-outline-secondary"    id="bfilter-國泰" onclick="filterBankDetail('國泰')">國泰</button>
-      <button class="btn btn-sm btn-outline-secondary"    id="bfilter-中信" onclick="filterBankDetail('中信')">中信</button>
-      <button class="btn btn-sm btn-outline-secondary"    id="bfilter-超商" onclick="filterBankDetail('超商')">超商</button>
+  <!-- 頂部控制列（兩列式） -->
+  <div class="mb-3">
+    <!-- 第一列：操作按鈕 -->
+    <div class="d-flex gap-2 align-items-center mb-2 flex-wrap">
+      <input type="date" class="form-control form-control-sm" id="bfilter-date" style="width:140px" onchange="loadBankByRange()">
+      <button class="btn btn-sm btn-outline-secondary" onclick="resetBankToToday()">今日</button>
+      <button class="btn btn-sm btn-outline-secondary" onclick="loadBankByRange()" title="重新整理"><i class="bi bi-arrow-clockwise"></i></button>
+      <button class="btn btn-sm btn-pink fw-bold" onclick="openOrderDrawer()">
+        <i class="bi bi-plus-circle me-1"></i>開單
+      </button>
+      <button class="btn btn-sm btn-outline-success fw-bold" onclick="bankOtherAction('in')">
+        <i class="bi bi-plus-circle me-1"></i>收入
+      </button>
+      <button class="btn btn-sm btn-outline-danger fw-bold" onclick="bankOtherAction('out')">
+        <i class="bi bi-dash-circle me-1"></i>支出
+      </button>
     </div>
-    <input type="date" class="form-control form-control-sm" id="bfilter-date" style="width:140px" onchange="loadBankByRange()">
-    <button class="btn btn-sm btn-outline-secondary" onclick="resetBankToToday()">今日</button>
-    <button class="btn btn-sm btn-outline-secondary" onclick="loadBankByRange()" title="重新整理"><i class="bi bi-arrow-clockwise"></i></button>
-    <button class="btn btn-sm btn-pink fw-bold" onclick="openOrderDrawer()">
-      <i class="bi bi-plus-circle me-1"></i>開單
-    </button>
-    <button class="btn btn-sm btn-outline-success fw-bold" onclick="bankOtherAction('in')">
-      <i class="bi bi-plus-circle me-1"></i>收入
-    </button>
-    <button class="btn btn-sm btn-outline-danger fw-bold" onclick="bankOtherAction('out')">
-      <i class="bi bi-dash-circle me-1"></i>支出
-    </button>
+    <!-- 第二列：篩選按鈕（橫向可滾動） -->
+    <div class="d-flex gap-1" id="bank_filter_btns" style="overflow-x:auto;white-space:nowrap;padding-bottom:4px">
+      <button class="btn btn-sm btn-pink fw-bold flex-shrink-0"         id="bfilter-全部" onclick="filterBankDetail('全部')">全部</button>
+      <button class="btn btn-sm btn-outline-secondary flex-shrink-0"    id="bfilter-合庫" onclick="filterBankDetail('合庫')">合庫</button>
+      <button class="btn btn-sm btn-outline-secondary flex-shrink-0"    id="bfilter-玉山" onclick="filterBankDetail('玉山')">玉山</button>
+      <button class="btn btn-sm btn-outline-secondary flex-shrink-0"    id="bfilter-國泰" onclick="filterBankDetail('國泰')">國泰</button>
+      <button class="btn btn-sm btn-outline-secondary flex-shrink-0"    id="bfilter-中信" onclick="filterBankDetail('中信')">中信</button>
+      <button class="btn btn-sm btn-outline-secondary flex-shrink-0"    id="bfilter-超商" onclick="filterBankDetail('超商')">超商</button>
+    </div>
   </div>
 
   <!-- 當日初始金額（測試中）-->
@@ -4785,6 +4799,50 @@ async function exportReport(type) {
       `結帳報表_${from}_${to}.xlsx`);
     msgEl.textContent=`✅ 已匯出 ${inRange.length} 筆`;
   }
+}
+
+async function exportCVSReport() {
+  const from = document.getElementById('exp_from').value;
+  const to   = document.getElementById('exp_to').value;
+  if (!from || !to) { alert('請選擇日期區間'); return; }
+  const msgEl = document.getElementById('exportCenter_msg');
+  msgEl.textContent = '查詢中...';
+
+  let all = [], page = 0, pageSize = 1000, done = false;
+  while (!done) {
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('date,nickname,amount,diamonds,cvs_code,member_id,note,transaction_time')
+      .eq('bank','超商')
+      .gte('date', from)
+      .lte('date', to)
+      .order('date', { ascending: true })
+      .order('transaction_time', { ascending: true })
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+    if (error) { msgEl.textContent = '查詢失敗：' + error.message; return; }
+    all = all.concat(data || []);
+    done = !data || data.length < pageSize;
+    page++;
+  }
+
+  if (all.length === 0) { msgEl.textContent = '查無超商資料'; return; }
+
+  exportXlsx(
+    '超商資料',
+    ['發票日期','發票號碼','發票金額','超商代碼','暱稱','購買金額','會員編號','開超商日期'],
+    all.map(r => [
+      '',                   // 發票日期（手動填）
+      '',                   // 發票號碼（手動填）
+      '',                   // 發票金額（手動填）
+      r.cvs_code || '',
+      r.nickname || '',
+      r.amount   || '',
+      r.member_id || '',
+      r.date     || ''
+    ]),
+    `超商資料_${from}_${to}.xlsx`
+  );
+  msgEl.textContent = `✅ 已匯出 ${all.length} 筆超商資料`;
 }
 
 function exportXlsx(sheetName,headers,rows,filename) {
