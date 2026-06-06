@@ -4810,7 +4810,7 @@ async function exportCVSReport() {
 
   let all = [], page = 0, pageSize = 1000, done = false;
   while (!done) {
-    const { data, error } = await supabase
+    const { data, error } = await _supa
       .from('transactions')
       .select('date,nickname,amount,diamonds,cvs_code,member_id,note,transaction_time')
       .eq('bank','超商')
