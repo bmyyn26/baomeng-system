@@ -4465,13 +4465,15 @@ async function loadCheckoutForDate(dateStr) {
   // 載入中提示
   ['co_buy_amt','co_fee_amt','co_sell_amt'].forEach(id=>document.getElementById(id).textContent='…');
 
-  // 從 Supabase 撈指定日期交易，以及上一筆結帳紀錄
-  const [{ data, error }, { data: prevRows }] = await Promise.all([
+  // 從 Supabase 撈：指定日期交易、上一筆結帳、下一天快照
+  const [{ data, error }, { data: prevRows }, { data: nextRows }] = await Promise.all([
     _supa.from('transactions').select('*').eq('date', dateStr),
-    _supa.from('daily_checkout').select('date,total_diamonds').lt('date', dateStr).order('date',{ascending:false}).limit(1)
+    _supa.from('daily_checkout').select('date,total_diamonds').lt('date', dateStr).order('date',{ascending:false}).limit(1),
+    _supa.from('daily_checkout').select('date,today_diamonds,storage_diamonds').gt('date', dateStr).order('date',{ascending:true}).limit(1)
   ]);
   if(error) { ['co_buy_amt','co_fee_amt','co_sell_amt'].forEach(id=>document.getElementById(id).textContent='?'); return; }
-  const prevCheckout = prevRows?.[0] || null;
+  const prevCheckout  = prevRows?.[0] || null;
+  const nextSnapshot  = nextRows?.[0] || null;
 
   const logs = data.map(r=>({
     type:r.type||'', label:r.label||'', nickname:r.nickname||'',
@@ -4503,10 +4505,20 @@ async function loadCheckoutForDate(dateStr) {
   } else {
     wdRow.style.display = 'none';
   }
-  // 重設紅鑽輸入與計算結果
-  document.getElementById('co_today_dia').value = '';
+  // 若下一天有快照，自動帶入盤點紅鑽
+  const diaInput = document.getElementById('co_today_dia');
+  if(nextSnapshot?.today_diamonds) {
+    diaInput.value = nextSnapshot.today_diamonds;
+    diaInput.title = `自動帶入 ${nextSnapshot.date} 快照（可手動修改）`;
+    diaInput.style.background = '#f0f8ff';
+  } else {
+    diaInput.value = '';
+    diaInput.title = '';
+    diaInput.style.background = '';
+  }
   ['co_sub_dia','co_adj_total','co_total_dia'].forEach(id=>document.getElementById(id).textContent='—');
   document.getElementById('co_formula_hint').textContent='';
+  if(nextSnapshot?.today_diamonds) recalcCheckout();
   const modal = document.getElementById('checkoutModal');
   modal.dataset.buyAmt=buyAmt; modal.dataset.sellAmt=sellAmt;
   modal.dataset.repayDia=repayDia; modal.dataset.feeAmt=feeAmt;
@@ -4735,12 +4747,43 @@ async function exportReport(type) {
       }), `銀行明細報表_${from}_${to}.xlsx`);
     msgEl.textContent=`✅ 已匯出 ${filtered.length} 筆`;
   } else if(type==='checkout') {
-    const {data,error}=await _supa.from('daily_checkout').select('*').gte('date',from).lte('date',to).order('date');
+    // 多撈一筆範圍外的下一天（供最後一列誤差計算用）
+    const {data,error}=await _supa.from('daily_checkout').select('*').gte('date',from).order('date');
     if(error||!data?.length){msgEl.textContent='查無結帳資料';return;}
-    exportXlsx('結帳報表',['日期','今日紅鑽','買方金額','賣方金額','總結紅鑽','誤差'],
-      data.map(r=>[r.date,r.today_diamonds,r.buy_amount,r.sell_amount,r.total_diamonds,r.variance]),
+    // 過濾到選擇區間，但保留超出一筆備用
+    const inRange = data.filter(r=>r.date<=to);
+    const allRows = data; // 含範圍外下一筆
+    exportXlsx('結帳報表',
+      ['日期','類型','今日紅鑽','寄放紅鑽','淨紅鑽','買方金額','手續費','賣方金額','總結紅鑽','誤差'],
+      inRange.map((r, i) => {
+        const isSnapshot = r.total_diamonds == null;
+        const netDia = (r.today_diamonds||0) - (r.storage_diamonds||0);
+        // 誤差：用下一列（較新日期）的淨紅鑽 - 本列總結
+        let variance = '';
+        if(!isSnapshot && r.total_diamonds != null) {
+          const newerIdx = allRows.findIndex(x=>x.date > r.date);
+          if(newerIdx >= 0) {
+            const newer = allRows[newerIdx];
+            if(newer.today_diamonds != null) {
+              variance = ((newer.today_diamonds||0) - (newer.storage_diamonds||0)) - r.total_diamonds;
+            }
+          }
+        }
+        return [
+          r.date,
+          isSnapshot ? '快照' : '結帳',
+          r.today_diamonds ?? '',
+          r.storage_diamonds ?? '',
+          r.today_diamonds != null ? netDia : '',
+          r.buy_amount || '',
+          r.buy_amount ? Math.round(r.buy_amount*1.3*0.003) : '',
+          r.sell_amount || '',
+          r.total_diamonds ?? '',
+          variance
+        ];
+      }),
       `結帳報表_${from}_${to}.xlsx`);
-    msgEl.textContent=`✅ 已匯出 ${data.length} 筆`;
+    msgEl.textContent=`✅ 已匯出 ${inRange.length} 筆`;
   }
 }
 
