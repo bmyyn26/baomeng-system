@@ -3825,11 +3825,33 @@ function closeOrderDrawer() {
   document.body.style.overflow = "";
 }
 
+// ── 前一天日期 ───────────────────────────────────────────────
+function _getPrevDate(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() - 1);
+  return _fmtDate(d);
+}
+// 歷史日期的銀行起始餘額（null 表示用今日 BANK_INIT）
+let _bankInitOverride = null;
+
 // ── 銀行日期區間 ────────────────────────────────────────────
 async function loadBankByRange() {
   const from = document.getElementById('bfilter-date')?.value;
   const to   = from;
   if(!from) return;
+
+  // 若選的不是今天，去 daily_checkout 撈前一天的收盤餘額當起始值
+  const todayStr = _fmtDate(new Date());
+  if(from !== todayStr) {
+    const prevDate = _getPrevDate(from);
+    const { data: prevCo } = await _supa.from('daily_checkout')
+      .select('bank_balances_json').eq('date', prevDate).single();
+    _bankInitOverride = (prevCo?.bank_balances_json)
+      ? JSON.parse(prevCo.bank_balances_json) : null;
+  } else {
+    _bankInitOverride = null; // 今天：用 BANK_INIT
+  }
+
   let query = _supa.from('transactions').select('*').order('date').order('created_at');
   query = query.gte('date', from).lte('date', to);
   const { data, error } = await query;
@@ -3922,7 +3944,7 @@ function toggleBankBalance() {
 // ── 銀行餘額跨日結轉 ─────────────────────────────────────
 // 僅計算今日結帳後的收盤餘額並存入 DB，供明日起始使用。
 // 不修改記憶體中的 BANK_INIT，避免 renderBankDetail 雙重計算。
-async function carryoverBankBalances() {
+async function carryoverBankBalances(checkoutDate) {
   const flow = {};
   BANK_STAT_NAMES.forEach(b => { flow[b] = {in:0, out:0}; });
   TODAY_LOGS.forEach(r => {
@@ -3947,6 +3969,12 @@ async function carryoverBankBalances() {
   await Promise.all(BANK_STAT_NAMES.map(b =>
     _supa.from('bank_balances').update({ balance: newBal[b] }).eq('bank_name', b)
   ));
+  // 同步把各銀行收盤餘額存進 daily_checkout，供歷史日期查詢使用
+  if(checkoutDate) {
+    await _supa.from('daily_checkout')
+      .update({ bank_balances_json: JSON.stringify(newBal) })
+      .eq('date', checkoutDate);
+  }
 }
 
 function renderBankPage() {
@@ -4025,7 +4053,8 @@ function renderBankDetail() {
     (a.date||'').localeCompare(b.date||'') || (a.time||'').localeCompare(b.time||'')
   );
   const runBal = {};
-  BANK_STAT_NAMES.forEach(b => { runBal[b] = BANK_INIT[b] || 0; });
+  const _startBal = _bankInitOverride || BANK_INIT;
+  BANK_STAT_NAMES.forEach(b => { runBal[b] = _startBal[b] || 0; });
   const rowsWithBal = chronRows.map(r => {
     const feeMatch = r.note ? r.note.match(/手續費(\d+)元/) : null;
     const fee = feeMatch ? parseInt(feeMatch[1]) : 0;
@@ -4600,7 +4629,7 @@ async function submitCheckout() {
     alertEl.classList.remove('d-none');
   }
   _adjustments=[]; renderAdjustList(); loadCheckout();
-  await carryoverBankBalances().catch(()=>{});
+  await carryoverBankBalances(checkoutDate).catch(()=>{});
 }
 
 function openAdjustModal() {
