@@ -4451,7 +4451,6 @@ async function submitCheckout() {
   const { error } = await _supa.from('daily_checkout').upsert({
     date:checkoutDate, today_diamonds:todayDia, buy_amount:buyAmt,
     sell_amount:sellAmt, total_diamonds:subDia, variance:adjTotal,
-    storage_diamonds:storageDia,
     details:JSON.stringify(_adjustments)
   }, {onConflict:'date'});
   if(error) { alert('儲存失敗：'+error.message); return; }
