@@ -653,7 +653,7 @@
   <div class="card p-4 mb-3">
     <h5 class="fw-bold mb-3"><i class="bi bi-search me-2"></i>客戶查詢 / 黑名單反查</h5>
     <div class="input-group">
-      <input type="text" class="form-control form-control-lg" id="searchInput" placeholder="輸入暱稱、9188編號或電話" autocomplete="off">
+      <input type="text" class="form-control form-control-lg" id="searchInput" placeholder="暱稱、9188編號、電話、銀行帳號、身分證" autocomplete="off">
       <button class="btn btn-pink px-4" onclick="doSearch()"><i class="bi bi-search"></i></button>
     </div>
     <div class="form-text text-muted mt-1">黑名單與一般會員一起搜尋，黑名單會顯示紅色警示</div>
@@ -2407,7 +2407,7 @@ function doSearch() {
   );
   const matchBlacklist = BLACKLIST.filter(c =>
     matchArr(c.暱稱, q) || c["9188編號"].toLowerCase().includes(q) ||
-    matchArr(c.電話, q) || (c.身分證||"").toLowerCase().includes(q)
+    matchArr(c.電話, q) || (c.身分證||"").toLowerCase().includes(q) || matchArr(c.銀行帳號, q)
   );
   const allResults = [
     ...matchBlacklist.map(c => ({...c, _black:true})),
