@@ -872,6 +872,7 @@
       <input type="date" class="form-control form-control-sm" id="bfilter-date" style="width:140px" onchange="loadBankByRange()">
       <button class="btn btn-sm btn-outline-secondary" onclick="resetBankToToday()">今日</button>
       <button class="btn btn-sm btn-outline-secondary" onclick="loadBankByRange()" title="重新整理"><i class="bi bi-arrow-clockwise"></i></button>
+      <button class="btn btn-sm btn-outline-primary fw-bold" onclick="toggleBankBalancePanel()" id="btn-bal-toggle">餘額</button>
       <button class="btn btn-sm btn-pink fw-bold" onclick="openOrderDrawer()">
         <i class="bi bi-plus-circle me-1"></i>開單
       </button>
@@ -881,6 +882,14 @@
       <button class="btn btn-sm btn-outline-danger fw-bold" onclick="bankOtherAction('out')">
         <i class="bi bi-dash-circle me-1"></i>支出
       </button>
+    </div>
+    <!-- 餘額面板（預設隱藏） -->
+    <div id="bank_balance_panel" class="d-none card p-3 mb-2">
+      <div id="bank_stat_rows"></div>
+      <div class="d-flex justify-content-between align-items-center pt-2 mt-1 border-top">
+        <span class="fw-bold">合計</span>
+        <span class="fw-bold fs-5" id="bank_total_all">—</span>
+      </div>
     </div>
     <!-- 第二列：篩選按鈕（橫向可滾動） -->
     <div class="d-flex gap-1" id="bank_filter_btns" style="overflow-x:auto;white-space:nowrap;padding-bottom:4px">
@@ -3924,6 +3933,14 @@ function toggleBankBalance() {
   if(!panel) return;
   panel.style.display = panel.style.display === "none" ? "" : "none";
 }
+function toggleBankBalancePanel() {
+  const panel = document.getElementById("bank_balance_panel");
+  const btn   = document.getElementById("btn-bal-toggle");
+  if(!panel) return;
+  const open = panel.classList.toggle("d-none");
+  if(btn) btn.classList.toggle("btn-outline-primary", open);
+  if(btn) btn.classList.toggle("btn-primary", !open);
+}
 
 // ── 銀行餘額跨日結轉 ─────────────────────────────────────
 // 僅計算今日結帳後的收盤餘額並存入 DB，供明日起始使用。
@@ -3986,6 +4003,16 @@ function renderBankPage() {
         <span class="text-muted small ms-auto">起始 ${init.toLocaleString()}　<span class="text-success">+${f.in.toLocaleString()}</span>　<span class="text-danger">-${f.out.toLocaleString()}</span></span>
       </div>`;
     }).join("");
+  }
+  // 更新各銀行合計餘額
+  const totalBal = BANK_STAT_NAMES.reduce((s,b) => {
+    const f = flow[b] || {in:0, out:0};
+    return s + (BANK_INIT[b]||0) + f.in - f.out;
+  }, 0);
+  const taEl = document.getElementById("bank_total_all");
+  if(taEl) {
+    taEl.textContent = totalBal.toLocaleString();
+    taEl.className = 'fw-bold fs-5 ' + (totalBal >= 0 ? 'text-success' : 'text-danger');
   }
   const allIn  = BANK_STAT_NAMES.reduce((s,b)=>s+(flow[b]?.in||0),0)
                + BANK_OTHER_LOGS.filter(r=>r.dir==="in").reduce((s,r)=>s+r.amount,0);
