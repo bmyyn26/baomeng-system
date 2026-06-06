@@ -1335,10 +1335,16 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
+        <!-- 交易日期選擇 -->
+        <div class="d-flex align-items-center gap-2 mb-3">
+          <label class="form-label fw-semibold mb-0" style="white-space:nowrap">交易日期</label>
+          <input type="date" class="form-control" id="co_date_picker" style="max-width:170px" onchange="loadCheckoutForDate(this.value)">
+          <span class="badge rounded-pill bg-secondary" id="co_date_label"></span>
+        </div>
         <!-- 今日紅鑽 手動輸入 -->
         <div class="mb-3">
-          <label class="form-label fw-semibold">今日紅鑽 <span class="text-danger">*</span></label>
-          <input type="number" class="form-control form-control-lg" id="co_today_dia" placeholder="手動輸入今日紅鑽數" oninput="recalcCheckout()">
+          <label class="form-label fw-semibold">盤點紅鑽 <span class="text-danger">*</span></label>
+          <input type="number" class="form-control form-control-lg" id="co_today_dia" placeholder="手動輸入當日紅鑽數" oninput="recalcCheckout()">
         </div>
         <!-- 系統自動計算 -->
         <div class="card p-3 mb-3 bg-light border-0">
@@ -4339,20 +4345,52 @@ async function deleteCheckout(id) {
   loadCheckout();
 }
 
-function openCheckoutModal() {
-  const buyAmt   = TODAY_LOGS.filter(r=>['買方','記帳'].includes(r.label)).reduce((s,r)=>s+r.amount,0);
-  const sellAmt  = TODAY_LOGS.filter(r=>r.label==='賣方').reduce((s,r)=>s+r.amount,0);
-  const repayDia = TODAY_LOGS.filter(r=>r.label==='還鑽').reduce((s,r)=>s+r.diamonds,0);
-  const feeAmt   = Math.round(buyAmt*1.3*0.003);
+async function openCheckoutModal() {
+  // 預設昨天
+  const yesterday = _fmtDate(new Date(Date.now() - 86400000));
+  document.getElementById('co_date_picker').value = yesterday;
+  document.getElementById('co_today_dia').value = '';
+  ['co_sub_dia','co_adj_total','co_total_dia'].forEach(id=>document.getElementById(id).textContent='—');
+  document.getElementById('co_formula_hint').textContent='';
+  document.getElementById('co_variance_hint').textContent='';
+  if(!_checkoutModal) _checkoutModal = new bootstrap.Modal(document.getElementById('checkoutModal'));
+  _checkoutModal.show();
+  await loadCheckoutForDate(yesterday);
+}
+
+async function loadCheckoutForDate(dateStr) {
+  const today = _fmtDate(new Date());
+  // badge 標示今天/昨天
+  const diffDays = Math.round((new Date(today) - new Date(dateStr)) / 86400000);
+  const label = diffDays===0 ? '今天' : diffDays===1 ? '昨天' : `${diffDays}天前`;
+  document.getElementById('co_date_label').textContent = label;
+
+  // 載入中提示
+  ['co_buy_amt','co_fee_amt','co_sell_amt'].forEach(id=>document.getElementById(id).textContent='…');
+
+  // 從 Supabase 撈指定日期交易
+  const { data, error } = await _supa.from('transactions').select('*').eq('date', dateStr);
+  if(error) { ['co_buy_amt','co_fee_amt','co_sell_amt'].forEach(id=>document.getElementById(id).textContent='?'); return; }
+
+  const logs = data.map(r=>({
+    type:r.type||'', label:r.label||'', nickname:r.nickname||'',
+    amount:r.amount||0, diamonds:r.diamonds||0, bank:r.bank||'',
+    note:r.note||'', _dbId:r.id
+  }));
+
+  const buyAmt     = logs.filter(r=>['買方','記帳'].includes(r.label)).reduce((s,r)=>s+r.amount,0);
+  const sellAmt    = logs.filter(r=>r.label==='賣方').reduce((s,r)=>s+r.amount,0);
+  const repayDia   = logs.filter(r=>r.label==='還鑽').reduce((s,r)=>s+r.diamonds,0);
+  const feeAmt     = Math.round(buyAmt*1.3*0.003);
   const storageDia = STORAGE_DATA.reduce((s,r)=>s+(r.diamonds||0),0);
-  // 領回：note==='寄放領回' && label==='賣方'（買賣各一筆，金額相同，取賣方即可）
-  const withdrawAmt = TODAY_LOGS.filter(r=>r.note==='寄放領回' && r.label==='賣方').reduce((s,r)=>s+r.amount,0);
+  const withdrawAmt = logs.filter(r=>r.note==='寄放領回' && r.label==='賣方').reduce((s,r)=>s+r.amount,0);
+
   document.getElementById('co_buy_amt').textContent    = buyAmt;
   document.getElementById('co_fee_amt').textContent    = feeAmt;
   document.getElementById('co_sell_amt').textContent   = sellAmt;
   document.getElementById('co_storage_dia').textContent = storageDia;
   document.getElementById('co_buy_detail').textContent  = '買方+記帳 合計';
-  document.getElementById('co_sell_detail').textContent = repayDia?`賣方合計 + 還鑽 ${repayDia}顆`:'賣方合計';
+  document.getElementById('co_sell_detail').textContent = repayDia ? `賣方合計 + 還鑽 ${repayDia}顆` : '賣方合計';
   // 領回明細列
   const wdRow = document.getElementById('co_withdraw_row');
   if(withdrawAmt > 0) {
@@ -4364,17 +4402,15 @@ function openCheckoutModal() {
   } else {
     wdRow.style.display = 'none';
   }
+  // 重設紅鑽輸入與計算結果
   document.getElementById('co_today_dia').value = '';
   ['co_sub_dia','co_adj_total','co_total_dia'].forEach(id=>document.getElementById(id).textContent='—');
   document.getElementById('co_formula_hint').textContent='';
-  document.getElementById('co_variance_hint').textContent='';
   const modal = document.getElementById('checkoutModal');
   modal.dataset.buyAmt=buyAmt; modal.dataset.sellAmt=sellAmt;
   modal.dataset.repayDia=repayDia; modal.dataset.feeAmt=feeAmt;
   modal.dataset.storageDia=storageDia; modal.dataset.withdrawAmt=withdrawAmt;
   renderAdjustPreview();
-  if(!_checkoutModal) _checkoutModal = new bootstrap.Modal(modal);
-  _checkoutModal.show();
 }
 
 function recalcCheckout() {
@@ -4411,9 +4447,9 @@ async function submitCheckout() {
   const repayDia = parseInt(modal.dataset.repayDia)||0;
   const adjTotal = _adjustments.reduce((s,r)=>s+r.diamonds,0);
   const subDia   = todayDia - storageDia - Math.round(buyAmt*1.3) - feeAmt + Math.round(sellAmt*1.44) + repayDia;
-  const today    = _fmtDate(new Date());
+  const checkoutDate = document.getElementById('co_date_picker')?.value || _fmtDate(new Date());
   const { error } = await _supa.from('daily_checkout').upsert({
-    date:today, today_diamonds:todayDia, buy_amount:buyAmt,
+    date:checkoutDate, today_diamonds:todayDia, buy_amount:buyAmt,
     sell_amount:sellAmt, total_diamonds:subDia, variance:adjTotal,
     storage_diamonds:storageDia,
     details:JSON.stringify(_adjustments)
