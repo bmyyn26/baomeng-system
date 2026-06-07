@@ -3989,7 +3989,11 @@ function renderBankPage() {
   TODAY_LOGS.forEach(r => {
     if(!BANK_NAMES.includes(r.bank)) return;
     if(r.type==="buy")  { flow[r.bank].in  += r.amount; flow[r.bank].count++; }
-    if(r.type==="sell") { flow[r.bank].out += r.amount; flow[r.bank].count++; }
+    if(r.type==="sell") {
+      const fm = r.note ? r.note.match(/手續費(\d+)元/) : null;
+      flow[r.bank].out += r.amount + (fm ? parseInt(fm[1]) : 0);
+      flow[r.bank].count++;
+    }
   });
   BANK_OTHER_LOGS.forEach(r => {
     if(!BANK_NAMES.includes(r.bank)) return;
@@ -3998,16 +4002,19 @@ function renderBankPage() {
   });
   const statEl = document.getElementById("bank_stat_rows");
   if(statEl) {
-    statEl.innerHTML = BANK_STAT_NAMES.map(b => {
-      const f = flow[b] || {in:0, out:0};
-      const init = BANK_INIT[b] || 0;
-      const bal = init + f.in - f.out;
-      return `<div class="d-flex align-items-center justify-content-between border-bottom py-2 gap-2">
-        <span class="fw-bold fs-6" style="min-width:36px">${b}</span>
-        <span class="fw-bold fs-5 ${bal>=0?"text-success":"text-danger"}">${bal.toLocaleString()}</span>
-        <span class="text-muted small ms-auto">起始 ${init.toLocaleString()}　<span class="text-success">+${f.in.toLocaleString()}</span>　<span class="text-danger">-${f.out.toLocaleString()}</span></span>
-      </div>`;
-    }).join("");
+    statEl.innerHTML = `<div style="display:grid;grid-template-columns:36px 1fr auto auto auto;align-items:center;gap:0 12px">` +
+      BANK_STAT_NAMES.map(b => {
+        const f = flow[b] || {in:0, out:0};
+        const init = BANK_INIT[b] || 0;
+        const bal = init + f.in - f.out;
+        return `
+          <span class="fw-bold border-bottom py-2">${b}</span>
+          <span class="fw-bold fs-5 border-bottom py-2 ${bal>=0?"text-success":"text-danger"}">${bal.toLocaleString()}</span>
+          <span class="text-muted small border-bottom py-2 text-end" style="white-space:nowrap">起始 ${init.toLocaleString()}</span>
+          <span class="text-success small fw-bold border-bottom py-2 text-end" style="white-space:nowrap">+${f.in.toLocaleString()}</span>
+          <span class="text-danger small fw-bold border-bottom py-2 text-end" style="white-space:nowrap">-${f.out.toLocaleString()}</span>`;
+      }).join("") +
+    `</div>`;
   }
   // 更新各銀行合計餘額
   const totalBal = BANK_STAT_NAMES.reduce((s,b) => {
