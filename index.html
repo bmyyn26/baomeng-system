@@ -2282,14 +2282,16 @@ function exportStorageTransfer() {
     "必填\n商家自訂的銀行帳戶",
     "非必填\n空白則為0,數字可填0~30\n"
   ];
-  const headerRow = ["會員編號", "商品數量", "商品編號", "手機", "客戶銀行帳號", "商店支出銀行", "銀行轉出手續費", "暱稱", "金額"];
+  const headerRow = ["會員編號", "商品數量", "商品編號", "手機", "客戶銀行帳號", "商店支出銀行", "銀行轉出手續費", "暱稱", "金額", "時間"];
 
+  const now = new Date();
+  const defaultTime = String(now.getHours()).padStart(2,"0") + ":" + String(now.getMinutes()).padStart(2,"0");
   const dataRows = rows.map(r => {
     const cust = CUSTOMERS.find(c => c.暱稱 && c.暱稱.includes(r.nickname));
     const id9188   = cust ? (cust['9188編號'] || "") : "";
     const phone    = cust ? (cust.電話 && cust.電話[0] ? cust.電話[0] : "") : "";
     const bankAcc  = cust ? (cust.銀行帳號 && cust.銀行帳號[0] ? cust.銀行帳號[0].帳號 : "") : "";
-    return [id9188, r.diamonds || 0, 7419, phone, bankAcc, selectedSellerPay, selectedFee || 0, r.nickname || "", r.amount || 0];
+    return [id9188, r.diamonds || 0, 7419, phone, bankAcc, selectedSellerPay, selectedFee || 0, r.nickname || "", r.amount || 0, defaultTime];
   });
 
   const wsData = [descRow, headerRow, ...dataRows];
@@ -2333,6 +2335,7 @@ function importSellerTransfer(input) {
         const bankAcc   = String(r[4] || "").trim();
         const bank      = String(r[5] || "").trim() || selectedSellerPay;
         const fee       = parseInt(r[6]) || 0;
+        const rowTime   = String(r[9] || "").trim();
 
         if (!diamonds) { errors.push(`第${i+3}列：商品數量為空，已略過`); return; }
 
@@ -2349,10 +2352,11 @@ function importSellerTransfer(input) {
         const feeNote = fee ? `手續費${fee}元` : "";
         const note = [bank + "轉帳", feeNote].filter(Boolean).join("／");
 
+        const useTime = rowTime || timeStr;
         TODAY_LOGS.push({
           type:"sell", label:"賣方", nickname, diamonds, amount,
-          time: timeStr, note, giftTime: "", bank,
-          date: todayStr, cvsCode: "", orderNo: genOrderNo("sell", todayStr, timeStr),
+          time: useTime, note, giftTime: "", bank,
+          date: todayStr, cvsCode: "", orderNo: genOrderNo("sell", todayStr, useTime),
           bankAccount: bankAcc
         });
         successCount++;
