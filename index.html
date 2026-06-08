@@ -4890,16 +4890,21 @@ async function exportCVSReport() {
   exportXlsx(
     '超商資料',
     ['發票日期','發票號碼','發票金額','超商代碼','暱稱','購買金額','會員編號','開超商日期'],
-    all.map(r => [
-      '',                   // 發票日期（手動填）
-      '',                   // 發票號碼（手動填）
-      '',                   // 發票金額（手動填）
-      r.cvs_code || '',
-      r.nickname || '',
-      r.amount   || '',
-      r.member_id || '',
-      r.date     || ''
-    ]),
+    all.map(r => {
+      const cust = CUSTOMERS.find(c => c.暱稱.includes(r.nickname))
+                || BLACKLIST.find(c => c.暱稱.includes(r.nickname));
+      const memberId = r.member_id || (cust ? cust['9188編號'] : '') || '';
+      return [
+        '',                   // 發票日期（手動填）
+        '',                   // 發票號碼（手動填）
+        '',                   // 發票金額（手動填）
+        r.cvs_code || '',
+        r.nickname || '',
+        r.amount   || '',
+        memberId,
+        r.date     || ''
+      ];
+    }),
     `超商資料_${from}_${to}.xlsx`
   );
   msgEl.textContent = `✅ 已匯出 ${all.length} 筆超商資料`;
