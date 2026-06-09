@@ -2363,10 +2363,14 @@ async function importSellerTransfer(input) {
         // 手續費：支援數字、字串"15"、字串"15元"等格式
         const rawFee = r[6];
         const fee = rawFee instanceof Date ? 0 : (parseInt(String(rawFee||"").replace(/[^0-9]/g,"")) || 0);
-        // 時間：SheetJS 可能回傳 Date 物件（Excel時間格式），轉成 HH:MM
+        // 時間：SheetJS 可能回傳 Date 物件、小數（0.3118=07:29）或字串
         let rowTime = "";
         if(r[9] instanceof Date) {
           rowTime = String(r[9].getHours()).padStart(2,"0") + ":" + String(r[9].getMinutes()).padStart(2,"0");
+        } else if(typeof r[9] === 'number' && r[9] > 0 && r[9] < 1) {
+          // Excel 時間小數：0.3118... × 1440分鐘 = 07:29
+          const mins = Math.round(r[9] * 1440);
+          rowTime = String(Math.floor(mins/60)).padStart(2,'0') + ':' + String(mins%60).padStart(2,'0');
         } else {
           const ts = String(r[9] || "").trim();
           const tm = ts.match(/(\d{1,2}):(\d{2})/);
