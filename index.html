@@ -1235,10 +1235,7 @@
         <button class="btn btn-outline-dark btn-sm fw-bold px-3" onclick="openAdjustModal()">
           <i class="bi bi-plus-circle me-1"></i>新增差額
         </button>
-        <button class="btn btn-outline-primary btn-sm fw-bold px-3" onclick="openSnapshotModal()">
-          <i class="bi bi-diamond me-1"></i>新增今日紅鑽
-        </button>
-        <button class="btn btn-pink btn-sm fw-bold px-3" onclick="openCheckoutModal()">
+<button class="btn btn-pink btn-sm fw-bold px-3" onclick="openCheckoutModal()">
           <i class="bi bi-receipt-cutoff me-1"></i>新增結帳
         </button>
       </div>
@@ -1365,7 +1362,7 @@
         <!-- 交易日期選擇 -->
         <div class="d-flex align-items-center gap-2 mb-3">
           <label class="form-label fw-semibold mb-0" style="white-space:nowrap">交易日期</label>
-          <input type="date" class="form-control" id="co_date_picker" style="max-width:170px" onchange="loadCheckoutForDate(this.value)">
+          <input type="date" class="form-control" id="co_date_picker" style="max-width:170px" onchange="loadCheckoutForDate(this.value);document.getElementById('co_next_date_label').textContent=_fmtDate(new Date(new Date(this.value).getTime()+86400000))">
           <span class="badge rounded-pill bg-secondary" id="co_date_label"></span>
         </div>
         <!-- 今日紅鑽 手動輸入 -->
@@ -1432,6 +1429,13 @@
         </div>
         <!-- 差額（來自頁面預先新增的差額） -->
         <div class="mb-2" id="co_adj_preview"></div>
+        <!-- 隔日快照 -->
+        <div class="form-check mt-2">
+          <input class="form-check-input" type="checkbox" id="co_save_next_snap" checked>
+          <label class="form-check-label small text-muted" for="co_save_next_snap">
+            同時將盤點數量儲存為 <span id="co_next_date_label" class="fw-semibold text-primary"></span> 的開盤快照
+          </label>
+        </div>
       </div>
       <div class="modal-footer border-0 pt-0">
         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
@@ -4502,7 +4506,10 @@ function renderCheckoutTable(rows) {
         <td class="text-end text-muted">${r.storage_diamonds != null ? r.storage_diamonds : '—'}</td>
         <td colspan="5" class="text-center text-muted small">尚未結帳</td>
         <td>—</td>
-        <td><button class="btn btn-outline-danger btn-sm py-0 px-1" onclick="deleteCheckout(${r.id})"><i class="bi bi-trash"></i></button></td>
+        <td class="d-flex gap-1">
+          <button class="btn btn-outline-primary btn-sm py-0 px-1" onclick="openSnapshotEditModal(${r.id},'${r.date}',${r.today_diamonds??0},${r.storage_diamonds??0})" title="編輯快照"><i class="bi bi-pencil"></i></button>
+          <button class="btn btn-outline-danger btn-sm py-0 px-1" onclick="deleteCheckout(${r.id})"><i class="bi bi-trash"></i></button>
+        </td>
       </tr>`;
     }
 
@@ -4625,14 +4632,52 @@ async function submitSnapshot() {
   loadCheckout();
 }
 
+function openSnapshotEditModal(id, date, todayDia, storageDia) {
+  // 用 overlay 快速編輯快照列
+  document.getElementById('snapshotEditOverlay')?.remove();
+  const html = `
+  <div id="snapshotEditOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;display:flex;align-items:center;justify-content:center">
+    <div class="bg-white rounded-3 p-4 shadow" style="width:min(380px,92vw)">
+      <h5 class="fw-bold mb-3"><i class="bi bi-pencil me-2 text-primary"></i>編輯快照 ${date}</h5>
+      <div class="mb-3">
+        <label class="form-label fw-semibold">紅鑽數量</label>
+        <input type="number" class="form-control" id="snapedit_dia" value="${todayDia}">
+      </div>
+      <div class="mb-4">
+        <label class="form-label fw-semibold">寄放數量</label>
+        <input type="number" class="form-control" id="snapedit_storage" value="${storageDia}">
+      </div>
+      <div class="d-flex gap-2">
+        <button class="btn btn-outline-secondary flex-grow-1" onclick="document.getElementById('snapshotEditOverlay').remove()">取消</button>
+        <button class="btn btn-primary flex-grow-1 fw-bold" onclick="submitSnapshotEdit(${id},'${date}')">儲存</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
+async function submitSnapshotEdit(id, date) {
+  const dia     = parseInt(document.getElementById('snapedit_dia')?.value)||0;
+  const storage = parseInt(document.getElementById('snapedit_storage')?.value)||0;
+  if(!dia) { alert('請輸入紅鑽數量'); return; }
+  const { error } = await _supa.from('daily_checkout')
+    .update({ today_diamonds: dia, storage_diamonds: storage })
+    .eq('id', id);
+  if(error) { alert('儲存失敗：'+error.message); return; }
+  document.getElementById('snapshotEditOverlay')?.remove();
+  loadCheckout();
+}
+
 async function openCheckoutModal() {
   const today = _fmtDate(new Date());
+  const tomorrow = _fmtDate(new Date(Date.now() + 86400000));
   document.getElementById('co_date_picker').value = today;
   document.getElementById('co_today_dia').value = '';
+  document.getElementById('co_next_date_label').textContent = tomorrow;
   ['co_sub_dia','co_adj_total','co_total_dia'].forEach(id=>document.getElementById(id).textContent='—');
   document.getElementById('co_formula_hint').textContent='';
   document.getElementById('co_variance_hint').textContent='';
-  _coModalAdj = _adjustments; // 預設今天，使用記憶體差額
+  _coModalAdj = _adjustments;
   if(!_checkoutModal) _checkoutModal = new bootstrap.Modal(document.getElementById('checkoutModal'));
   _checkoutModal.show();
   await loadCheckoutForDate(today);
@@ -4699,14 +4744,9 @@ async function loadCheckoutForDate(dateStr) {
     const thisDayDetails = thisDayRows?.[0]?.details;
     _coModalAdj = thisDayDetails ? JSON.parse(thisDayDetails) : [];
   }
-  // 優先用當天快照帶入盤點紅鑽，其次用下一天快照
+  // 盤點紅鑽從下一天快照帶入（隔日快照 = 本日結帳的盤點基準）
   const diaInput = document.getElementById('co_today_dia');
-  const thisDaySnap = thisDayRows?.[0]?.today_diamonds;
-  if(thisDaySnap != null) {
-    diaInput.value = thisDaySnap;
-    diaInput.title = `自動帶入 ${dateStr} 快照（可手動修改）`;
-    diaInput.style.background = '#f0f8ff';
-  } else if(nextSnapshot?.today_diamonds) {
+  if(nextSnapshot?.today_diamonds) {
     diaInput.value = nextSnapshot.today_diamonds;
     diaInput.title = `自動帶入 ${nextSnapshot.date} 快照（可手動修改）`;
     diaInput.style.background = '#f0f8ff';
@@ -4726,7 +4766,7 @@ async function loadCheckoutForDate(dateStr) {
   modal.dataset.withdrawAmt = withdrawAmt;
   modal.dataset.prevTotalDia = prevCheckout?.total_diamonds ?? '';
   modal.dataset.prevDate     = prevCheckout?.date ?? '';
-  if(thisDaySnap != null || nextSnapshot?.today_diamonds) recalcCheckout();
+  if(nextSnapshot?.today_diamonds) recalcCheckout();
   // 上次結帳顯示（等輸入紅鑽後才算誤差，先填靜態）
   document.getElementById('co_prev_total').textContent = prevCheckout ? prevCheckout.total_diamonds : '無紀錄';
   document.getElementById('co_prev_date').textContent  = prevCheckout ? prevCheckout.date : '';
@@ -4780,6 +4820,16 @@ async function submitCheckout() {
     details:JSON.stringify(_coModalAdj)
   }, {onConflict:'date'});
   if(error) { alert('儲存失敗：'+error.message); return; }
+  // 若勾選「同時儲存為隔日快照」，將盤點值存入隔日 today_diamonds
+  const saveNextSnap = document.getElementById('co_save_next_snap')?.checked;
+  if(saveNextSnap && todayDia) {
+    const nextDate = _fmtDate(new Date(new Date(checkoutDate).getTime() + 86400000));
+    const liveDia  = STORAGE_DATA.reduce((s,r)=>s+(r.diamonds||0),0);
+    await _supa.from('daily_checkout').upsert(
+      { date: nextDate, today_diamonds: todayDia, storage_diamonds: liveDia },
+      { onConflict:'date', ignoreDuplicates:false }
+    );
+  }
   if(_checkoutModal) _checkoutModal.hide();
   const alertEl = document.getElementById('checkout_alert');
   if(alertEl) {
