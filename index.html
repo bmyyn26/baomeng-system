@@ -1299,12 +1299,11 @@
           <input type="text" class="form-control" id="ledit_nickname" autocomplete="off">
         </div>
         <div class="mb-3">
-          <label class="form-label fw-semibold">金額（元）</label>
+          <label class="form-label fw-semibold">金額</label>
           <input type="number" class="form-control" id="ledit_amount" min="0" oninput="leditCalcDiamonds()">
-          <div class="text-muted small mt-1" id="ledit_diamond_hint"></div>
         </div>
         <div class="mb-3">
-          <label class="form-label fw-semibold">紅鑽（顆）<span class="text-muted small ms-1">手動填寫可覆蓋自動換算</span></label>
+          <label class="form-label fw-semibold">紅鑽</label>
           <input type="number" class="form-control" id="ledit_diamonds" min="0" placeholder="留空則依金額自動換算">
         </div>
         <div class="mb-3">
@@ -3057,11 +3056,8 @@ function editLog(idx) {
 function leditCalcDiamonds() {
   const r   = TODAY_LOGS[_logEditIdx];
   const amt = parseInt(document.getElementById("ledit_amount").value) || 0;
-  const hint = document.getElementById("ledit_diamond_hint");
-  if(!r || !amt) { hint.textContent = ""; return; }
+  if(!r || !amt) return;
   const ratio = r.type==="sell" ? 1.44 : 1.3;
-  const label = r.type==="sell" ? "×1.44（賣方）" : "×1.3（買方）";
-  hint.textContent = `= ${Math.round(amt * ratio)} 顆　${label}`;
 }
 
 function leditSetGiftNow() {
