@@ -543,17 +543,6 @@
       <input type="date" class="form-control" id="seller_date">
     </div>
 
-    <!-- 匯入轉帳（進階功能，放最後）-->
-    <div class="mb-3">
-      <div class="d-flex align-items-center gap-2 flex-wrap">
-        <input type="date" id="importSellerDate" class="form-control form-control-sm" style="width:140px">
-        <button class="btn btn-outline-primary btn-sm fw-bold" onclick="document.getElementById('importSellerFile').click()">
-          <i class="bi bi-file-earmark-arrow-up me-1"></i>匯入轉帳
-        </button>
-        <input type="file" id="importSellerFile" accept=".xls,.xlsx" class="d-none" onchange="importSellerTransfer(this)">
-      </div>
-      <span class="text-muted small ms-2">從賣方範本 XLS 批次匯入（第3列起）</span>
-    </div>
 
     <div id="seller_result" class="alert d-none mb-3"></div>
     <button class="btn btn-pink w-100 py-2 fw-bold fs-5" onclick="submitSellerOrder()">
@@ -653,7 +642,7 @@
   <div class="card p-4 mb-3">
     <h5 class="fw-bold mb-3"><i class="bi bi-search me-2"></i>客戶查詢 / 黑名單反查</h5>
     <div class="input-group">
-      <input type="text" class="form-control form-control-lg" id="searchInput" placeholder="暱稱、9188編號、電話、銀行帳號、身分證" autocomplete="off">
+      <input type="text" class="form-control form-control-lg" id="searchInput" placeholder="暱稱、9188編號、姓名、電話、銀行帳號、身分證" autocomplete="off">
       <button class="btn btn-pink px-4" onclick="doSearch()"><i class="bi bi-search"></i></button>
     </div>
     <div class="form-text text-muted mt-1">黑名單與一般會員一起搜尋，黑名單會顯示紅色警示</div>
@@ -755,6 +744,14 @@
         <label class="form-label fw-semibold small mb-1">暱稱</label>
         <input type="text" class="form-control" id="db_nickname" placeholder="">
       </div>
+      <div class="col-6 col-md-4">
+        <label class="form-label fw-semibold small mb-1">訂單編號</label>
+        <input type="text" class="form-control" id="db_order_no" placeholder="B/S開頭">
+      </div>
+      <div class="col-6 col-md-4">
+        <label class="form-label fw-semibold small mb-1">9188編號</label>
+        <input type="text" class="form-control" id="db_member_id" placeholder="">
+      </div>
       <div class="col-6 col-md-3">
         <label class="form-label fw-semibold small mb-1">開始日期</label>
         <input type="date" class="form-control" id="db_date_from">
@@ -794,7 +791,7 @@
           <tr>
             <th>日期</th><th>類型</th><th>暱稱</th>
             <th class="text-end">金額</th><th class="text-end">紅鑽</th>
-            <th>銀行</th><th>備註</th>
+            <th>銀行</th><th>時間</th><th>備註</th>
           </tr>
         </thead>
         <tbody id="db_tbody"></tbody>
@@ -855,6 +852,18 @@
       </div>
       <div id="exp9188_msg" class="mt-1 small"></div>
       <div id="exportCenter_msg" class="mt-2 small"></div>
+
+      <!-- 匯入轉帳 -->
+      <hr class="my-3">
+      <div class="fw-semibold small text-muted mb-2">匯入轉帳</div>
+      <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+        <input type="date" id="importSellerDate" class="form-control form-control-sm" style="width:140px">
+        <button class="btn btn-outline-primary btn-sm fw-bold" onclick="document.getElementById('importSellerFile').click()">
+          <i class="bi bi-file-earmark-arrow-up me-1"></i>匯入賣方轉帳 XLS
+        </button>
+        <input type="file" id="importSellerFile" accept=".xls,.xlsx" class="d-none" onchange="importSellerTransfer(this)">
+      </div>
+      <div class="text-muted small">從賣方範本 XLS 批次匯入（第3列起），自動讀取手續費並寫入資料庫</div>
 
     </div>
   </div>
@@ -1309,6 +1318,10 @@
             <option>其他</option>
           </select>
         </div>
+        <div class="mb-3" id="ledit_cvs_row">
+          <label class="form-label fw-semibold">超商代碼</label>
+          <input type="text" class="form-control" id="ledit_cvs_code" placeholder="超商虛擬帳號">
+        </div>
         <div class="mb-3">
           <label class="form-label fw-semibold">手續費</label>
           <div class="d-flex gap-2">
@@ -1444,12 +1457,14 @@
           <label class="form-label fw-semibold">紅鑽數量 <span class="text-danger">*</span></label>
           <input type="number" class="form-control form-control-lg" id="snap_diamonds" placeholder="輸入今日實際紅鑽數">
         </div>
-        <div class="d-flex align-items-center gap-2 p-2 rounded mb-2" style="background:#fff3e0">
-          <div class="small text-muted">目前寄放紅鑽</div>
-          <div class="fw-bold text-danger ms-auto" id="snap_storage">—</div>
-          <div class="small text-muted">顆</div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">寄放紅鑽 <span class="text-muted small">（首次自動帶入，之後可手動修改）</span></label>
+          <div class="input-group">
+            <input type="number" class="form-control" id="snap_storage" placeholder="自動帶入">
+            <span class="input-group-text">顆</span>
+          </div>
         </div>
-        <div class="small text-muted">記錄當日紅鑽快照，供跨日誤差計算使用。同一天重複新增會覆蓋舊資料。</div>
+        <div class="small text-muted">重複新增同日快照只更新今日紅鑽，不覆蓋寄放紅鑽。</div>
       </div>
       <div class="modal-footer border-0 pt-0">
         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
@@ -1648,8 +1663,8 @@ async function updateTransactionDB(log) {
   try {
     await _supa.from('transactions').update({
       nickname: log.nickname, amount: log.amount, diamonds: log.diamonds,
-      bank: log.bank, note: log.note, transaction_time: log.time||'',
-      date: log.date||''
+      bank: log.bank, cvs_code: log.cvsCode||'', note: log.note,
+      transaction_time: log.time||'', date: log.date||''
     }).eq('id', log._dbId);
   } catch(e) { console.warn('updateTransactionDB:', e); }
 }
@@ -2310,13 +2325,13 @@ function exportStorageTransfer() {
 }
 
 // ── 賣方開單：匯入轉帳 XLS（從第3列批次建立訂單）──────────────────────
-function importSellerTransfer(input) {
+async function importSellerTransfer(input) {
   if (!window.XLSX) { alert("XLSX 函式庫尚未載入，請重新整理頁面"); return; }
   const file = input.files[0];
   if (!file) return;
 
   const reader = new FileReader();
-  reader.onload = function(e) {
+  reader.onload = async function(e) {
     try {
       const wb = XLSX.read(e.target.result, { type: "array" });
       const ws = wb.Sheets[wb.SheetNames[0]];
@@ -2334,13 +2349,24 @@ function importSellerTransfer(input) {
       let successCount = 0;
       const errors = [];
 
+      const insertPromises = [];
       dataRows.forEach((r, i) => {
         const id9188    = String(r[0] || "").trim();
         const diamonds  = parseInt(r[1]) || 0;
         const bankAcc   = String(r[4] || "").trim();
         const bank      = String(r[5] || "").trim() || selectedSellerPay;
-        const fee       = parseInt(r[6]) || 0;
-        const rowTime   = String(r[9] || "").trim();
+        // 手續費：支援數字、字串"15"、字串"15元"等格式
+        const rawFee = r[6];
+        const fee = rawFee instanceof Date ? 0 : (parseInt(String(rawFee||"").replace(/[^0-9]/g,"")) || 0);
+        // 時間：SheetJS 可能回傳 Date 物件（Excel時間格式），轉成 HH:MM
+        let rowTime = "";
+        if(r[9] instanceof Date) {
+          rowTime = String(r[9].getHours()).padStart(2,"0") + ":" + String(r[9].getMinutes()).padStart(2,"0");
+        } else {
+          const ts = String(r[9] || "").trim();
+          const tm = ts.match(/(\d{1,2}):(\d{2})/);
+          rowTime = tm ? String(tm[1]).padStart(2,"0") + ":" + tm[2] : "";
+        }
 
         if (!diamonds) { errors.push(`第${i+3}列：商品數量為空，已略過`); return; }
 
@@ -2358,15 +2384,19 @@ function importSellerTransfer(input) {
         const note = [bank + "轉帳", feeNote].filter(Boolean).join("／");
 
         const useTime = rowTime || timeStr;
-        TODAY_LOGS.push({
+        const log = {
           type:"sell", label:"賣方", nickname, diamonds, amount,
           time: useTime, note, giftTime: "", bank,
           date: todayStr, cvsCode: "", orderNo: genOrderNo("sell", todayStr, useTime),
           bankAccount: bankAcc
-        });
+        };
+        TODAY_LOGS.push(log);
+        insertPromises.push(appendTransaction(log));
         successCount++;
       });
 
+      await Promise.all(insertPromises);
+      renderLog();
       let msg = `✅ 匯入完成：成功建立 ${successCount} 筆賣方訂單`;
       if (errors.length) msg += `\n⚠️ ${errors.join("\n")}`;
       alert(msg);
@@ -2406,11 +2436,13 @@ function doSearch() {
 
   const matchCustomers = CUSTOMERS.filter(c =>
     matchArr(c.暱稱, q) || c["9188編號"].toLowerCase().includes(q) ||
-    matchArr(c.電話, q) || (c.身分證||"").toLowerCase().includes(q) || matchArr(c.銀行帳號, q)
+    matchArr(c.電話, q) || (c.身分證||"").toLowerCase().includes(q) || matchArr(c.銀行帳號, q) ||
+    (c.戶名||"").toLowerCase().includes(q)
   );
   const matchBlacklist = BLACKLIST.filter(c =>
     matchArr(c.暱稱, q) || c["9188編號"].toLowerCase().includes(q) ||
-    matchArr(c.電話, q) || (c.身分證||"").toLowerCase().includes(q) || matchArr(c.銀行帳號, q)
+    matchArr(c.電話, q) || (c.身分證||"").toLowerCase().includes(q) || matchArr(c.銀行帳號, q) ||
+    (c.戶名||"").toLowerCase().includes(q)
   );
   const allResults = [
     ...matchBlacklist.map(c => ({...c, _black:true})),
@@ -2984,6 +3016,9 @@ function editLog(idx) {
   document.getElementById("ledit_amount").value    = r.amount   || "";
   document.getElementById("ledit_diamonds").value  = r.diamonds || "";
   document.getElementById("ledit_bank").value      = r.bank     || "其他";
+  document.getElementById("ledit_cvs_code").value  = r.cvsCode  || "";
+  const cvsRow = document.getElementById("ledit_cvs_row");
+  if(cvsRow) cvsRow.style.display = (r.bank === "超商") ? "" : "none";
   const feeM=(r.note||"").match(/手續費(\d+)元/);
   selectLeditFee(feeM?parseInt(feeM[1]):0);
   document.getElementById("ledit_note").value=(r.note||"").replace(/[\/／]?手續費\d+元[\/／]?/g,"").trim();
@@ -3020,12 +3055,14 @@ function confirmEditLog() {
   const note     = document.getElementById("ledit_note").value.trim();
   const newTime  = document.getElementById("ledit_time").value.trim();
   const newDate  = document.getElementById("ledit_date").value.trim();
+  const newCvs   = document.getElementById("ledit_cvs_code").value.trim();
   if(!nickname) { alert("暱稱不能空白"); return; }
   const ratio    = r.type==="sell" ? 1.44 : 1.3;
   r.nickname = nickname;
   r.amount   = amount;
   r.diamonds = amount ? Math.round(amount * ratio) : r.diamonds;
   r.bank     = bank;
+  r.cvsCode  = bank === "超商" ? newCvs : r.cvsCode;
   r.note     = _leditFee > 0 ? (note ? note + '／手續費' + _leditFee + '元' : '手續費' + _leditFee + '元') : note;
   if(newTime) r.time = newTime;
   if(newDate) r.date = newDate;
@@ -3361,6 +3398,11 @@ function storageAction(action) {
           <span class="fw-bold" id="sm_withdraw_diamonds">0</span>顆
         </div>
       </div>
+      </div>
+      <div class="mb-2">
+        <label class="form-label fw-semibold">備註 <span class="text-muted small">（選填）</span></label>
+        <input type="text" class="form-control" id="sm_withdraw_note" placeholder="例：不同暱稱或特殊說明">
+      </div>
       <div class="small text-muted"><i class="bi bi-info-circle me-1"></i>領回後將產生：賣方（×1.44）＋ 買方（×1.3）各一筆交易紀錄</div>`;
     modal.show();
 
@@ -3467,14 +3509,16 @@ function confirmStorageAction() {
     const wdAmt = parseInt(document.getElementById("sm_withdraw_amount")?.value)||0;
     if(!wdAmt)            { alert("請填寫領回金額"); return; }
     if(wdAmt > row.amount){ alert(`領回金額不能超過 ${row.amount}`); return; }
+    const wdNote = (document.getElementById("sm_withdraw_note")?.value||"").trim();
     const wdDiaSell = Math.round(wdAmt * 1.44);  // 賣方：×1.44
     const wdDiaBuy  = Math.round(wdAmt * 1.3);   // 買方（買回）：×1.3
     const wdDate = today;
+    const baseNote = "寄放領回" + (wdNote ? "（" + wdNote + "）" : "");
     const sellLog = { type:"sell", label:"賣方", nickname:row.nickname,
-      diamonds:wdDiaSell, amount:wdAmt, time:timeStr, note:"寄放領回", giftTime:"", bank:"寄放",
+      diamonds:wdDiaSell, amount:wdAmt, time:timeStr, note:baseNote, giftTime:"", bank:"寄放",
       date:wdDate, cvsCode:"", orderNo:genOrderNo("sell", wdDate, timeStr), bankAccount:"" };
     const buyLog  = { type:"buy",  label:"買方", nickname:row.nickname,
-      diamonds:wdDiaBuy,  amount:wdAmt, time:timeStr, note:"寄放領回", giftTime:timeStr, bank:"寄放",
+      diamonds:wdDiaBuy,  amount:wdAmt, time:timeStr, note:baseNote, giftTime:timeStr, bank:"寄放",
       date:wdDate, cvsCode:"", orderNo:genOrderNo("buy", wdDate, timeStr), bankAccount:"" };
     // 更新記憶體
     if(wdAmt >= row.amount) {
@@ -4197,11 +4241,29 @@ async function saveBankEdit() {
   renderBankPage();
 }
 
+let _boaFee = 0;
+function selectBoaFee(val) {
+  _boaFee = val;
+  document.querySelectorAll('.boa-fee-btn').forEach(b => {
+    const sel = parseInt(b.dataset.fee) === val;
+    b.classList.toggle('btn-pink', sel);
+    b.classList.toggle('btn-outline-secondary', !sel);
+  });
+}
+
 function bankOtherAction(dir) {
   const existing = document.getElementById('bankOtherOverlay');
   if(existing) existing.remove();
+  _boaFee = 0;
   const title = dir === 'in' ? '其他收入' : '其他支出';
   const todayStr = _fmtDate(new Date());
+  const feeHtml = dir === 'out' ? `
+    <div class="mb-3"><label class="form-label fw-semibold">手續費</label>
+      <div class="d-flex gap-2">
+        <button class="btn btn-sm btn-pink boa-fee-btn" data-fee="0"  onclick="selectBoaFee(0)">0元</button>
+        <button class="btn btn-sm btn-outline-secondary boa-fee-btn" data-fee="10" onclick="selectBoaFee(10)">10元</button>
+        <button class="btn btn-sm btn-outline-secondary boa-fee-btn" data-fee="15" onclick="selectBoaFee(15)">15元</button>
+      </div></div>` : '';
   document.body.insertAdjacentHTML('beforeend', `
     <div id="bankOtherOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;display:flex;align-items:center;justify-content:center">
       <div style="background:#fff;padding:24px;border-radius:16px;width:320px;max-width:92%">
@@ -4214,6 +4276,7 @@ function bankOtherAction(dir) {
           </div></div>
         <div class="mb-3"><label class="form-label fw-semibold">金額</label>
           <div class="input-group"><input type="number" class="form-control" id="boa_amount" min="1"><span class="input-group-text">元</span></div></div>
+        ${feeHtml}
         <div class="mb-3"><label class="form-label fw-semibold">說明 <span class="text-muted small">（選填）</span></label>
           <input type="text" class="form-control" id="boa_note"></div>
         <div class="d-flex gap-2">
@@ -4237,7 +4300,10 @@ async function submitBankOther(dir) {
   const bank   = bankBtn.dataset.bank;
   const amount = parseInt(document.getElementById('boa_amount').value);
   if(!amount || amount <= 0) { alert('請填寫金額'); return; }
-  const note    = document.getElementById('boa_note').value.trim();
+  const noteRaw = document.getElementById('boa_note').value.trim();
+  const note    = (dir === 'out' && _boaFee > 0)
+    ? (noteRaw ? noteRaw + '／手續費' + _boaFee + '元' : '手續費' + _boaFee + '元')
+    : noteRaw;
   const date    = document.getElementById('boa_date').value || _fmtDate(new Date());
   const now     = new Date();
   const timeStr = String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
@@ -4484,12 +4550,24 @@ async function deleteCheckout(id) {
 }
 
 let _snapshotModal = null;
-function openSnapshotModal() {
+async function openSnapshotModal() {
   const today = _fmtDate(new Date());
   document.getElementById('snap_date').value = today;
   document.getElementById('snap_diamonds').value = '';
-  const storageDia = STORAGE_DATA.reduce((s,r)=>s+(r.diamonds||0),0);
-  document.getElementById('snap_storage').textContent = storageDia;
+  // Check if existing record already has storage_diamonds locked
+  const { data: existing } = await _supa.from('daily_checkout').select('storage_diamonds,today_diamonds').eq('date', today).single();
+  const liveDia = STORAGE_DATA.reduce((s,r)=>s+(r.diamonds||0),0);
+  const snapStorageEl = document.getElementById('snap_storage');
+  if(existing?.storage_diamonds != null) {
+    snapStorageEl.value = existing.storage_diamonds;
+    snapStorageEl.style.background = '#fff3e0';
+    snapStorageEl.title = '已鎖定，可手動修改';
+  } else {
+    snapStorageEl.value = liveDia;
+    snapStorageEl.style.background = '';
+    snapStorageEl.title = '自動帶入目前寄放紅鑽';
+  }
+  if(existing?.today_diamonds) document.getElementById('snap_diamonds').value = existing.today_diamonds;
   if(!_snapshotModal) _snapshotModal = new bootstrap.Modal(document.getElementById('snapshotModal'));
   _snapshotModal.show();
 }
@@ -4499,12 +4577,16 @@ async function submitSnapshot() {
   const diaVal  = parseInt(document.getElementById('snap_diamonds').value)||0;
   if(!dateVal)  { alert('請選擇日期'); return; }
   if(!diaVal)   { alert('請輸入紅鑽數量'); return; }
-  const storageDia = STORAGE_DATA.reduce((s,r)=>s+(r.diamonds||0),0);
-  const { error } = await _supa.from('daily_checkout').upsert({
-    date: dateVal,
-    today_diamonds: diaVal,
-    storage_diamonds: storageDia
-  }, { onConflict:'date', ignoreDuplicates:false });
+  // Use the editable snap_storage field value (user may have manually edited)
+  const snapStorageInput = parseInt(document.getElementById('snap_storage').value);
+  const storageDia = isNaN(snapStorageInput) ? STORAGE_DATA.reduce((s,r)=>s+(r.diamonds||0),0) : snapStorageInput;
+  // Check if existing record already has storage_diamonds — don't overwrite unless user changed the field
+  const { data: existing } = await _supa.from('daily_checkout').select('storage_diamonds').eq('date', dateVal).single();
+  const keepExistingStorage = existing?.storage_diamonds != null && existing.storage_diamonds === snapStorageInput;
+  const upsertData = { date: dateVal, today_diamonds: diaVal };
+  // Always use the field value (user can edit it to override)
+  upsertData.storage_diamonds = storageDia;
+  const { error } = await _supa.from('daily_checkout').upsert(upsertData, { onConflict:'date', ignoreDuplicates:false });
   if(error) { alert('儲存失敗：'+error.message); return; }
   if(_snapshotModal) _snapshotModal.hide();
   const alertEl = document.getElementById('checkout_alert');
@@ -4539,11 +4621,12 @@ async function loadCheckoutForDate(dateStr) {
   // 載入中提示
   ['co_buy_amt','co_fee_amt','co_sell_amt'].forEach(id=>document.getElementById(id).textContent='…');
 
-  // 從 Supabase 撈：指定日期交易、上一筆結帳、下一天快照
-  const [{ data, error }, { data: prevRows }, { data: nextRows }] = await Promise.all([
+  // 從 Supabase 撈：指定日期交易、上一筆結帳、下一天快照、當日快照
+  const [{ data, error }, { data: prevRows }, { data: nextRows }, { data: thisDayRows }] = await Promise.all([
     _supa.from('transactions').select('*').eq('date', dateStr),
     _supa.from('daily_checkout').select('date,total_diamonds').lt('date', dateStr).order('date',{ascending:false}).limit(1),
-    _supa.from('daily_checkout').select('date,today_diamonds,storage_diamonds').gt('date', dateStr).order('date',{ascending:true}).limit(1)
+    _supa.from('daily_checkout').select('date,today_diamonds,storage_diamonds').gt('date', dateStr).order('date',{ascending:true}).limit(1),
+    _supa.from('daily_checkout').select('storage_diamonds').eq('date', dateStr).limit(1)
   ]);
   if(error) { ['co_buy_amt','co_fee_amt','co_sell_amt'].forEach(id=>document.getElementById(id).textContent='?'); return; }
   const prevCheckout  = prevRows?.[0] || null;
@@ -4559,7 +4642,9 @@ async function loadCheckoutForDate(dateStr) {
   const sellAmt    = logs.filter(r=>r.label==='賣方').reduce((s,r)=>s+r.amount,0);
   const repayDia   = logs.filter(r=>r.label==='還鑽').reduce((s,r)=>s+r.diamonds,0);
   const feeAmt     = Math.round(buyAmt*1.3*0.003);
-  const storageDia = STORAGE_DATA.reduce((s,r)=>s+(r.diamonds||0),0);
+  // Use DB-stored storage_diamonds for this date if available; else live STORAGE_DATA
+  const thisDayStorage = thisDayRows?.[0]?.storage_diamonds;
+  const storageDia = (thisDayStorage != null) ? thisDayStorage : STORAGE_DATA.reduce((s,r)=>s+(r.diamonds||0),0);
   const withdrawAmt = logs.filter(r=>r.note==='寄放領回' && r.label==='賣方').reduce((s,r)=>s+r.amount,0);
 
   document.getElementById('co_buy_amt').textContent    = buyAmt;
@@ -4665,10 +4750,14 @@ async function submitCheckout() {
 
 function openAdjustModal() {
   document.getElementById('adjustOverlay')?.remove();
+  const today = _fmtDate(new Date());
   document.body.insertAdjacentHTML('beforeend', `
     <div id="adjustOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;display:flex;align-items:center;justify-content:center">
       <div style="background:#fff;padding:24px;border-radius:16px;width:320px;max-width:92%">
         <h5 class="fw-bold mb-3"><i class="bi bi-plus-circle me-2 text-warning"></i>新增差額</h5>
+        <div class="mb-3"><label class="form-label fw-semibold">日期</label>
+          <input type="date" class="form-control" id="adj_date" value="${today}">
+          <div class="small text-muted mt-1">今天→加入結帳暫存；過去日期→直接存入該日結帳</div></div>
         <div class="mb-3"><label class="form-label fw-semibold">暱稱</label>
           <input type="text" class="form-control" id="adj_nickname"></div>
         <div class="mb-3"><label class="form-label fw-semibold">紅鑽差額（可負數）</label>
@@ -4681,14 +4770,35 @@ function openAdjustModal() {
     </div>`);
 }
 
-function addCheckoutDetail() {
+async function addCheckoutDetail() {
   const nickname = document.getElementById('adj_nickname')?.value.trim();
   const diamonds = parseInt(document.getElementById('adj_diamonds')?.value);
+  const adjDate  = document.getElementById('adj_date')?.value || _fmtDate(new Date());
+  const today    = _fmtDate(new Date());
   if(!nickname) { alert('請填寫暱稱'); return; }
   if(isNaN(diamonds)) { alert('請填寫紅鑽差額'); return; }
-  _adjustments.push({nickname, diamonds});
-  document.getElementById('adjustOverlay')?.remove();
-  renderAdjustList(); recalcCheckout();
+  if(adjDate === today) {
+    // 今天：加入暫存清單，等結帳時一起儲存
+    _adjustments.push({nickname, diamonds});
+    document.getElementById('adjustOverlay')?.remove();
+    renderAdjustList(); recalcCheckout();
+  } else {
+    // 過去日期：直接存入該日 daily_checkout
+    document.getElementById('adjustOverlay')?.remove();
+    const { data: existing } = await _supa.from('daily_checkout').select('id,details,variance').eq('date', adjDate).single();
+    if(!existing) {
+      // 無結帳記錄，建立最小記錄
+      await _supa.from('daily_checkout').insert({
+        date: adjDate, details: JSON.stringify([{nickname, diamonds}]), variance: diamonds
+      });
+    } else {
+      const details = existing.details ? (Array.isArray(existing.details)?existing.details:JSON.parse(existing.details)) : [];
+      details.push({nickname, diamonds});
+      const newVariance = (existing.variance||0) + diamonds;
+      await _supa.from('daily_checkout').update({ details: JSON.stringify(details), variance: newVariance }).eq('id', existing.id);
+    }
+    loadCheckout();
+  }
 }
 
 function removeAdjust(idx) { _adjustments.splice(idx,1); renderAdjustList(); recalcCheckout(); }
@@ -4921,12 +5031,24 @@ function exportXlsx(sheetName,headers,rows,filename) {
 // ── 資料庫查詢 ─────────────────────────────────────────────
 let _dbData=[], _dbFilter='all';
 
+function _fmtTransactionTime(t) {
+  if(!t) return '';
+  if(/^\d{1,2}:\d{2}$/.test(t)) return t.padStart(5,'0').slice(0,5);
+  const m = t.match(/(\d{1,2}):(\d{2})(?::\d{2})?/);
+  if(m) return String(m[1]).padStart(2,'0') + ':' + m[2];
+  return t;
+}
+
 async function searchDB() {
   const nickname=document.getElementById('db_nickname')?.value.trim();
+  const orderNo=document.getElementById('db_order_no')?.value.trim();
+  const memberId=document.getElementById('db_member_id')?.value.trim();
   const dateFrom=document.getElementById('db_date_from')?.value;
   const dateTo=document.getElementById('db_date_to')?.value;
   let q=_supa.from('transactions').select('*').order('date',{ascending:false}).order('created_at',{ascending:false});
   if(nickname) q=q.ilike('nickname','%'+nickname+'%');
+  if(orderNo)  q=q.ilike('order_no','%'+orderNo+'%');
+  if(memberId) q=q.ilike('member_id','%'+memberId+'%');
   if(dateFrom) q=q.gte('date',dateFrom);
   if(dateTo)   q=q.lte('date',dateTo);
   const {data,error}=await q;
@@ -4980,7 +5102,9 @@ function renderDBResults() {
       <td><span class="badge ${bdg}" style="font-size:10px">${r.label||''}</span></td>
       <td>${r.nickname||''}</td><td class="text-end ${cls} fw-bold">${r.amount||''}</td>
       <td class="text-end">${r.diamonds?r.diamonds+'顆':''}</td>
-      <td>${r.bank||''}</td><td class="text-muted small">${r.note||''}</td></tr>`;
+      <td>${r.bank||''}</td>
+      <td class="text-muted small" style="white-space:nowrap">${_fmtTransactionTime(r.transaction_time)}</td>
+      <td class="text-muted small">${r.note||''}</td></tr>`;
   }).join('');
 }
 
