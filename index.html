@@ -2499,13 +2499,24 @@ function saveEdit(cid, isBlack) {
     備註: (bankNotes[i]||{}).value||""
   })).filter(b=>b.帳號);
 
-  // 單值欄位
+  // 單值欄位（先記錄舊的 9188 編號，再更新）
+  const oldId = rec['9188編號'];
   ["9188編號","身分證","戶名","備註"].forEach(f=>{
     const el = document.querySelector(`[data-ef="${cid}-${f}"]`);
     if(el) rec[f] = el.value.trim();
   });
+  const newId = rec['9188編號'];
 
-  saveMemberToDB(rec, isBlack);
+  saveMemberToDB(rec, isBlack).then(() => {
+    // 若 9188 編號有異動，同步更新所有相關交易的 member_id
+    if(oldId && newId && oldId !== newId) {
+      _supa.from('transactions').update({ member_id: newId }).eq('member_id', oldId)
+        .then(({error}) => {
+          if(error) console.warn('同步 transactions.member_id 失敗', error);
+          else console.log(`交易 member_id 已從 ${oldId} 更新為 ${newId}`);
+        });
+    }
+  });
   doSearch();
 }
 
@@ -2817,6 +2828,20 @@ function calcRebate(changedField) {
 }
 
 // ── 新建會員：黑名單即時檢查 ──────────────────────────
+function genNoId() {
+  const allIds = new Set([
+    ...CUSTOMERS.map(c => c['9188編號']),
+    ...BLACKLIST.map(c => c['9188編號'])
+  ]);
+  let newId, attempts = 0;
+  do {
+    const rand = Math.floor(Math.random() * 90000) + 10000; // 10000~99999
+    newId = 'X' + rand;
+    attempts++;
+  } while(allIds.has(newId) && attempts < 200);
+  document.getElementById('nm_9188').value = newId;
+}
+
 function checkNmBlacklist() {
   const nickname = (document.getElementById("nm_nickname").value||"").trim();
   const phone    = (document.getElementById("nm_phone").value||"").trim();
