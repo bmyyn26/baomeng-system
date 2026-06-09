@@ -1374,40 +1374,42 @@
           <input type="number" class="form-control form-control-lg" id="co_today_dia" placeholder="手動輸入當日紅鑽數" oninput="recalcCheckout()">
         </div>
         <!-- 系統自動計算 -->
-        <div class="card p-3 mb-3 bg-light border-0">
-          <div class="small fw-semibold text-muted mb-2">系統自動計算（來自今日交易紀錄）</div>
-          <div class="row g-2 mb-2">
-            <div class="col-4">
-              <div class="small text-muted">買方台幣</div>
-              <div class="fw-bold text-success fs-5" id="co_buy_amt">—</div>
-              <div class="small text-muted" id="co_buy_detail"></div>
-            </div>
-            <div class="col-4">
-              <div class="small text-muted text-warning">手續費</div>
-              <div class="fw-bold text-warning fs-5" id="co_fee_amt">—</div>
-              <div class="small text-muted">買方×1.3×0.003</div>
-            </div>
-            <div class="col-4">
-              <div class="small text-muted">賣方台幣</div>
-              <div class="fw-bold text-danger fs-5" id="co_sell_amt">—</div>
-              <div class="small text-muted" id="co_sell_detail"></div>
-            </div>
-          </div>
-          <div class="row g-2">
-            <div class="col-12">
-              <div class="d-flex align-items-center gap-2 p-2 rounded" style="background:#fff3e0">
-                <div class="small text-muted" style="white-space:nowrap">前日寄放剩餘（紅鑽）</div>
-                <div class="fw-bold text-danger ms-auto" id="co_storage_dia">—</div>
-                <div class="small text-muted">顆</div>
-              </div>
-            </div>
-            <div class="col-12" id="co_withdraw_row" style="display:none">
-              <div class="d-flex align-items-center gap-2 p-2 rounded" style="background:#e3f2fd">
-                <div class="small text-muted" style="white-space:nowrap">其中：領回</div>
-                <div class="small ms-auto text-end" id="co_withdraw_detail">—</div>
-              </div>
-            </div>
-          </div>
+        <div class="card mb-3 bg-light border-0" style="overflow:hidden">
+          <div class="px-3 pt-2 pb-1 small fw-semibold text-muted">系統自動計算（來自交易紀錄）</div>
+          <table class="table table-sm table-bordered mb-0" style="font-size:0.84rem">
+            <thead class="table-secondary">
+              <tr>
+                <th class="text-center py-1">寄放數量</th>
+                <th class="text-center py-1">買方台幣</th>
+                <th class="text-center py-1">賣方台幣</th>
+                <th class="text-center py-1">手續費</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="text-center fw-bold" id="co_storage_dia">—</td>
+                <td class="text-center fw-bold text-success" id="co_buy_amt">—</td>
+                <td class="text-center fw-bold text-danger" id="co_sell_amt">—</td>
+                <td class="text-center fw-bold text-warning" id="co_fee_amt">—</td>
+              </tr>
+            </tbody>
+            <thead class="table-secondary">
+              <tr>
+                <th class="text-center py-1">買方領回</th>
+                <th class="text-center py-1">賣方領回</th>
+                <th class="text-center py-1">記帳台幣</th>
+                <th class="text-center py-1">還鑽台幣</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="text-center fw-bold" id="co_wd_buy_amt">—</td>
+                <td class="text-center fw-bold" id="co_wd_sell_amt">—</td>
+                <td class="text-center fw-bold" id="co_debit_amt">—</td>
+                <td class="text-center fw-bold" id="co_repay_amt">—</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
         <!-- 計算結果 -->
         <div class="card p-3 mb-3" style="border-left:4px solid #d63384">
@@ -4460,6 +4462,7 @@ function selectLeditFee(val) {
 // ── 結帳 ─────────────────────────────────────────────────
 let _checkoutModal = null;
 let _adjustments   = [];
+let _coModalAdj    = []; // 結帳 modal 當前日期對應的差額（今天=_adjustments，其他日=DB）
 
 async function loadCheckout() {
   const { data } = await _supa.from('daily_checkout').select('*')
@@ -4623,16 +4626,16 @@ async function submitSnapshot() {
 }
 
 async function openCheckoutModal() {
-  // 預設昨天
-  const yesterday = _fmtDate(new Date(Date.now() - 86400000));
-  document.getElementById('co_date_picker').value = yesterday;
+  const today = _fmtDate(new Date());
+  document.getElementById('co_date_picker').value = today;
   document.getElementById('co_today_dia').value = '';
   ['co_sub_dia','co_adj_total','co_total_dia'].forEach(id=>document.getElementById(id).textContent='—');
   document.getElementById('co_formula_hint').textContent='';
   document.getElementById('co_variance_hint').textContent='';
+  _coModalAdj = _adjustments; // 預設今天，使用記憶體差額
   if(!_checkoutModal) _checkoutModal = new bootstrap.Modal(document.getElementById('checkoutModal'));
   _checkoutModal.show();
-  await loadCheckoutForDate(yesterday);
+  await loadCheckoutForDate(today);
 }
 
 async function loadCheckoutForDate(dateStr) {
@@ -4650,7 +4653,7 @@ async function loadCheckoutForDate(dateStr) {
     _supa.from('transactions').select('*').eq('date', dateStr),
     _supa.from('daily_checkout').select('date,total_diamonds').lt('date', dateStr).order('date',{ascending:false}).limit(1),
     _supa.from('daily_checkout').select('date,today_diamonds,storage_diamonds').gt('date', dateStr).order('date',{ascending:true}).limit(1),
-    _supa.from('daily_checkout').select('storage_diamonds').eq('date', dateStr).limit(1)
+    _supa.from('daily_checkout').select('storage_diamonds,today_diamonds,details').eq('date', dateStr).limit(1)
   ]);
   if(error) { ['co_buy_amt','co_fee_amt','co_sell_amt'].forEach(id=>document.getElementById(id).textContent='?'); return; }
   const prevCheckout  = prevRows?.[0] || null;
@@ -4662,35 +4665,48 @@ async function loadCheckoutForDate(dateStr) {
     note:r.note||'', _dbId:r.id
   }));
 
-  const buyAmt     = logs.filter(r=>['買方','記帳'].includes(r.label)).reduce((s,r)=>s+r.amount,0);
-  const sellAmt    = logs.filter(r=>r.label==='賣方').reduce((s,r)=>s+r.amount,0);
-  const repayDia   = logs.filter(r=>r.label==='還鑽').reduce((s,r)=>s+r.diamonds,0);
-  const feeAmt     = Math.round(buyAmt*1.3*0.003);
+  // 分拆各類型金額
+  const pureBuyAmt  = logs.filter(r=>r.label==='買方'  && !r.note.includes('寄放領回')).reduce((s,r)=>s+r.amount,0);
+  const pureSellAmt = logs.filter(r=>r.label==='賣方'  && !r.note.includes('寄放領回')).reduce((s,r)=>s+r.amount,0);
+  const debitAmt    = logs.filter(r=>r.label==='記帳').reduce((s,r)=>s+r.amount,0);
+  const repayAmt    = logs.filter(r=>r.label==='還鑽').reduce((s,r)=>s+r.amount,0);
+  const wdBuyAmt    = logs.filter(r=>r.label==='買方'  &&  r.note.includes('寄放領回')).reduce((s,r)=>s+r.amount,0);
+  const wdSellAmt   = logs.filter(r=>r.label==='賣方'  &&  r.note.includes('寄放領回')).reduce((s,r)=>s+r.amount,0);
+  // 公式用的合計（維持原邏輯）
+  const buyAmt      = pureBuyAmt + debitAmt + wdBuyAmt;
+  const sellAmt     = pureSellAmt + wdSellAmt;
+  const repayDia    = logs.filter(r=>r.label==='還鑽').reduce((s,r)=>s+r.diamonds,0);
+  const feeAmt      = Math.round(buyAmt*1.3*0.003);
+  const withdrawAmt = wdSellAmt;
   // Use DB-stored storage_diamonds for this date if available; else live STORAGE_DATA
   const thisDayStorage = thisDayRows?.[0]?.storage_diamonds;
   const storageDia = (thisDayStorage != null) ? thisDayStorage : STORAGE_DATA.reduce((s,r)=>s+(r.diamonds||0),0);
-  const withdrawAmt = logs.filter(r=>r.note==='寄放領回' && r.label==='賣方').reduce((s,r)=>s+r.amount,0);
 
-  document.getElementById('co_buy_amt').textContent    = buyAmt;
-  document.getElementById('co_fee_amt').textContent    = feeAmt;
-  document.getElementById('co_sell_amt').textContent   = sellAmt;
   document.getElementById('co_storage_dia').textContent = storageDia;
-  document.getElementById('co_buy_detail').textContent  = '買方+記帳 合計';
-  document.getElementById('co_sell_detail').textContent = repayDia ? `賣方合計 + 還鑽 ${repayDia}顆` : '賣方合計';
-  // 領回明細列
-  const wdRow = document.getElementById('co_withdraw_row');
-  if(withdrawAmt > 0) {
-    const wdSellDia = Math.round(withdrawAmt * 1.44);
-    const wdBuyDia  = Math.round(withdrawAmt * 1.3);
-    document.getElementById('co_withdraw_detail').innerHTML =
-      `台幣 <b>${withdrawAmt}</b> 元 &nbsp;→&nbsp; 賣方 <span class="text-danger">+${wdSellDia}</span>顆 ／ 買方 <span class="text-success">-${wdBuyDia}</span>顆`;
-    wdRow.style.display = '';
+  document.getElementById('co_buy_amt').textContent     = pureBuyAmt;
+  document.getElementById('co_sell_amt').textContent    = pureSellAmt;
+  document.getElementById('co_fee_amt').textContent     = feeAmt;
+  document.getElementById('co_wd_buy_amt').textContent  = wdBuyAmt  || '—';
+  document.getElementById('co_wd_sell_amt').textContent = wdSellAmt || '—';
+  document.getElementById('co_debit_amt').textContent   = debitAmt  || '—';
+  document.getElementById('co_repay_amt').textContent   = repayAmt  || '—';
+
+  // 差額：今天用記憶體，其他日從 DB 讀取
+  const _todayStr = _fmtDate(new Date());
+  if(dateStr === _todayStr) {
+    _coModalAdj = _adjustments;
   } else {
-    wdRow.style.display = 'none';
+    const thisDayDetails = thisDayRows?.[0]?.details;
+    _coModalAdj = thisDayDetails ? JSON.parse(thisDayDetails) : [];
   }
-  // 若下一天有快照，自動帶入盤點紅鑽
+  // 優先用當天快照帶入盤點紅鑽，其次用下一天快照
   const diaInput = document.getElementById('co_today_dia');
-  if(nextSnapshot?.today_diamonds) {
+  const thisDaySnap = thisDayRows?.[0]?.today_diamonds;
+  if(thisDaySnap != null) {
+    diaInput.value = thisDaySnap;
+    diaInput.title = `自動帶入 ${dateStr} 快照（可手動修改）`;
+    diaInput.style.background = '#f0f8ff';
+  } else if(nextSnapshot?.today_diamonds) {
     diaInput.value = nextSnapshot.today_diamonds;
     diaInput.title = `自動帶入 ${nextSnapshot.date} 快照（可手動修改）`;
     diaInput.style.background = '#f0f8ff';
@@ -4701,13 +4717,16 @@ async function loadCheckoutForDate(dateStr) {
   }
   ['co_sub_dia','co_adj_total','co_total_dia'].forEach(id=>document.getElementById(id).textContent='—');
   document.getElementById('co_formula_hint').textContent='';
-  if(nextSnapshot?.today_diamonds) recalcCheckout();
   const modal = document.getElementById('checkoutModal');
-  modal.dataset.buyAmt=buyAmt; modal.dataset.sellAmt=sellAmt;
-  modal.dataset.repayDia=repayDia; modal.dataset.feeAmt=feeAmt;
-  modal.dataset.storageDia=storageDia; modal.dataset.withdrawAmt=withdrawAmt;
+  modal.dataset.buyAmt      = buyAmt;
+  modal.dataset.sellAmt     = sellAmt;
+  modal.dataset.feeAmt      = feeAmt;
+  modal.dataset.storageDia  = storageDia;
+  modal.dataset.repayDia    = repayDia;
+  modal.dataset.withdrawAmt = withdrawAmt;
   modal.dataset.prevTotalDia = prevCheckout?.total_diamonds ?? '';
   modal.dataset.prevDate     = prevCheckout?.date ?? '';
+  if(thisDaySnap != null || nextSnapshot?.today_diamonds) recalcCheckout();
   // 上次結帳顯示（等輸入紅鑽後才算誤差，先填靜態）
   document.getElementById('co_prev_total').textContent = prevCheckout ? prevCheckout.total_diamonds : '無紀錄';
   document.getElementById('co_prev_date').textContent  = prevCheckout ? prevCheckout.date : '';
@@ -4723,7 +4742,7 @@ function recalcCheckout() {
   const storageDia = parseInt(modal.dataset.storageDia)||0;
   const repayDia = parseInt(modal.dataset.repayDia)||0;
   const withdrawAmt = parseInt(modal.dataset.withdrawAmt)||0;
-  const adjTotal = _adjustments.reduce((s,r)=>s+r.diamonds,0);
+  const adjTotal = _coModalAdj.reduce((s,r)=>s+r.diamonds,0);
   const subDia   = todayDia - storageDia - Math.round(buyAmt*1.3) - feeAmt + Math.round(sellAmt*1.44) + repayDia;
   const totalDia = subDia + adjTotal;
   document.getElementById('co_sub_dia').textContent   = todayDia ? subDia : '—';
@@ -4746,7 +4765,7 @@ async function submitCheckout() {
   const feeAmt   = parseInt(modal.dataset.feeAmt)||Math.round(buyAmt*1.3*0.003);
   const storageDia = parseInt(modal.dataset.storageDia)||0;
   const repayDia = parseInt(modal.dataset.repayDia)||0;
-  const adjTotal = _adjustments.reduce((s,r)=>s+r.diamonds,0);
+  const adjTotal = _coModalAdj.reduce((s,r)=>s+r.diamonds,0);
   const subDia   = todayDia - storageDia - Math.round(buyAmt*1.3) - feeAmt + Math.round(sellAmt*1.44) + repayDia;
   const totalDia = subDia + adjTotal;
   const checkoutDate = document.getElementById('co_date_picker')?.value || _fmtDate(new Date());
@@ -4758,7 +4777,7 @@ async function submitCheckout() {
     date:checkoutDate, today_diamonds:todayDia, buy_amount:buyAmt,
     sell_amount:sellAmt, total_diamonds:totalDia, variance:crossVariance,
     storage_diamonds:storageDia,
-    details:JSON.stringify(_adjustments)
+    details:JSON.stringify(_coModalAdj)
   }, {onConflict:'date'});
   if(error) { alert('儲存失敗：'+error.message); return; }
   if(_checkoutModal) _checkoutModal.hide();
@@ -4846,8 +4865,8 @@ function renderAdjustList() {
 function renderAdjustPreview() {
   const el=document.getElementById('co_adj_preview');
   if(!el) return;
-  el.innerHTML=_adjustments.length
-    ? `<div class="small text-muted mb-1">差額：</div>`+_adjustments.map(r=>`<span class="badge bg-warning text-dark me-1">${r.nickname} ${r.diamonds>=0?'+':''}${r.diamonds}顆</span>`).join('')
+  el.innerHTML=_coModalAdj.length
+    ? `<div class="small text-muted mb-1">差額：</div>`+_coModalAdj.map(r=>`<span class="badge bg-warning text-dark me-1">${r.nickname} ${r.diamonds>=0?'+':''}${r.diamonds}顆</span>`).join('')
     : '';
 }
 
