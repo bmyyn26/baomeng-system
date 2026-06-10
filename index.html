@@ -765,6 +765,11 @@
           <i class="bi bi-search me-1"></i>查詢
         </button>
       </div>
+      <div class="col-12 col-md-2 d-flex align-items-end">
+        <button class="btn btn-outline-warning w-100" onclick="repairOrderNumbers()" title="修復格式錯誤的訂單號（小數點格式）">
+          <i class="bi bi-wrench me-1"></i>修復單號
+        </button>
+      </div>
     </div>
   </div>
 
@@ -3817,6 +3822,37 @@ async function saveStorageRow(id) {
   reloadStorageFromDB();
 }
 // FULL JS - reconstructed
+
+// ════════════════════════════════════════
+// 修復損毀訂單號（含小數點的格式）
+// ════════════════════════════════════════
+async function repairOrderNumbers() {
+  const { data, error } = await _supa.from('transactions').select('id, order_no, date, time');
+  if(error) { alert('查詢失敗：' + error.message); return; }
+
+  const broken = (data || []).filter(r => /^[BS]\d{6,}\.\d+\d{3}$/.test(r.order_no || ''));
+  if(!broken.length) { alert('沒有發現損毀的訂單號，無需修復。'); return; }
+
+  const list = broken.map(r => `${r.order_no}  →  ${r.date} ${r.time}`).join('\n');
+  if(!confirm(`找到 ${broken.length} 筆損毀訂單號：\n\n${list}\n\n確定修復？`)) return;
+
+  let fixed = 0;
+  for(const r of broken) {
+    const d = r.date || '';                                    // "2026-06-09"
+    const yy   = d.substring(2, 4);                           // "26"
+    const mmdd = d.substring(5, 7) + d.substring(8, 10);     // "0609"
+    const hhmm = (r.time || '').replace(':', '');             // "0729"
+    const seq  = (r.order_no || '').slice(-3);                // "011"
+    const pre  = (r.order_no || '')[0];                       // "S"/"B"
+    const newNo = pre + yy + mmdd + hhmm + seq;
+
+    const { error: e } = await _supa.from('transactions').update({ order_no: newNo }).eq('id', r.id);
+    if(!e) fixed++;
+  }
+
+  alert(`修復完成：${fixed} / ${broken.length} 筆成功`);
+  searchDB();   // 若目前有查詢結果則重新整理
+}
 
 // ════════════════════════════════════════
 // 登入驗證（Google 白名單）
