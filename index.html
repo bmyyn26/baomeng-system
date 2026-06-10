@@ -452,7 +452,8 @@
         <button class="btn btn-pink flex-fill pay-buyer-btn" id="buyer-pay-合庫" onclick="selectBuyerPay('合庫')">合庫</button>
         <button class="btn btn-outline-secondary flex-fill pay-buyer-btn" id="buyer-pay-超商" onclick="selectBuyerPay('超商')">超商</button>
         <button class="btn btn-outline-secondary flex-fill pay-buyer-btn" id="buyer-pay-玉山" onclick="selectBuyerPay('玉山')">玉山</button>
-        <button class="btn btn-outline-secondary flex-fill pay-buyer-btn" id="buyer-pay-其他" onclick="selectBuyerPay('其他')">其他</button>
+        <button class="btn btn-outline-secondary flex-fill pay-buyer-btn" id="buyer-pay-國泰" onclick="selectBuyerPay('國泰')">國泰</button>
+        <button class="btn btn-outline-secondary flex-fill pay-buyer-btn" id="buyer-pay-中信" onclick="selectBuyerPay('中信')">中信</button>
       </div>
     </div>
 
@@ -2001,7 +2002,7 @@ function switchOrderTab(tab) {
 // 買方付款方式
 function selectBuyerPay(method) {
   selectedBuyerPay = method;
-  ["合庫","超商","玉山","其他"].forEach(m => {
+  ["合庫","超商","玉山","國泰","中信"].forEach(m => {
     const btn = document.getElementById("buyer-pay-"+m);
     btn.classList.toggle("btn-pink", m===method);
     btn.classList.toggle("btn-outline-secondary", m!==method);
