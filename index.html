@@ -4028,7 +4028,8 @@ async function loadBankByRange() {
       diamonds: parseFloat(row.diamonds)||0, bank: row.bank||'',
       cvsCode: row.cvs_code||'', giftTime: row.gift_time||'',
       note: row.note||'', time: _fmtTime(row.transaction_time),
-      bankAccount: row.bank_account||'', _dbId: row.id
+      bankAccount: row.bank_account||'', sellerOrderNo: row.seller_order_no||'',
+      _dbId: row.id
     });
   });
   renderBankPage();
@@ -4056,7 +4057,8 @@ async function loadLogByDate(dateStr) {
       diamonds: parseFloat(row.diamonds)||0, bank: row.bank||'',
       cvsCode: row.cvs_code||'', giftTime: row.gift_time||'',
       note: row.note||'', time: _fmtTime(row.transaction_time),
-      bankAccount: row.bank_account||'', _dbId: row.id
+      bankAccount: row.bank_account||'', sellerOrderNo: row.seller_order_no||'',
+      _dbId: row.id
     });
   });
   renderLog();
@@ -5049,22 +5051,27 @@ async function exportReport(type) {
     const excluded = ['其他收入','其他支出'];
     const filtered = data.filter(r=>!excluded.includes(r.label));
     exportXlsx('交易報表',
-      ['日期','類型','紅鑽','暱稱','買方領回','賣方領回','記帳','還鑽','收支銀行','超商代碼','交易單號','備註','時間'],
-      filtered.map(r => [
-        r.date,
-        r.label,
-        r.diamonds||'',
-        r.nickname||'',
-        r.label==='買方' ? (r.amount||'') : '',
-        r.label==='賣方' ? (r.amount||'') : '',
-        r.label==='記帳' ? (r.amount||'') : '',
-        r.label==='還鑽' ? Math.round((r.diamonds||0)/1.44) : '',
-        r.bank||'',
-        r.cvs_code||'',
-        r.order_no||'',
-        r.note||'',
-        _fmtTime(r.transaction_time)
-      ]),
+      ['日期','類型','紅鑽','暱稱','買方領回','賣方領回','記帳','還鑽','收支銀行','超商代碼','交易單號','備註','時間','9188賣方單號A','9188賣方單號B'],
+      filtered.map(r => {
+        const snp=(r.seller_order_no||'').split('|');
+        return [
+          r.date,
+          r.label,
+          r.diamonds||'',
+          r.nickname||'',
+          r.label==='買方' ? (r.amount||'') : '',
+          r.label==='賣方' ? (r.amount||'') : '',
+          r.label==='記帳' ? (r.amount||'') : '',
+          r.label==='還鑽' ? Math.round((r.diamonds||0)/1.44) : '',
+          r.bank||'',
+          r.cvs_code||'',
+          r.order_no||'',
+          r.note||'',
+          _fmtTime(r.transaction_time),
+          snp[0]||'',
+          snp[1]||''
+        ];
+      }),
       `交易報表_${from}_${to}.xlsx`);
     msgEl.textContent=`✅ 已匯出 ${filtered.length} 筆`;
   } else if(type==='bank') {
@@ -5072,12 +5079,13 @@ async function exportReport(type) {
     if(error||!data?.length){msgEl.textContent='查無資料';return;}
     const filtered=data.filter(r=>['合庫','玉山','國泰','中信'].includes(r.bank));
     exportXlsx('銀行明細報表',
-      ['日期','類型','紅鑽','暱稱','收入','支出','手續費','收支銀行','交易單號','備註','時間'],
+      ['日期','類型','紅鑽','暱稱','收入','支出','手續費','收支銀行','交易單號','備註','時間','9188賣方單號A','9188賣方單號B'],
       filtered.map(r=>{
         const fm=r.note?r.note.match(/手續費(\d+)元/):null;
         const isIn  = r.label==='買方'||r.label==='其他收入';
         const isOut = r.label==='賣方'||r.label==='其他支出';
         const noteClean=(r.note||'').replace(/[\/／]?手續費\d+元[\/／]?/g,'').trim();
+        const snp=(r.seller_order_no||'').split('|');
         return [
           r.date,
           r.label||'',
@@ -5089,7 +5097,9 @@ async function exportReport(type) {
           r.bank||'',
           r.order_no||'',
           noteClean,
-          _fmtTime(r.transaction_time)
+          _fmtTime(r.transaction_time),
+          snp[0]||'',
+          snp[1]||''
         ];
       }), `銀行明細報表_${from}_${to}.xlsx`);
     msgEl.textContent=`✅ 已匯出 ${filtered.length} 筆`;
