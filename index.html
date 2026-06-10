@@ -1333,6 +1333,17 @@
           </div>
         </div>
         <div class="mb-3">
+          <label class="form-label fw-semibold">日期</label>
+          <input type="date" class="form-control" id="ledit_date">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">收支時間</label>
+          <div class="input-group">
+            <input type="text" class="form-control" id="ledit_time" placeholder="HH:MM">
+            <button class="btn btn-outline-secondary" type="button" onclick="document.getElementById('ledit_time').value=_fmtTime(new Date().getHours()+':'+String(new Date().getMinutes()).padStart(2,'0'))">現在</button>
+          </div>
+        </div>
+        <div class="mb-3">
           <label class="form-label fw-semibold">9188賣方單號</label>
           <div class="d-flex gap-2">
             <input type="text" class="form-control font-monospace" id="ledit_seller_no_a" placeholder="A單號"
@@ -1344,17 +1355,6 @@
         <div class="mb-3">
           <label class="form-label fw-semibold">備註</label>
           <input type="text" class="form-control" id="ledit_note">
-        </div>
-        <div class="mb-3">
-          <label class="form-label fw-semibold">日期</label>
-          <input type="date" class="form-control" id="ledit_date">
-        </div>
-        <div class="mb-3">
-          <label class="form-label fw-semibold">收支時間</label>
-          <div class="input-group">
-            <input type="text" class="form-control" id="ledit_time" placeholder="HH:MM">
-            <button class="btn btn-outline-secondary" type="button" onclick="document.getElementById('ledit_time').value=_fmtTime(new Date().getHours()+':'+String(new Date().getMinutes()).padStart(2,'0'))">現在</button>
-          </div>
         </div>
       </div>
       <div class="modal-footer border-0 pt-0">
