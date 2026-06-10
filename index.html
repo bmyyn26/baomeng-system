@@ -796,7 +796,7 @@
           <tr>
             <th>日期</th><th>類型</th><th>暱稱</th>
             <th class="text-end">金額</th><th class="text-end">紅鑽</th>
-            <th>銀行</th><th>時間</th><th>備註</th>
+            <th>銀行</th><th>時間</th><th>備註</th><th>9188賣方單號A</th><th>9188賣方單號B</th>
           </tr>
         </thead>
         <tbody id="db_tbody"></tbody>
@@ -1332,6 +1332,15 @@
           </div>
         </div>
         <div class="mb-3">
+          <label class="form-label fw-semibold">9188賣方單號</label>
+          <div class="d-flex gap-2">
+            <input type="text" class="form-control font-monospace" id="ledit_seller_no_a" placeholder="A單號"
+              onpaste="setTimeout(()=>leditSplitSellerNo(),0)">
+            <input type="text" class="form-control font-monospace" id="ledit_seller_no_b" placeholder="B單號">
+          </div>
+          <div class="form-text text-muted" style="font-size:0.78rem">從9188複製兩格直接貼上，自動分開</div>
+        </div>
+        <div class="mb-3">
           <label class="form-label fw-semibold">備註</label>
           <input type="text" class="form-control" id="ledit_note">
         </div>
@@ -1565,7 +1574,8 @@ async function loadAllData() {
         diamonds: parseFloat(row.diamonds)||0, bank: row.bank || '',
         cvsCode: row.cvs_code || '', giftTime: row.gift_time || '',
         note: row.note || '', time: _fmtTime(row.transaction_time),
-        bankAccount: row.bank_account || '', _dbId: row.id
+        bankAccount: row.bank_account || '', sellerOrderNo: row.seller_order_no || '',
+        _dbId: row.id
       });
     });
     buyOrderSeq  = TODAY_LOGS.filter(r=>r.orderNo&&r.orderNo.startsWith('B')).length + 1;
@@ -1661,7 +1671,8 @@ async function appendTransaction(log) {
       nickname: log.nickname, amount: log.amount||0, diamonds: log.diamonds||0,
       bank: log.bank||'', cvs_code: log.cvsCode||'', gift_time: log.giftTime||'',
       note: log.note||'', member_id: memberId,
-      transaction_time: log.time||'', bank_account: log.bankAccount||''
+      transaction_time: log.time||'', bank_account: log.bankAccount||'',
+      seller_order_no: log.sellerOrderNo||''
     }).select();
     if(data && data[0]) log._dbId = data[0].id;
   } catch(e) { console.warn('appendTransaction:', e); }
@@ -1674,7 +1685,8 @@ async function updateTransactionDB(log) {
     await _supa.from('transactions').update({
       nickname: log.nickname, amount: log.amount, diamonds: log.diamonds,
       bank: log.bank, cvs_code: log.cvsCode||'', note: log.note,
-      transaction_time: log.time||'', date: log.date||''
+      transaction_time: log.time||'', date: log.date||'',
+      seller_order_no: log.sellerOrderNo||''
     }).eq('id', log._dbId);
   } catch(e) { console.warn('updateTransactionDB:', e); }
 }
@@ -3066,9 +3078,24 @@ function editLog(idx) {
     .trim();
   document.getElementById("ledit_date").value = r.date || "";
   document.getElementById("ledit_time").value = r.time || "";
+  const snParts = (r.sellerOrderNo||'').split('|');
+  document.getElementById("ledit_seller_no_a").value = snParts[0]||'';
+  document.getElementById("ledit_seller_no_b").value = snParts[1]||'';
   leditCalcDiamonds();
   if(!_logEditModal) _logEditModal = new bootstrap.Modal(document.getElementById("logEditModal"));
   _logEditModal.show();
+}
+
+function leditSplitSellerNo() {
+  const el = document.getElementById('ledit_seller_no_a');
+  if(!el) return;
+  const val = el.value;
+  // 用 Tab、換行、多個空白分割（從 Excel 複製兩格會是 Tab 分隔）
+  const parts = val.split(/\t|\n|  +/).map(s => s.trim()).filter(Boolean);
+  if(parts.length >= 2) {
+    el.value = parts[0];
+    document.getElementById('ledit_seller_no_b').value = parts[1];
+  }
 }
 
 function leditCalcDiamonds() {
@@ -3095,6 +3122,8 @@ function confirmEditLog() {
   const newTime  = document.getElementById("ledit_time").value.trim();
   const newDate  = document.getElementById("ledit_date").value.trim();
   const newCvs   = document.getElementById("ledit_cvs_code").value.trim();
+  const selNoA   = document.getElementById("ledit_seller_no_a").value.trim();
+  const selNoB   = document.getElementById("ledit_seller_no_b").value.trim();
   if(!nickname) { alert("暱稱不能空白"); return; }
   const ratio    = r.type==="sell" ? 1.44 : 1.3;
   r.nickname = nickname;
@@ -3105,6 +3134,7 @@ function confirmEditLog() {
   r.note     = _leditFee > 0 ? (note ? note + '／手續費' + _leditFee + '元' : '手續費' + _leditFee + '元') : note;
   if(newTime) r.time = newTime;
   if(newDate) r.date = newDate;
+  r.sellerOrderNo = [selNoA, selNoB].filter(Boolean).join('|');
   updateTransactionDB(r);
   if(_logEditModal) _logEditModal.hide();
   renderLog();
@@ -5237,15 +5267,16 @@ function renderDBResults() {
       <td class="text-end">${r.diamonds?r.diamonds+'顆':''}</td>
       <td>${r.bank||''}</td>
       <td class="text-muted small" style="white-space:nowrap">${_fmtTransactionTime(r.transaction_time)}</td>
-      <td class="text-muted small">${r.note||''}</td></tr>`;
+      <td class="text-muted small">${r.note||''}</td>
+      ${(()=>{const p=(r.seller_order_no||'').split('|');return`<td class="text-muted small font-monospace">${p[0]||''}</td><td class="text-muted small font-monospace">${p[1]||''}</td>`})()}</tr>`;
   }).join('');
 }
 
 function exportDBToCSV() {
   const targets={'all':null,'buy':['買方'],'sell':['賣方'],'debit':['記帳'],'repay':['還鑽'],'storage':['寄放','領回']}[_dbFilter];
   const rows=targets?_dbData.filter(r=>targets.includes(r.label)):_dbData;
-  const csv=[['日期','類型','暱稱','金額','紅鑽','銀行','超商代碼','備註','訂單編號'],
-    ...rows.map(r=>[r.date,r.label,r.nickname,r.amount,r.diamonds,r.bank,r.cvs_code,r.note,r.order_no])]
+  const csv=[['日期','類型','暱稱','金額','紅鑽','銀行','超商代碼','備註','訂單編號','9188賣方單號A','9188賣方單號B'],
+    ...rows.map(r=>{const p=(r.seller_order_no||'').split('|');return[r.date,r.label,r.nickname,r.amount,r.diamonds,r.bank,r.cvs_code,r.note,r.order_no,p[0]||'',p[1]||''];})]
     .map(row=>row.map(v=>`"${(v||'').toString().replace(/"/g,'""')}"`).join(',')).join('\n');
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'}));
