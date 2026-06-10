@@ -1380,10 +1380,15 @@
           <input type="date" class="form-control" id="co_date_picker" style="max-width:170px" onchange="loadCheckoutForDate(this.value);document.getElementById('co_next_date_label').textContent=_fmtDate(new Date(new Date(this.value).getTime()+86400000))">
           <span class="badge rounded-pill bg-secondary" id="co_date_label"></span>
         </div>
-        <!-- 今日紅鑽 手動輸入 -->
+        <!-- 當日開盤紅鑽（快照，計算基準） -->
+        <div class="mb-2 d-flex align-items-center gap-2">
+          <span class="small fw-semibold text-muted">當日紅鑽（開盤快照）</span>
+          <span class="fw-bold text-primary fs-5" id="co_open_dia">—</span>
+        </div>
+        <!-- 盤點紅鑽 手動輸入（存為隔日快照、計算誤差用） -->
         <div class="mb-3">
           <label class="form-label fw-semibold">盤點紅鑽 <span class="text-danger">*</span></label>
-          <input type="number" class="form-control form-control-lg" id="co_today_dia" placeholder="手動輸入當日紅鑽數" oninput="recalcCheckout()">
+          <input type="number" class="form-control form-control-lg" id="co_today_dia" placeholder="結帳當下實際清點數量" oninput="recalcCheckout()">
         </div>
         <!-- 系統自動計算 -->
         <div class="card mb-3 bg-light border-0" style="overflow:hidden">
@@ -4831,6 +4836,11 @@ async function loadCheckoutForDate(dateStr) {
   ['co_sub_dia','co_adj_total','co_total_dia'].forEach(id=>document.getElementById(id).textContent='—');
   document.getElementById('co_formula_hint').textContent='';
   const modal = document.getElementById('checkoutModal');
+  // 當日開盤快照 = 小計計算基準（無快照才退回用盤點值）
+  const openDia = thisDayRows?.[0]?.today_diamonds ?? null;
+  modal.dataset.openDia = openDia ?? '';
+  const openEl = document.getElementById('co_open_dia');
+  if(openEl) openEl.textContent = openDia != null ? openDia : '無快照（改以盤點值計算）';
   modal.dataset.buyAmt      = buyAmt;
   modal.dataset.sellAmt     = sellAmt;
   modal.dataset.feeAmt      = feeAmt;
@@ -4839,10 +4849,10 @@ async function loadCheckoutForDate(dateStr) {
   modal.dataset.withdrawAmt = withdrawAmt;
   modal.dataset.prevTotalDia = prevCheckout?.total_diamonds ?? '';
   modal.dataset.prevDate     = prevCheckout?.date ?? '';
-  if(nextSnapshot?.today_diamonds) recalcCheckout();
-  // 上次結帳顯示（等輸入紅鑽後才算誤差，先填靜態）
-  document.getElementById('co_prev_total').textContent = prevCheckout ? prevCheckout.total_diamonds : '無紀錄';
-  document.getElementById('co_prev_date').textContent  = prevCheckout ? prevCheckout.date : '';
+  if(nextSnapshot?.today_diamonds || openDia != null) recalcCheckout();
+  // 上次結帳顯示（元素可能不存在，需防呆）
+  const _pt = document.getElementById('co_prev_total'); if(_pt) _pt.textContent = prevCheckout ? prevCheckout.total_diamonds : '無紀錄';
+  const _pd = document.getElementById('co_prev_date');  if(_pd) _pd.textContent = prevCheckout ? prevCheckout.date : '';
   renderAdjustPreview();
 }
 
@@ -4856,15 +4866,27 @@ function recalcCheckout() {
   const repayDia = parseInt(modal.dataset.repayDia)||0;
   const withdrawAmt = parseInt(modal.dataset.withdrawAmt)||0;
   const adjTotal = _coModalAdj.reduce((s,r)=>s+r.diamonds,0);
-  const subDia   = todayDia - storageDia - Math.round(buyAmt*1.3) - feeAmt + Math.round(sellAmt*1.44) + repayDia;
+  // 小計以「當日開盤快照」為基準；無快照才退回用盤點值
+  const openDia  = parseInt(modal.dataset.openDia);
+  const baseDia  = !isNaN(openDia) ? openDia : todayDia;
+  const subDia   = baseDia - storageDia - Math.round(buyAmt*1.3) - feeAmt + Math.round(sellAmt*1.44) + repayDia;
   const totalDia = subDia + adjTotal;
-  document.getElementById('co_sub_dia').textContent   = todayDia ? subDia : '—';
-  document.getElementById('co_adj_total').textContent = todayDia ? (adjTotal>=0?'+'+adjTotal:adjTotal) : '—';
-  document.getElementById('co_total_dia').textContent = todayDia ? totalDia : '—';
-  if(todayDia) {
-    let hint = `${todayDia} − 寄放${storageDia} − ${buyAmt}×1.3 − 手續費${feeAmt} + ${sellAmt}×1.44 + 還鑽${repayDia} = ${subDia}`;
+  document.getElementById('co_sub_dia').textContent   = baseDia ? subDia : '—';
+  document.getElementById('co_adj_total').textContent = baseDia ? (adjTotal>=0?'+'+adjTotal:adjTotal) : '—';
+  document.getElementById('co_total_dia').textContent = baseDia ? totalDia : '—';
+  if(baseDia) {
+    let hint = `${baseDia} − 寄放${storageDia} − ${buyAmt}×1.3 − 手續費${feeAmt} + ${sellAmt}×1.44 + 還鑽${repayDia} = ${subDia}`;
     if(withdrawAmt > 0) hint += `\n（買方含領回${withdrawAmt}、賣方含領回${withdrawAmt}）`;
     document.getElementById('co_formula_hint').textContent = hint;
+  }
+  // 誤差預覽：盤點（= 隔日開盤） − 目前寄放 − 總結
+  const vh = document.getElementById('co_variance_hint');
+  if(vh) {
+    if(baseDia && todayDia && !isNaN(openDia)) {
+      const liveStor = STORAGE_DATA.reduce((s,r)=>s+(r.diamonds||0),0);
+      const cv = (todayDia - liveStor) - totalDia;
+      vh.textContent = `預估誤差：盤點${todayDia} − 寄放${liveStor} − 總結${totalDia} = ${cv>0?'+':''}${cv}`;
+    } else vh.textContent = '';
   }
   renderAdjustPreview();
 }
@@ -4879,16 +4901,17 @@ async function submitCheckout() {
   const storageDia = parseInt(modal.dataset.storageDia)||0;
   const repayDia = parseInt(modal.dataset.repayDia)||0;
   const adjTotal = _coModalAdj.reduce((s,r)=>s+r.diamonds,0);
-  const subDia   = todayDia - storageDia - Math.round(buyAmt*1.3) - feeAmt + Math.round(sellAmt*1.44) + repayDia;
+  // 小計以「當日開盤快照」為基準；無快照才退回用盤點值
+  const openDia  = parseInt(modal.dataset.openDia);
+  const baseDia  = !isNaN(openDia) ? openDia : todayDia;
+  const subDia   = baseDia - storageDia - Math.round(buyAmt*1.3) - feeAmt + Math.round(sellAmt*1.44) + repayDia;
   const totalDia = subDia + adjTotal;
   const checkoutDate = document.getElementById('co_date_picker')?.value || _fmtDate(new Date());
-  // 跨日誤差：今日淨紅鑽(盤點-寄放) - 上次總結紅鑽
-  const prevTotalDia = modal.dataset.prevTotalDia !== '' ? parseInt(modal.dataset.prevTotalDia) : null;
-  const netDia       = todayDia - storageDia;
-  const crossVariance = prevTotalDia !== null ? netDia - prevTotalDia : adjTotal;
+  // 跨日誤差：盤點(=隔日開盤) − 目前寄放 − 本日總結
+  const liveDia  = STORAGE_DATA.reduce((s,r)=>s+(r.diamonds||0),0);
+  const crossVariance = (todayDia - liveDia) - totalDia;
   // 保留當天既有快照的今日紅鑽，避免被盤點值覆蓋（盤點值只寫入隔日快照）
-  const { data: exRows } = await _supa.from('daily_checkout').select('today_diamonds').eq('date', checkoutDate).limit(1);
-  const keepDia = (exRows?.[0]?.today_diamonds != null) ? exRows[0].today_diamonds : todayDia;
+  const keepDia = !isNaN(openDia) ? openDia : todayDia;
   const { error } = await _supa.from('daily_checkout').upsert({
     date:checkoutDate, today_diamonds:keepDia, buy_amount:buyAmt,
     sell_amount:sellAmt, total_diamonds:totalDia, variance:crossVariance,
@@ -4900,7 +4923,6 @@ async function submitCheckout() {
   const saveNextSnap = document.getElementById('co_save_next_snap')?.checked;
   if(saveNextSnap && todayDia) {
     const nextDate = _fmtDate(new Date(new Date(checkoutDate).getTime() + 86400000));
-    const liveDia  = STORAGE_DATA.reduce((s,r)=>s+(r.diamonds||0),0);
     await _supa.from('daily_checkout').upsert(
       { date: nextDate, today_diamonds: todayDia, storage_diamonds: liveDia },
       { onConflict:'date', ignoreDuplicates:false }
