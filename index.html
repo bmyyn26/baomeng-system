@@ -4886,8 +4886,11 @@ async function submitCheckout() {
   const prevTotalDia = modal.dataset.prevTotalDia !== '' ? parseInt(modal.dataset.prevTotalDia) : null;
   const netDia       = todayDia - storageDia;
   const crossVariance = prevTotalDia !== null ? netDia - prevTotalDia : adjTotal;
+  // 保留當天既有快照的今日紅鑽，避免被盤點值覆蓋（盤點值只寫入隔日快照）
+  const { data: exRows } = await _supa.from('daily_checkout').select('today_diamonds').eq('date', checkoutDate).limit(1);
+  const keepDia = (exRows?.[0]?.today_diamonds != null) ? exRows[0].today_diamonds : todayDia;
   const { error } = await _supa.from('daily_checkout').upsert({
-    date:checkoutDate, today_diamonds:todayDia, buy_amount:buyAmt,
+    date:checkoutDate, today_diamonds:keepDia, buy_amount:buyAmt,
     sell_amount:sellAmt, total_diamonds:totalDia, variance:crossVariance,
     storage_diamonds:storageDia,
     details:JSON.stringify(_coModalAdj)
