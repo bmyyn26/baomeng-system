@@ -1299,7 +1299,7 @@
       <div class="modal-body">
         <div class="mb-3">
           <label class="form-label fw-semibold">暱稱 <span class="text-danger">*</span></label>
-          <input type="text" class="form-control" id="ledit_nickname" autocomplete="off">
+          <input type="text" class="form-control" id="ledit_nickname" autocomplete="off" oninput="leditShowBankOptions()">
         </div>
         <div class="mb-3">
           <label class="form-label fw-semibold">金額</label>
@@ -1323,6 +1323,11 @@
         <div class="mb-3" id="ledit_cvs_row">
           <label class="form-label fw-semibold">超商代碼</label>
           <input type="text" class="form-control" id="ledit_cvs_code" placeholder="超商虛擬帳號">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">銀行帳號</label>
+          <input type="text" class="form-control font-monospace" id="ledit_bank_account" placeholder="客戶銀行帳號">
+          <div id="ledit_bank_suggestions" class="d-none mt-2"></div>
         </div>
         <div class="mb-3">
           <label class="form-label fw-semibold">手續費</label>
@@ -1692,7 +1697,7 @@ async function updateTransactionDB(log) {
       nickname: log.nickname, amount: log.amount, diamonds: log.diamonds,
       bank: log.bank, cvs_code: log.cvsCode||'', note: log.note,
       transaction_time: log.time||'', date: log.date||'',
-      seller_order_no: log.sellerOrderNo||''
+      seller_order_no: log.sellerOrderNo||'', bank_account: log.bankAccount||''
     }).eq('id', log._dbId);
   } catch(e) { console.warn('updateTransactionDB:', e); }
 }
@@ -3087,9 +3092,30 @@ function editLog(idx) {
   const snParts = (r.sellerOrderNo||'').split('|');
   document.getElementById("ledit_seller_no_a").value = snParts[0]||'';
   document.getElementById("ledit_seller_no_b").value = snParts[1]||'';
+  document.getElementById("ledit_bank_account").value = r.bankAccount || '';
+  leditShowBankOptions();
   leditCalcDiamonds();
   if(!_logEditModal) _logEditModal = new bootstrap.Modal(document.getElementById("logEditModal"));
   _logEditModal.show();
+}
+
+// 編輯 Modal：依暱稱列出客戶銀行帳號按鈕（只顯示供點選，不自動覆蓋既有值）
+function leditShowBankOptions() {
+  const sugEl = document.getElementById("ledit_bank_suggestions");
+  if(!sugEl) return;
+  const q = document.getElementById("ledit_nickname").value.trim();
+  const match = q ? (CUSTOMERS.find(c => c.暱稱.some(n => n === q))
+                  || CUSTOMERS.find(c => c.暱稱.some(n => n.includes(q)))) : null;
+  const banks = match ? (match.銀行帳號 || []).filter(b => b.帳號) : [];
+  if(!banks.length) { sugEl.classList.add("d-none"); sugEl.innerHTML = ""; return; }
+  const btnHtml = banks.map(b => {
+    const safe = b.帳號.replace(/'/g, "\\'");
+    const label = b.備註 ? `${b.帳號} <span class="text-muted small">(${b.備註})</span>` : b.帳號;
+    return `<button type="button" class="btn btn-sm btn-outline-primary me-1 mb-1"
+      onclick="document.getElementById('ledit_bank_account').value='${safe}'">${label}</button>`;
+  }).join("");
+  sugEl.innerHTML = `<div class="text-muted small mb-1"><i class="bi bi-person-check me-1"></i>${match.暱稱[0]} 的帳號，點選帶入：</div>${btnHtml}`;
+  sugEl.classList.remove("d-none");
 }
 
 function leditSplitSellerNo() {
@@ -3130,6 +3156,7 @@ function confirmEditLog() {
   const newCvs   = document.getElementById("ledit_cvs_code").value.trim();
   const selNoA   = document.getElementById("ledit_seller_no_a").value.trim();
   const selNoB   = document.getElementById("ledit_seller_no_b").value.trim();
+  const newBankAcc = document.getElementById("ledit_bank_account").value.trim();
   if(!nickname) { alert("暱稱不能空白"); return; }
   const ratio    = r.type==="sell" ? 1.44 : 1.3;
   r.nickname = nickname;
@@ -3141,6 +3168,7 @@ function confirmEditLog() {
   if(newTime) r.time = newTime;
   if(newDate) r.date = newDate;
   r.sellerOrderNo = [selNoA, selNoB].filter(Boolean).join('|');
+  r.bankAccount = newBankAcc;
   updateTransactionDB(r);
   if(_logEditModal) _logEditModal.hide();
   renderLog();
