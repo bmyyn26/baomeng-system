@@ -463,7 +463,7 @@
       <input type="text" class="form-control" id="buyer_cvs_code" placeholder="">
     </div>
 
-    <div class="mb-3">
+    <div class="mb-3" id="buyer_bank_row">
       <label class="form-label fw-semibold">客人轉入的銀行帳號 <span class="text-muted small">（選填）</span></label>
       <input type="text" class="form-control" id="buyer_bank" placeholder="">
       <div id="buyer_bank_suggestions" class="d-none mt-2"></div>
@@ -1311,7 +1311,7 @@
         </div>
         <div class="mb-3">
           <label class="form-label fw-semibold">收支銀行</label>
-          <select class="form-select" id="ledit_bank">
+          <select class="form-select" id="ledit_bank" onchange="const _cr=document.getElementById('ledit_cvs_row');if(_cr)_cr.style.display=this.value==='超商'?'':'none';">
             <option>合庫</option>
             <option>玉山</option>
             <option>超商</option>
@@ -2018,6 +2018,7 @@ function selectBuyerPay(method) {
     btn.classList.toggle("btn-outline-secondary", m!==method);
   });
   document.getElementById("buyer_cvs_row").classList.toggle("d-none", method!=="超商");
+  document.getElementById("buyer_bank_row").classList.toggle("d-none", method==="超商");
 }
 
 // 手續費選擇
