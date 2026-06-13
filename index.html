@@ -2903,13 +2903,15 @@ function checkNmBlacklist() {
 }
 
 // ── 新建會員送出 ──────────────────────────────────────
-function submitNewMember() {
+function submitNewMember(addToBlacklist) {
   const nickname = document.getElementById("nm_nickname").value.trim();
   const resultEl = document.getElementById("nm_result");
   if(!nickname) { showMsg(resultEl, false, "請填寫暱稱"); return; }
 
-  const isBlack = BLACKLIST.some(c => c.暱稱.some(n=>n.includes(nickname)));
-  if(isBlack) { showMsg(resultEl, false, `⚠️ 警告：「${nickname}」在黑名單中，無法建立！`); return; }
+  if(!addToBlacklist) {
+    const isBlack = BLACKLIST.some(c => c.暱稱.some(n=>n.includes(nickname)));
+    if(isBlack) { showMsg(resultEl, false, `⚠️ 警告：「${nickname}」在黑名單中，無法建立！`); return; }
+  }
 
   const newMember = {
     '9188編號': document.getElementById("nm_9188").value.trim() || '無',
@@ -2925,9 +2927,17 @@ function submitNewMember() {
     備註: document.getElementById("nm_note").value.trim(),
     備註2:'', 新建日期: document.getElementById("nm_date").value
   };
-  CUSTOMERS.push(newMember);
-  appendMemberToDB(newMember);
-  showMsg(resultEl, true, `✅ 會員「${nickname}」建立成功！`);
+
+  if(addToBlacklist) {
+    BLACKLIST.push(newMember);
+    moveToBlacklistDB(newMember);
+    showMsg(resultEl, true, `🚫 「${nickname}」已加入黑名單！`);
+  } else {
+    CUSTOMERS.push(newMember);
+    appendMemberToDB(newMember);
+    showMsg(resultEl, true, `✅ 會員「${nickname}」建立成功！`);
+  }
+
   ["nm_nickname","nm_9188","nm_phone","nm_id","nm_bank","nm_bank_note","nm_name","nm_note"].forEach(id => {
     const el = document.getElementById(id);
     if(el) el.value = "";
