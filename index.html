@@ -897,6 +897,9 @@
       <button class="btn btn-sm btn-outline-danger fw-bold" onclick="bankOtherAction('out')">
         <i class="bi bi-dash-circle me-1"></i>支出
       </button>
+      <button class="btn btn-sm btn-outline-warning fw-bold" onclick="openBankTransfer()">
+        <i class="bi bi-arrow-left-right me-1"></i>互轉
+      </button>
     </div>
     <!-- 餘額面板（預設隱藏） -->
     <div id="bank_balance_panel" class="d-none card p-3 mb-2">
@@ -4339,11 +4342,11 @@ function renderBankDetail() {
       ? `<span class="fw-bold" style="color:#000">${bal.toLocaleString()}</span>` : '—';
     const typeCls  = r.label==='買方'||r.label==='記帳' ? 'text-success' : r.label==='賣方'||r.label==='還鑽' ? 'text-danger' : 'text-primary';
     const badgeCls = r.label==='買方'||r.label==='記帳' ? 'bg-success'   : r.label==='賣方'||r.label==='還鑽' ? 'bg-danger'   : 'bg-primary';
-    const feeMatch  = !r.isOther && r.note ? r.note.match(/手續費(\d+)元/) : null;
+    const feeMatch  = r.note ? r.note.match(/手續費(\d+)元/) : null;
     const feeAmt    = feeMatch ? parseInt(feeMatch[1]) : 0;
     const noteClean = r.note ? r.note.replace(/[\/／]?手續費\d+元[\/／]?/g,'').trim() : '';
     const detailHtml = r.isOther
-      ? `${r.note || r.label}${r.nickname && r.nickname !== (r.note||r.label) ? ' '+r.nickname : ''}`
+      ? `${noteClean || r.label}${r.nickname && r.nickname !== (noteClean||r.label) ? ' '+r.nickname : ''}`
       : `${r.nickname ? `<span class="bank-nick" onclick="copyNicknamePopup(event,'${r.nickname.replace(/'/g,"\\'")}')"> ${r.nickname}</span>` : ''}${r.cvsCode?' <span class="text-muted" style="font-size:11px">'+r.cvsCode+'</span>':''}`;
     const ops = r.isOther
       ? `<button class="btn btn-outline-secondary py-0 px-1 me-1" style="font-size:10px" onclick="editBankOther(${r.otherId})" title="編輯"><i class="bi bi-pencil"></i></button>
@@ -4508,6 +4511,84 @@ async function submitBankOther(dir) {
   const dbId = data?.[0]?.id || Date.now();
   BANK_OTHER_LOGS.push({ id:dbId, dir, bank, amount, note, date, time:timeStr, _dbId:dbId });
   document.getElementById('bankOtherOverlay').remove();
+  renderBankPage();
+}
+
+// ── 銀行互轉 ──────────────────────────────────────────────
+function openBankTransfer() {
+  document.getElementById('bankTransferOverlay')?.remove();
+  const todayStr = _fmtDate(new Date());
+  const now = new Date();
+  const timeStr = String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+  const banks = ['合庫','玉山','國泰','中信'];
+  document.body.insertAdjacentHTML('beforeend', `
+    <div id="bankTransferOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;display:flex;align-items:center;justify-content:center">
+      <div style="background:#fff;padding:24px;border-radius:16px;width:340px;max-width:92%">
+        <h5 class="fw-bold mb-3"><i class="bi bi-arrow-left-right me-2 text-warning"></i>銀行互轉</h5>
+        <div class="mb-3"><label class="form-label fw-semibold">轉出銀行</label>
+          <div class="d-flex gap-2 flex-wrap">
+            ${banks.map(b=>`<button class="btn btn-sm btn-outline-secondary bt-from-btn" data-bank="${b}" onclick="selectBtBank('from',this)">${b}</button>`).join('')}
+          </div></div>
+        <div class="mb-3"><label class="form-label fw-semibold">轉入銀行</label>
+          <div class="d-flex gap-2 flex-wrap">
+            ${banks.map(b=>`<button class="btn btn-sm btn-outline-secondary bt-to-btn" data-bank="${b}" onclick="selectBtBank('to',this)">${b}</button>`).join('')}
+          </div></div>
+        <div class="mb-3"><label class="form-label fw-semibold">金額</label>
+          <div class="input-group"><input type="number" class="form-control" id="bt_amount" min="1"><span class="input-group-text">元</span></div></div>
+        <div class="mb-3"><label class="form-label fw-semibold">手續費 <span class="text-muted small">（選填）</span></label>
+          <div class="input-group"><input type="number" class="form-control" id="bt_fee" min="0" value="0"><span class="input-group-text">元</span></div></div>
+        <div class="mb-3"><label class="form-label fw-semibold">時間</label>
+          <input type="time" class="form-control" id="bt_time" value="${timeStr}"></div>
+        <div class="d-flex gap-2">
+          <button class="btn btn-outline-secondary flex-grow-1" onclick="document.getElementById('bankTransferOverlay').remove()">取消</button>
+          <button class="btn btn-warning flex-grow-1 fw-bold" onclick="submitBankTransfer()">確認互轉</button>
+        </div>
+      </div>
+    </div>`);
+}
+
+function selectBtBank(side, btn) {
+  document.querySelectorAll(side==='from' ? '.bt-from-btn' : '.bt-to-btn').forEach(b => {
+    b.classList.remove('btn-warning'); b.classList.add('btn-outline-secondary');
+  });
+  btn.classList.remove('btn-outline-secondary'); btn.classList.add('btn-warning');
+}
+
+async function submitBankTransfer() {
+  const fromBtn = document.querySelector('.bt-from-btn.btn-warning');
+  const toBtn   = document.querySelector('.bt-to-btn.btn-warning');
+  if(!fromBtn) { alert('請選擇轉出銀行'); return; }
+  if(!toBtn)   { alert('請選擇轉入銀行'); return; }
+  const fromBank = fromBtn.dataset.bank;
+  const toBank   = toBtn.dataset.bank;
+  if(fromBank === toBank) { alert('轉出與轉入銀行不能相同'); return; }
+  const amount = parseInt(document.getElementById('bt_amount').value);
+  if(!amount || amount <= 0) { alert('請填寫金額'); return; }
+  const fee     = parseInt(document.getElementById('bt_fee').value) || 0;
+  const timeStr = document.getElementById('bt_time').value;
+  const today   = _fmtDate(new Date());
+  const desc    = `${fromBank}→${toBank}`;
+  const noteOut = fee > 0 ? `${desc}／手續費${fee}元` : desc;
+
+  // 轉出：其他支出
+  const { data: outData, error: outErr } = await _supa.from('transactions').insert({
+    date: today, label: '其他支出', nickname: desc,
+    amount, diamonds: 0, bank: fromBank,
+    note: noteOut, transaction_time: timeStr
+  }).select();
+  if(outErr) { alert('轉出新增失敗：' + outErr.message); return; }
+
+  // 轉入：其他收入
+  const { data: inData, error: inErr } = await _supa.from('transactions').insert({
+    date: today, label: '其他收入', nickname: desc,
+    amount, diamonds: 0, bank: toBank,
+    note: desc, transaction_time: timeStr
+  }).select();
+  if(inErr) { alert('轉入新增失敗：' + inErr.message); return; }
+
+  BANK_OTHER_LOGS.push({ id:outData[0].id, _dbId:outData[0].id, dir:'out', bank:fromBank, amount, note:noteOut, date:today, time:timeStr });
+  BANK_OTHER_LOGS.push({ id:inData[0].id,  _dbId:inData[0].id,  dir:'in',  bank:toBank,   amount, note:desc,    date:today, time:timeStr });
+  document.getElementById('bankTransferOverlay')?.remove();
   renderBankPage();
 }
 
