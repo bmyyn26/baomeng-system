@@ -1606,25 +1606,7 @@ async function loadAllData() {
       if(row.bank_name in BANK_INIT) BANK_INIT[row.bank_name] = parseFloat(row.balance)||0;
     });
 
-    // 自動結轉：若昨日有結帳的 bank_balances_json，以此作為今日起始餘額
-    const yesterday = (() => { const d = new Date(); d.setDate(d.getDate()-1); return _fmtDate(d); })();
-    const { data: yestCo } = await _supa.from('daily_checkout')
-      .select('bank_balances_json').eq('date', yesterday).maybeSingle();
-    if(yestCo?.bank_balances_json) {
-      try {
-        const yb = JSON.parse(yestCo.bank_balances_json);
-        let changed = false;
-        BANK_STAT_NAMES.forEach(b => {
-          if(b in yb && BANK_INIT[b] !== yb[b]) { BANK_INIT[b] = yb[b]; changed = true; }
-        });
-        if(changed) {
-          // 同步寫回 bank_balances，讓下次 loadAllData 不需要重算
-          await Promise.all(BANK_STAT_NAMES.map(b =>
-            _supa.from('bank_balances').update({ balance: BANK_INIT[b]||0 }).eq('bank_name', b)
-          ));
-        }
-      } catch(e) { console.warn('auto-carryover parse error:', e); }
-    }
+    // bank_balances 即是今日起始餘額（由結帳時寫入），直接使用，不再自動覆蓋
 
     renderLog(); renderStorageTable();
     if(currentPage === "bank") loadBankByRange();
@@ -4166,25 +4148,34 @@ function toggleBankBalancePanel() {
   if(btn) btn.classList.toggle("btn-primary", !open);
 }
 
-// ── 銀行餘額跨日結轉 ─────────────────────────────────────
-// 僅計算今日結帳後的收盤餘額並存入 DB，供明日起始使用。
-// 計算指定日期收盤餘額，只寫入 daily_checkout.bank_balances_json。
-// 起始值優先用前一天的 bank_balances_json（跨日結帳正確），沒有才退回 BANK_INIT。
+// ── 銀行餘額結帳結轉 ─────────────────────────────────────
+// 結帳時計算收盤餘額，同時寫入：
+//   1. daily_checkout.bank_balances_json（本日收盤存檔）
+//   2. bank_balances（更新為下一日起始值，供隔日頁面讀取）
+// 起始值：同日結帳用記憶體 BANK_INIT；跨日補結帳則查前日 bank_balances_json。
 async function carryoverBankBalances(checkoutDate) {
   if(!checkoutDate) return;
 
-  // 取前一天收盤餘額作為本日起始（正確處理跨日結帳）
-  const prevDate = _getPrevDate(checkoutDate);
-  const { data: prevCo } = await _supa.from('daily_checkout')
-    .select('bank_balances_json').eq('date', prevDate).maybeSingle();
-  const startBal = (prevCo?.bank_balances_json)
-    ? JSON.parse(prevCo.bank_balances_json)
-    : { ...BANK_INIT }; // 無前日結帳紀錄才用記憶體起始值
+  const todayStr = _fmtDate(new Date());
+  let startBal;
+
+  if(checkoutDate === todayStr) {
+    // 同日結帳：BANK_INIT 就是今日正確起始值（loadAllData 已從 bank_balances 讀入）
+    startBal = { ...BANK_INIT };
+  } else {
+    // 跨日補結帳：查前一天的收盤餘額作為起始
+    const prevDate = _getPrevDate(checkoutDate);
+    const { data: prevCo } = await _supa.from('daily_checkout')
+      .select('bank_balances_json').eq('date', prevDate).maybeSingle();
+    startBal = prevCo?.bank_balances_json
+      ? JSON.parse(prevCo.bank_balances_json)
+      : { ...BANK_INIT }; // 無前日紀錄才退回當前 BANK_INIT
+  }
 
   const flow = {};
   BANK_STAT_NAMES.forEach(b => { flow[b] = {in:0, out:0}; });
 
-  // 從 DB 撈指定日期所有交易（含其他收支），不依賴記憶體
+  // 從 DB 撈指定日期所有交易（含其他收支，不依賴記憶體）
   const { data: txRows } = await _supa.from('transactions').select('bank,label,amount,note').eq('date', checkoutDate);
   (txRows || []).forEach(r => {
     if(!BANK_STAT_NAMES.includes(r.bank)) return;
@@ -4203,16 +4194,24 @@ async function carryoverBankBalances(checkoutDate) {
     }
   });
 
-  // 收盤餘額 = 前日收盤（或 BANK_INIT）+ 收入 − 支出
+  // 收盤餘額 = 起始 + 收入 − 支出
   const newBal = {};
   BANK_STAT_NAMES.forEach(b => {
     newBal[b] = (startBal[b]||0) + (flow[b]?.in||0) - (flow[b]?.out||0);
   });
 
-  // 只存進 daily_checkout.bank_balances_json，不動 bank_balances
+  // 1. 存入 daily_checkout.bank_balances_json（本日存檔）
   await _supa.from('daily_checkout')
     .update({ bank_balances_json: JSON.stringify(newBal) })
     .eq('date', checkoutDate);
+
+  // 2. 同步更新 bank_balances（成為下一日起始值）
+  await Promise.all(BANK_STAT_NAMES.map(b =>
+    _supa.from('bank_balances').update({ balance: newBal[b]||0 }).eq('bank_name', b)
+  ));
+
+  // 同步記憶體，讓當頁即時反映
+  BANK_STAT_NAMES.forEach(b => { BANK_INIT[b] = newBal[b]||0; });
 }
 
 function renderBankPage() {
