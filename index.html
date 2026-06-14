@@ -4531,6 +4531,11 @@ function editBankOther(id) {
           </div></div>
         <div class="mb-3"><label class="form-label fw-semibold">說明</label>
           <input type="text" class="form-control" id="boe_note" value="${noteClean}"></div>
+        <div class="mb-3"><label class="form-label fw-semibold">時間</label>
+          <div class="input-group">
+            <input type="text" class="form-control" id="boe_time" placeholder="HH:MM" value="${r.time||''}">
+            <button class="btn btn-outline-secondary" type="button" onclick="document.getElementById('boe_time').value=new Date().toTimeString().slice(0,5)">現在</button>
+          </div></div>
         <div class="d-flex gap-2">
           <button class="btn btn-outline-secondary flex-grow-1" onclick="document.getElementById('bankOtherEditOverlay').remove()">取消</button>
           <button class="btn btn-pink flex-grow-1 fw-bold" onclick="saveBankOtherEdit(${id})">儲存</button>
@@ -4551,12 +4556,14 @@ function saveBankOtherEdit(id) {
   r.amount = amount;
   r.note   = _boeFee > 0 ? (boeNote ? boeNote + '／手續費' + _boeFee + '元' : '手續費' + _boeFee + '元') : boeNote;
   r.date   = document.getElementById('boe_date').value || r.date;
+  r.time   = document.getElementById('boe_time').value.trim() || r.time;
   document.getElementById('bankOtherEditOverlay').remove();
-  // 同步寫回 Supabase（原本缺少這一步，導致重整後資料復原）
+  // 同步寫回 Supabase
   if(r._dbId) {
     _supa.from('transactions').update({
       bank: r.bank, amount: r.amount, note: r.note,
-      date: r.date, nickname: r.note || (r.dir==='in'?'其他收入':'其他支出')
+      date: r.date, nickname: r.note || (r.dir==='in'?'其他收入':'其他支出'),
+      transaction_time: r.time
     }).eq('id', r._dbId).then(({ error }) => {
       if(error) console.warn('saveBankOtherEdit DB error:', error);
     });
