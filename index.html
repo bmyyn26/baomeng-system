@@ -1579,7 +1579,7 @@ async function loadAllData() {
 
     TODAY_LOGS.length = 0;
     (txRes.data || []).forEach(row => {
-      if(row.label==='其他收入' || row.label==='其他支出') return;
+      if(row.label==='其他收入' || row.label==='其他支出' || row.label==='差額') return;
       const type = (row.label==='買方'||row.label==='記帳') ? 'buy'
                  : (row.label==='賣方'||row.label==='還鑽') ? 'sell' : 'storage';
       TODAY_LOGS.push({
@@ -1611,15 +1611,12 @@ async function loadAllData() {
 
     // bank_balances 即是今日起始餘額（由結帳時寫入），直接使用，不再自動覆蓋
 
-    // 還原今日尚未結帳的差額（避免頁面重整後遺失）
+    // 還原今日尚未結帳的差額（存在 transactions.label='差額'，重整後不遺失）
     const _todayForAdj = _fmtDate(new Date());
-    const { data: _todayCo } = await _supa.from('daily_checkout')
-      .select('details,total_diamonds').eq('date', _todayForAdj).maybeSingle();
-    if(_todayCo?.details && _todayCo.total_diamonds == null) {
-      try {
-        const _saved = JSON.parse(_todayCo.details);
-        if(Array.isArray(_saved) && _saved.length) { _adjustments = _saved; }
-      } catch(e) {}
+    const { data: _adjRows } = await _supa.from('transactions')
+      .select('id,nickname,diamonds').eq('date', _todayForAdj).eq('label', '差額');
+    if(_adjRows?.length) {
+      _adjustments = _adjRows.map(r => ({ nickname: r.nickname, diamonds: r.diamonds, _dbId: r.id }));
     }
 
     renderLog(); renderStorageTable();
@@ -4071,6 +4068,7 @@ async function loadBankByRange() {
   BANK_OTHER_LOGS.length = 0;
   const otherLabels = ['其他收入','其他支出'];
   (data || []).forEach(row => {
+    if(row.label === '差額') return; // 差額暫存，不列入銀行明細
     if(otherLabels.includes(row.label)) {
       BANK_OTHER_LOGS.push({
         id: row.id, _dbId: row.id,
@@ -4727,19 +4725,6 @@ let _checkoutModal = null;
 let _adjustments   = [];
 let _coModalAdj    = []; // 結帳 modal 當前日期對應的差額（今天=_adjustments，其他日=DB）
 
-// 把今日差額持久化到 DB（fire & forget）
-function _syncTodayAdjToDB() {
-  const today = _fmtDate(new Date());
-  const payload = JSON.stringify(_adjustments);
-  _supa.from('daily_checkout').select('id').eq('date', today).maybeSingle()
-    .then(({ data: ex }) => {
-      if(ex) {
-        _supa.from('daily_checkout').update({ details: payload }).eq('id', ex.id);
-      } else {
-        _supa.from('daily_checkout').insert({ date: today, details: payload });
-      }
-    });
-}
 
 async function loadCheckout() {
   const { data } = await _supa.from('daily_checkout').select('*')
@@ -5145,6 +5130,9 @@ async function submitCheckout() {
     alertEl.textContent=`✅ 結帳完成！今日總結紅鑽：${totalDia} 顆`;
     alertEl.classList.remove('d-none');
   }
+  // 刪除已結帳的差額暫存記錄（transactions.label='差額'）
+  const _adjIds = _adjustments.filter(r=>r._dbId).map(r=>r._dbId);
+  if(_adjIds.length) await _supa.from('transactions').delete().in('id', _adjIds);
   _adjustments=[]; renderAdjustList(); loadCheckout();
   await carryoverBankBalances(checkoutDate).catch(()=>{});
 }
@@ -5182,9 +5170,16 @@ async function addCheckoutDetail() {
   if(isNaN(diamonds)) { alert('請填寫紅鑽差額'); return; }
   if(adjDate === today) {
     // 今天：加入暫存清單，並立即同步 DB（防重整後遺失）
-    _adjustments.push({nickname, diamonds});
     document.getElementById('adjustOverlay')?.remove();
-    _syncTodayAdjToDB();
+    // 存進 transactions（label='差額'），重整後可還原
+    const today2 = _fmtDate(new Date());
+    const now2 = new Date();
+    const t2 = String(now2.getHours()).padStart(2,'0')+':'+String(now2.getMinutes()).padStart(2,'0');
+    const { data: adjIns } = await _supa.from('transactions').insert({
+      date: today2, label: '差額', nickname, diamonds,
+      amount: 0, bank: '', note: '', transaction_time: t2
+    }).select('id');
+    _adjustments.push({ nickname, diamonds, _dbId: adjIns?.[0]?.id });
     renderAdjustList(); recalcCheckout();
   } else {
     // 過去日期：直接存入該日 daily_checkout
@@ -5212,7 +5207,12 @@ async function addCheckoutDetail() {
   }
 }
 
-function removeAdjust(idx) { _adjustments.splice(idx,1); _syncTodayAdjToDB(); renderAdjustList(); recalcCheckout(); }
+function removeAdjust(idx) {
+  const item = _adjustments[idx];
+  if(item?._dbId) _supa.from('transactions').delete().eq('id', item._dbId);
+  _adjustments.splice(idx, 1);
+  renderAdjustList(); recalcCheckout();
+}
 
 function renderAdjustList() {
   const card=document.getElementById('adjust_list_card');
