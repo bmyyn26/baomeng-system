@@ -4841,6 +4841,9 @@ async function openCheckoutModal() {
   if(!_checkoutModal) _checkoutModal = new bootstrap.Modal(document.getElementById('checkoutModal'));
   _checkoutModal.show();
   await loadCheckoutForDate(today);
+  // 確保 modal 開啟完成後差額 badge 一定顯示
+  _coModalAdj = _adjustments;
+  renderAdjustPreview();
 }
 
 async function loadCheckoutForDate(dateStr) {
@@ -4943,6 +4946,9 @@ async function loadCheckoutForDate(dateStr) {
 }
 
 function recalcCheckout() {
+  // 確保今天的差額永遠從 _adjustments 同步（防止非同步時序導致 _coModalAdj 過期）
+  const _coDate = document.getElementById('co_date_picker')?.value;
+  if(!_coDate || _coDate === _fmtDate(new Date())) _coModalAdj = _adjustments;
   const modal    = document.getElementById('checkoutModal');
   const todayDia = parseInt(document.getElementById('co_today_dia').value)||0;
   const buyAmt   = parseInt(modal.dataset.buyAmt)||0;
