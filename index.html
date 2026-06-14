@@ -1608,6 +1608,17 @@ async function loadAllData() {
 
     // bank_balances 即是今日起始餘額（由結帳時寫入），直接使用，不再自動覆蓋
 
+    // 還原今日尚未結帳的差額（避免頁面重整後遺失）
+    const _todayForAdj = _fmtDate(new Date());
+    const { data: _todayCo } = await _supa.from('daily_checkout')
+      .select('details,total_diamonds').eq('date', _todayForAdj).maybeSingle();
+    if(_todayCo?.details && _todayCo.total_diamonds == null) {
+      try {
+        const _saved = JSON.parse(_todayCo.details);
+        if(Array.isArray(_saved) && _saved.length) { _adjustments = _saved; }
+      } catch(e) {}
+    }
+
     renderLog(); renderStorageTable();
     if(currentPage === "bank") loadBankByRange();
   } catch(e) { console.warn('loadAllData:', e); }
@@ -4635,6 +4646,20 @@ let _checkoutModal = null;
 let _adjustments   = [];
 let _coModalAdj    = []; // 結帳 modal 當前日期對應的差額（今天=_adjustments，其他日=DB）
 
+// 把今日差額持久化到 DB（fire & forget）
+function _syncTodayAdjToDB() {
+  const today = _fmtDate(new Date());
+  const payload = JSON.stringify(_adjustments);
+  _supa.from('daily_checkout').select('id').eq('date', today).maybeSingle()
+    .then(({ data: ex }) => {
+      if(ex) {
+        _supa.from('daily_checkout').update({ details: payload }).eq('id', ex.id);
+      } else {
+        _supa.from('daily_checkout').insert({ date: today, details: payload });
+      }
+    });
+}
+
 async function loadCheckout() {
   const { data } = await _supa.from('daily_checkout').select('*')
     .order('date', {ascending:false}).limit(8);
@@ -5075,9 +5100,10 @@ async function addCheckoutDetail() {
   if(!nickname) { alert('請填寫暱稱'); return; }
   if(isNaN(diamonds)) { alert('請填寫紅鑽差額'); return; }
   if(adjDate === today) {
-    // 今天：加入暫存清單，等結帳時一起儲存
+    // 今天：加入暫存清單，並立即同步 DB（防重整後遺失）
     _adjustments.push({nickname, diamonds});
     document.getElementById('adjustOverlay')?.remove();
+    _syncTodayAdjToDB();
     renderAdjustList(); recalcCheckout();
   } else {
     // 過去日期：直接存入該日 daily_checkout
@@ -5105,7 +5131,7 @@ async function addCheckoutDetail() {
   }
 }
 
-function removeAdjust(idx) { _adjustments.splice(idx,1); renderAdjustList(); recalcCheckout(); }
+function removeAdjust(idx) { _adjustments.splice(idx,1); _syncTodayAdjToDB(); renderAdjustList(); recalcCheckout(); }
 
 function renderAdjustList() {
   const card=document.getElementById('adjust_list_card');
