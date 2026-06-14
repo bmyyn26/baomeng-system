@@ -1606,6 +1606,26 @@ async function loadAllData() {
       if(row.bank_name in BANK_INIT) BANK_INIT[row.bank_name] = parseFloat(row.balance)||0;
     });
 
+    // 自動結轉：若昨日有結帳的 bank_balances_json，以此作為今日起始餘額
+    const yesterday = (() => { const d = new Date(); d.setDate(d.getDate()-1); return _fmtDate(d); })();
+    const { data: yestCo } = await _supa.from('daily_checkout')
+      .select('bank_balances_json').eq('date', yesterday).maybeSingle();
+    if(yestCo?.bank_balances_json) {
+      try {
+        const yb = JSON.parse(yestCo.bank_balances_json);
+        let changed = false;
+        BANK_STAT_NAMES.forEach(b => {
+          if(b in yb && BANK_INIT[b] !== yb[b]) { BANK_INIT[b] = yb[b]; changed = true; }
+        });
+        if(changed) {
+          // 同步寫回 bank_balances，讓下次 loadAllData 不需要重算
+          await Promise.all(BANK_STAT_NAMES.map(b =>
+            _supa.from('bank_balances').update({ balance: BANK_INIT[b]||0 }).eq('bank_name', b)
+          ));
+        }
+      } catch(e) { console.warn('auto-carryover parse error:', e); }
+    }
+
     renderLog(); renderStorageTable();
     if(currentPage === "bank") loadBankByRange();
   } catch(e) { console.warn('loadAllData:', e); }
@@ -4148,38 +4168,43 @@ function toggleBankBalancePanel() {
 
 // ── 銀行餘額跨日結轉 ─────────────────────────────────────
 // 僅計算今日結帳後的收盤餘額並存入 DB，供明日起始使用。
-// 不修改記憶體中的 BANK_INIT，避免 renderBankDetail 雙重計算。
+// 計算指定日期收盤餘額，只寫入 daily_checkout.bank_balances_json。
+// 不動 bank_balances（避免隔日 loadAllData 讀到收盤值造成雙重計算）。
+// 隔日自動結轉改由 loadAllData 負責。
 async function carryoverBankBalances(checkoutDate) {
+  if(!checkoutDate) return;
   const flow = {};
   BANK_STAT_NAMES.forEach(b => { flow[b] = {in:0, out:0}; });
-  TODAY_LOGS.forEach(r => {
+
+  // 從 DB 撈指定日期交易（同日/跨日結帳都正確，不依賴記憶體 TODAY_LOGS）
+  const { data: txRows } = await _supa.from('transactions').select('bank,label,amount,note').eq('date', checkoutDate);
+  (txRows || []).forEach(r => {
     if(!BANK_STAT_NAMES.includes(r.bank)) return;
-    if(r.type==='buy')  flow[r.bank].in  += r.amount;
-    if(r.type==='sell') {
-      flow[r.bank].out += r.amount;
+    const lbl = r.label || '';
+    if(lbl === '買方' || lbl === '記帳') flow[r.bank].in += (r.amount||0);
+    if(lbl === '賣方') {
+      flow[r.bank].out += (r.amount||0);
       const fm = r.note ? r.note.match(/手續費(\d+)元/) : null;
-      if(fm) flow[r.bank].out += parseInt(fm[1]);  // 手續費也算出去
+      if(fm) flow[r.bank].out += parseInt(fm[1]);
+    }
+    if(lbl === '其他收入') flow[r.bank].in  += (r.amount||0);
+    if(lbl === '其他支出') {
+      flow[r.bank].out += (r.amount||0);
+      const fm = r.note ? r.note.match(/手續費(\d+)元/) : null;
+      if(fm) flow[r.bank].out += parseInt(fm[1]);
     }
   });
-  BANK_OTHER_LOGS.forEach(r => {
-    if(!BANK_STAT_NAMES.includes(r.bank)) return;
-    if(r.dir==='in')  flow[r.bank].in  += r.amount;
-    if(r.dir==='out') flow[r.bank].out += r.amount;
-  });
-  // 計算收盤餘額，直接存 DB，不更動 BANK_INIT（避免當日雙重計算）
+
+  // 計算收盤餘額 = 今日起始（BANK_INIT）+ 收入 − 支出
   const newBal = {};
   BANK_STAT_NAMES.forEach(b => {
     newBal[b] = (BANK_INIT[b]||0) + (flow[b]?.in||0) - (flow[b]?.out||0);
   });
-  await Promise.all(BANK_STAT_NAMES.map(b =>
-    _supa.from('bank_balances').update({ balance: newBal[b] }).eq('bank_name', b)
-  ));
-  // 同步把各銀行收盤餘額存進 daily_checkout，供歷史日期查詢使用
-  if(checkoutDate) {
-    await _supa.from('daily_checkout')
-      .update({ bank_balances_json: JSON.stringify(newBal) })
-      .eq('date', checkoutDate);
-  }
+
+  // 只存進 daily_checkout.bank_balances_json，不動 bank_balances
+  await _supa.from('daily_checkout')
+    .update({ bank_balances_json: JSON.stringify(newBal) })
+    .eq('date', checkoutDate);
 }
 
 function renderBankPage() {
@@ -4196,8 +4221,10 @@ function renderBankPage() {
   });
   BANK_OTHER_LOGS.forEach(r => {
     if(!BANK_NAMES.includes(r.bank)) return;
+    const fm = r.note ? r.note.match(/手續費(\d+)元/) : null;
+    const fee = fm ? parseInt(fm[1]) : 0;
     if(r.dir==="in")  flow[r.bank].in  += r.amount;
-    if(r.dir==="out") flow[r.bank].out += r.amount;
+    if(r.dir==="out") flow[r.bank].out += r.amount + fee;
   });
   const statEl = document.getElementById("bank_stat_rows");
   if(statEl) {
@@ -4525,6 +4552,15 @@ function saveBankOtherEdit(id) {
   r.note   = _boeFee > 0 ? (boeNote ? boeNote + '／手續費' + _boeFee + '元' : '手續費' + _boeFee + '元') : boeNote;
   r.date   = document.getElementById('boe_date').value || r.date;
   document.getElementById('bankOtherEditOverlay').remove();
+  // 同步寫回 Supabase（原本缺少這一步，導致重整後資料復原）
+  if(r._dbId) {
+    _supa.from('transactions').update({
+      bank: r.bank, amount: r.amount, note: r.note,
+      date: r.date, nickname: r.note || (r.dir==='in'?'其他收入':'其他支出')
+    }).eq('id', r._dbId).then(({ error }) => {
+      if(error) console.warn('saveBankOtherEdit DB error:', error);
+    });
+  }
   renderBankPage();
 }
 
@@ -4990,12 +5026,14 @@ async function submitCheckout() {
 function openAdjustModal() {
   document.getElementById('adjustOverlay')?.remove();
   const today = _fmtDate(new Date());
+  // 預設日期用結帳 modal 選定的日期，讓跨日結帳時差額自動對應正確日期
+  const checkoutDate = document.getElementById('co_date_picker')?.value || today;
   document.body.insertAdjacentHTML('beforeend', `
     <div id="adjustOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;display:flex;align-items:center;justify-content:center">
       <div style="background:#fff;padding:24px;border-radius:16px;width:320px;max-width:92%">
         <h5 class="fw-bold mb-3"><i class="bi bi-plus-circle me-2 text-warning"></i>新增差額</h5>
         <div class="mb-3"><label class="form-label fw-semibold">日期</label>
-          <input type="date" class="form-control" id="adj_date" value="${today}">
+          <input type="date" class="form-control" id="adj_date" value="${checkoutDate}">
           <div class="small text-muted mt-1">今天→加入結帳暫存；過去日期→直接存入該日結帳</div></div>
         <div class="mb-3"><label class="form-label fw-semibold">暱稱</label>
           <input type="text" class="form-control" id="adj_nickname"></div>
@@ -5035,6 +5073,13 @@ async function addCheckoutDetail() {
       details.push({nickname, diamonds});
       const newVariance = (existing.variance||0) + diamonds;
       await _supa.from('daily_checkout').update({ details: JSON.stringify(details), variance: newVariance }).eq('id', existing.id);
+    }
+    // 若結帳 modal 目前選定的日期與 adjDate 相符，即時更新 modal 的差額並重算
+    const coDate = document.getElementById('co_date_picker')?.value;
+    if(coDate === adjDate) {
+      _coModalAdj.push({nickname, diamonds});
+      renderAdjustPreview();
+      recalcCheckout();
     }
     loadCheckout();
   }
