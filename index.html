@@ -761,14 +761,14 @@
         <label class="form-label fw-semibold small mb-1">結束日期</label>
         <input type="date" class="form-control" id="db_date_to">
       </div>
-      <div class="col-12 col-md-2 d-flex align-items-end">
+      <div class="col-6 col-md-2 d-flex align-items-end">
         <button class="btn btn-pink w-100" onclick="searchDB()">
           <i class="bi bi-search me-1"></i>查詢
         </button>
       </div>
-      <div class="col-12 col-md-2 d-flex align-items-end">
-        <button class="btn btn-outline-warning w-100" onclick="repairOrderNumbers()" title="修復格式錯誤的訂單號（小數點格式）">
-          <i class="bi bi-wrench me-1"></i>修復單號
+      <div class="col-6 col-md-2 d-flex align-items-end">
+        <button class="btn btn-outline-secondary w-100" onclick="clearDBSearch()">
+          <i class="bi bi-x-circle me-1"></i>清除
         </button>
       </div>
     </div>
@@ -4772,9 +4772,16 @@ function renderCheckoutTable(rows) {
     }
 
     const details = r.details ? (Array.isArray(r.details)?r.details:JSON.parse(r.details)) : [];
-    const detailHtml = details.map((d,di)=>
-      `<span class="badge bg-dark text-white me-1" style="cursor:pointer" onclick="removeCheckoutAdj(${r.id},${di})" title="點擊刪除">${d.nickname} ${d.diamonds>=0?'+':''}${d.diamonds}顆 ×</span>`
-    ).join('') + `<button class="btn btn-outline-secondary py-0 px-1 ms-1" style="font-size:10px" onclick="openCheckoutAdjModal(${r.id})" title="新增差額"><i class="bi bi-plus"></i></button>`;
+    const adjTotal = details.reduce((s,d)=>s+(d.diamonds||0), 0);
+    const adjTotalHtml = details.length
+      ? `<div style="font-size:10px;margin-top:3px;color:${adjTotal>0?'#198754':adjTotal<0?'#dc3545':'#6c757d'}">合計 ${adjTotal>=0?'+':''}${adjTotal}顆</div>`
+      : '';
+    const detailHtml = details.map((d,di)=>{
+      const bc = d.diamonds > 0 ? 'bg-success' : d.diamonds < 0 ? 'bg-danger' : 'bg-secondary';
+      return `<span class="badge ${bc} text-white me-1" style="cursor:pointer" onclick="removeCheckoutAdj(${r.id},${di})" title="點擊刪除">${d.nickname} ${d.diamonds>=0?'+':''}${d.diamonds}顆 ×</span>`;
+    }).join('')
+    + `<button class="btn btn-outline-secondary py-0 px-1 ms-1" style="font-size:10px" onclick="openCheckoutAdjModal(${r.id})" title="新增差額"><i class="bi bi-plus"></i></button>`
+    + adjTotalHtml;
 
     return `<tr>
       <td class="ps-3 fw-semibold">${r.date}</td>
@@ -5169,18 +5176,20 @@ async function addCheckoutDetail() {
   if(!nickname) { alert('請填寫暱稱'); return; }
   if(isNaN(diamonds)) { alert('請填寫紅鑽差額'); return; }
   if(adjDate === today) {
-    // 今天：加入暫存清單，並立即同步 DB（防重整後遺失）
     document.getElementById('adjustOverlay')?.remove();
-    // 存進 transactions（label='差額'），重整後可還原
-    const today2 = _fmtDate(new Date());
+    // 先 push 立即顯示，DB 寫入在背景完成後再補 _dbId
+    const adjEntry = { nickname, diamonds, _dbId: null };
+    _adjustments.push(adjEntry);
+    renderAdjustList(); recalcCheckout(); renderAdjustPreview();
+    // 背景寫入 DB
     const now2 = new Date();
     const t2 = String(now2.getHours()).padStart(2,'0')+':'+String(now2.getMinutes()).padStart(2,'0');
-    const { data: adjIns } = await _supa.from('transactions').insert({
-      date: today2, label: '差額', nickname, diamonds,
+    const { data: adjIns, error: adjErr } = await _supa.from('transactions').insert({
+      date: today, label: '差額', nickname, diamonds,
       amount: 0, bank: '', note: '', transaction_time: t2
     }).select('id');
-    _adjustments.push({ nickname, diamonds, _dbId: adjIns?.[0]?.id });
-    renderAdjustList(); recalcCheckout();
+    if(adjErr) { console.warn('差額DB寫入失敗:', adjErr); }
+    else { adjEntry._dbId = adjIns?.[0]?.id; } // 更新同一個物件的 id
   } else {
     // 過去日期：直接存入該日 daily_checkout
     document.getElementById('adjustOverlay')?.remove();
@@ -5456,6 +5465,22 @@ function _fmtTransactionTime(t) {
   const m = t.match(/(\d{1,2}):(\d{2})(?::\d{2})?/);
   if(m) return String(m[1]).padStart(2,'0') + ':' + m[2];
   return t;
+}
+
+function clearDBSearch() {
+  document.getElementById('db_nickname').value  = '';
+  document.getElementById('db_order_no').value  = '';
+  document.getElementById('db_member_id').value = '';
+  document.getElementById('db_date_from').value = '';
+  document.getElementById('db_date_to').value   = '';
+  document.getElementById('db_stats')?.classList.add('d-none');
+  const tbl = document.getElementById('db_table');
+  if(tbl) { tbl.style.display = 'none'; tbl.querySelector('tbody').innerHTML = ''; }
+  const empty = document.getElementById('db_empty');
+  if(empty) empty.classList.add('d-none');
+  const countEl = document.getElementById('db_result_count');
+  if(countEl) countEl.textContent = '';
+  document.getElementById('db_export_btn')?.classList.add('d-none');
 }
 
 async function searchDB() {
