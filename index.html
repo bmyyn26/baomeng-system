@@ -2176,7 +2176,7 @@ function submitBuyerOrder(withGift=false) {
     ? `✅ 開單成功！已贈出時間：${timeStr}`
     : `✅ 開單成功！${nickname} / ${diamonds} 顆 / ${amount}`);
 
-  renderBankPage(); renderLog();
+  _refreshBankPage(); renderLog();
   setTimeout(() => { closeOrderDrawer(); }, 1200);
   document.getElementById("buyer_nickname").value  = "";
   document.getElementById("buyer_amount").value    = "";
@@ -2213,7 +2213,7 @@ function submitSellerOrder() {
 
   showMsg(resultEl, true, `✅ 開單成功！${nickname} / ${diamonds} 顆 / ${amount}元${selectedFee ? "（手續費" + selectedFee + "元）" : ""}`);
 
-  renderBankPage(); renderLog();
+  _refreshBankPage(); renderLog();
   setTimeout(() => { closeOrderDrawer(); }, 1200);
   document.getElementById("seller_nickname").value = "";
   document.getElementById("seller_amount").value   = "";
@@ -4234,6 +4234,12 @@ async function carryoverBankBalances(checkoutDate) {
   BANK_STAT_NAMES.forEach(b => { BANK_INIT[b] = newBal[b]||0; });
 }
 
+// 新增/刪除/編輯交易後的銀行頁面刷新：在銀行頁則從 DB 重拉，確保 TODAY_LOGS 不混入歷史資料
+function _refreshBankPage() {
+  if(currentPage === 'bank') loadBankByRange();
+  else renderBankPage();
+}
+
 function renderBankPage() {
   const flow = {};
   BANK_NAMES.forEach(b => { flow[b] = {in:0, out:0, count:0}; });
@@ -4517,7 +4523,7 @@ async function submitBankOther(dir) {
   const dbId = data?.[0]?.id || Date.now();
   BANK_OTHER_LOGS.push({ id:dbId, dir, bank, amount, note, date, time:timeStr, _dbId:dbId });
   document.getElementById('bankOtherOverlay').remove();
-  renderBankPage();
+  _refreshBankPage();
 }
 
 // ── 銀行互轉 ──────────────────────────────────────────────
@@ -4595,7 +4601,7 @@ async function submitBankTransfer() {
   BANK_OTHER_LOGS.push({ id:outData[0].id, _dbId:outData[0].id, dir:'out', bank:fromBank, amount, note:noteOut, date:today, time:timeStr });
   BANK_OTHER_LOGS.push({ id:inData[0].id,  _dbId:inData[0].id,  dir:'in',  bank:toBank,   amount, note:desc,    date:today, time:timeStr });
   document.getElementById('bankTransferOverlay')?.remove();
-  renderBankPage();
+  _refreshBankPage();
 }
 
 let _boeFee = 0;
@@ -4673,7 +4679,7 @@ function saveBankOtherEdit(id) {
       if(error) console.warn('saveBankOtherEdit DB error:', error);
     });
   }
-  renderBankPage();
+  _refreshBankPage();
 }
 
 function deleteBankLog(idx) {
@@ -4683,7 +4689,7 @@ function deleteBankLog(idx) {
   if(!confirm("再次確認：刪除後無法復原，繼續嗎？")) return;
   deleteTransactionDB(r);
   TODAY_LOGS.splice(idx, 1);
-  renderBankPage(); renderLog();
+  _refreshBankPage(); renderLog();
 }
 
 async function deleteBankOther(id) {
@@ -4693,7 +4699,7 @@ async function deleteBankOther(id) {
   if(!confirm(`確定刪除？\n${r.bank}　${r.dir==='in'?'收入':'支出'}　${r.amount}元　${r.note||''}`)) return;
   if(r._dbId) await _supa.from('transactions').delete().eq('id', r._dbId);
   BANK_OTHER_LOGS.splice(idx, 1);
-  renderBankPage();
+  _refreshBankPage();
 }
 
 // ── 暫存區重新載入 ────────────────────────────────────────
