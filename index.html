@@ -1080,6 +1080,8 @@
           <div class="input-group mb-2">
             <span class="input-group-text">客人身上</span>
             <input type="number" class="form-control" id="rebate_a_input" placeholder="輸入紅鑽數" min="0" oninput="calcRebateA()">
+            <span class="input-group-text">顆　凍結</span>
+            <input type="number" class="form-control" id="rebate_a_freeze" placeholder="0" min="0" style="max-width:90px" oninput="calcRebateA()">
             <span class="input-group-text">顆</span>
           </div>
           <div id="rebate_a_result" class="d-none">
@@ -1144,6 +1146,8 @@
           <div class="input-group mb-2">
             <span class="input-group-text">客人身上</span>
             <input type="number" class="form-control" id="rebate_b_input" placeholder="輸入紅鑽數" min="0" oninput="calcRebateB()">
+            <span class="input-group-text">顆　凍結</span>
+            <input type="number" class="form-control" id="rebate_b_freeze" placeholder="0" min="0" style="max-width:90px" oninput="calcRebateB()">
             <span class="input-group-text">顆</span>
           </div>
           <div id="rebate_b_result" class="d-none">
@@ -3751,38 +3755,40 @@ function selectRebateCard(btn, zone) {
 }
 
 function calcRebateA() {
-  const raw = parseInt(document.getElementById('rebate_a_input').value) || 0;
-  const res = document.getElementById('rebate_a_result');
-  if(raw <= 300) { res.classList.add('d-none'); return; }
-  const diamonds = Math.floor((raw - 300) / 1300) * 1300;
-  if(diamonds <= 0) { res.classList.add('d-none'); return; }
-  const fee  = Math.round(diamonds * rebateAFee);
-  const need = Math.round(diamonds + fee + 300);
-  const twd  = Math.round(diamonds / 1.44);
-  document.getElementById('rebate_a_diamonds').textContent = diamonds;
+  const raw    = parseInt(document.getElementById('rebate_a_input').value)  || 0;
+  const freeze = parseInt(document.getElementById('rebate_a_freeze').value) || 0;
+  const res    = document.getElementById('rebate_a_result');
+  const available = raw - 300 - freeze;
+  if(available <= 0) { res.classList.add('d-none'); return; }
+  const twd  = Math.floor(available / 1.44);
+  const fee  = Math.round(available * rebateAFee);
+  const need = available + 300 + fee;
+  if(need > raw) { res.classList.add('d-none'); return; }
+  document.getElementById('rebate_a_diamonds').textContent = available;
   document.getElementById('rebate_a_twd').textContent      = twd;
   document.getElementById('rebate_a_fee').textContent      = fee;
   document.getElementById('rebate_a_need').textContent     = need;
-  document.getElementById('rebate_a_copy_text').textContent = diamonds + '顆=' + twd + '台';
+  document.getElementById('rebate_a_copy_text').textContent = available + '顆=' + twd + '台';
   document.getElementById('rebate_a_copy_row').classList.remove('d-none');
   document.getElementById('rebate_a_copied').classList.add('d-none');
   res.classList.remove('d-none');
 }
 
 function calcRebateB() {
-  const raw = parseInt(document.getElementById('rebate_b_input').value) || 0;
-  const res = document.getElementById('rebate_b_result');
-  if(raw <= 300) { res.classList.add('d-none'); return; }
-  const diamonds = Math.floor((raw - 300) / 1300) * 1300;
-  if(diamonds <= 0) { res.classList.add('d-none'); return; }
-  const fee  = Math.round(diamonds * rebateBFee);
-  const need = Math.round(diamonds + fee + 300);
-  const twd  = Math.round(diamonds / 1.44);
-  document.getElementById('rebate_b_diamonds').textContent = diamonds;
+  const raw    = parseInt(document.getElementById('rebate_b_input').value)  || 0;
+  const freeze = parseInt(document.getElementById('rebate_b_freeze').value) || 0;
+  const res    = document.getElementById('rebate_b_result');
+  const available = raw - 300 - freeze;
+  if(available <= 0) { res.classList.add('d-none'); return; }
+  const twd  = Math.floor(available / 1.44);
+  const fee  = Math.round(available * rebateBFee);
+  const need = available + 300 + fee;
+  if(need > raw) { res.classList.add('d-none'); return; }
+  document.getElementById('rebate_b_diamonds').textContent = available;
   document.getElementById('rebate_b_twd').textContent      = twd;
   document.getElementById('rebate_b_fee').textContent      = fee;
   document.getElementById('rebate_b_need').textContent     = need;
-  document.getElementById('rebate_b_copy_text').textContent = diamonds + '顆=' + twd + '台';
+  document.getElementById('rebate_b_copy_text').textContent = available + '顆=' + twd + '台';
   document.getElementById('rebate_b_copy_row').classList.remove('d-none');
   document.getElementById('rebate_b_copied').classList.add('d-none');
   res.classList.remove('d-none');
