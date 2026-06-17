@@ -705,6 +705,7 @@
       <button class="btn btn-sm btn-outline-secondary" onclick="filterLog('buy')"     id="filter-buy">買方</button>
       <button class="btn btn-sm btn-outline-secondary" onclick="filterLog('sell')"    id="filter-sell">賣方</button>
       <button class="btn btn-sm btn-outline-secondary" onclick="filterLog('storage')" id="filter-storage">寄放</button>
+      <button class="btn btn-sm btn-outline-secondary" onclick="loadAllData()" title="重新整理" style="width:32px;padding:0"><i class="bi bi-arrow-clockwise"></i></button>
     </div>
 
     <!-- 明細表格 -->
@@ -3024,7 +3025,7 @@ function renderLog() {
   }
   empty && empty.classList.add("d-none");
 
-  tbody.innerHTML = data.map(r => {
+  tbody.innerHTML = [...data].reverse().map(r => {
     const logIdx  = TODAY_LOGS.indexOf(r);
     const buyAmt  = r.type==="buy"  ? `<span class="text-success fw-bold">${r.amount}</span>` : "";
     const sellAmt = r.type==="sell" ? `<span class="text-danger fw-bold">${r.amount}</span>`  : "";
