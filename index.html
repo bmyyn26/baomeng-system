@@ -1615,7 +1615,24 @@ async function loadAllData() {
       if(row.bank_name in BANK_INIT) BANK_INIT[row.bank_name] = parseFloat(row.balance)||0;
     });
 
-    // bank_balances 即是今日起始餘額（由結帳時寫入），直接使用，不再自動覆蓋
+    // 跨日驗證：以昨日結帳快照（bank_balances_json）為權威起始，
+    // 防止 bank_balances 被意外覆蓋導致次日開盤餘額錯誤
+    const _prevDate = _getPrevDate(todayStr);
+    const { data: _prevCo } = await _supa.from('daily_checkout')
+      .select('bank_balances_json').eq('date', _prevDate).maybeSingle();
+    if(_prevCo?.bank_balances_json) {
+      const _prevBal = JSON.parse(_prevCo.bank_balances_json);
+      let _balChanged = false;
+      BANK_STAT_NAMES.forEach(b => {
+        if(_prevBal[b] !== undefined) { BANK_INIT[b] = _prevBal[b]; _balChanged = true; }
+      });
+      if(_balChanged) {
+        // 同步修正 bank_balances，確保 DB 也是正確的起始
+        await Promise.all(BANK_STAT_NAMES.map(b =>
+          _supa.from('bank_balances').update({ balance: BANK_INIT[b]||0 }).eq('bank_name', b)
+        )).catch(()=>{});
+      }
+    }
 
     // 還原今日尚未結帳的差額（存在 transactions.label='差額'，重整後不遺失）
     const _todayForAdj = _fmtDate(new Date());
@@ -3763,11 +3780,11 @@ function calcRebateA() {
   const twd  = Math.floor(available / 1.44);
   const fee  = Math.round(available * rebateAFee);
   const need = available + 300 + fee;
-  if(need > raw) { res.classList.add('d-none'); return; }
+  const canAfford = need <= raw;
   document.getElementById('rebate_a_diamonds').textContent = available;
   document.getElementById('rebate_a_twd').textContent      = twd;
   document.getElementById('rebate_a_fee').textContent      = fee;
-  document.getElementById('rebate_a_need').textContent     = need;
+  document.getElementById('rebate_a_need').textContent     = need + (canAfford ? '' : ' ⚠️超過');
   document.getElementById('rebate_a_copy_text').textContent = available + '顆=' + twd + '台';
   document.getElementById('rebate_a_copy_row').classList.remove('d-none');
   document.getElementById('rebate_a_copied').classList.add('d-none');
@@ -3783,11 +3800,11 @@ function calcRebateB() {
   const twd  = Math.floor(available / 1.44);
   const fee  = Math.round(available * rebateBFee);
   const need = available + 300 + fee;
-  if(need > raw) { res.classList.add('d-none'); return; }
+  const canAffordB = need <= raw;
   document.getElementById('rebate_b_diamonds').textContent = available;
   document.getElementById('rebate_b_twd').textContent      = twd;
   document.getElementById('rebate_b_fee').textContent      = fee;
-  document.getElementById('rebate_b_need').textContent     = need;
+  document.getElementById('rebate_b_need').textContent     = need + (canAffordB ? '' : ' ⚠️超過');
   document.getElementById('rebate_b_copy_text').textContent = available + '顆=' + twd + '台';
   document.getElementById('rebate_b_copy_row').classList.remove('d-none');
   document.getElementById('rebate_b_copied').classList.add('d-none');
@@ -4444,6 +4461,14 @@ async function saveBankEdit() {
   });
   document.getElementById("beditOverlay")?.remove();
   await syncBankBalances();
+  // 同時更新昨日結帳快照，讓跨日驗證讀到的也是修正後的值（防止重整被蓋回）
+  const _todayStr2 = _fmtDate(new Date());
+  const _prevDate2 = _getPrevDate(_todayStr2);
+  const _overrideJson = {};
+  BANK_STAT_NAMES.forEach(b => { _overrideJson[b] = BANK_INIT[b]||0; });
+  await _supa.from('daily_checkout')
+    .update({ bank_balances_json: JSON.stringify(_overrideJson) })
+    .eq('date', _prevDate2).catch(()=>{});
   renderBankInitDisplay();
   renderBankPage();
 }
