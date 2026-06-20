@@ -1077,13 +1077,17 @@
             <button class="btn btn-sm rebate-card-btn btn-outline-secondary" data-fee="0.003" data-zone="a" onclick="selectRebateCard(this,'a')">V7　0.3%</button>
             <button class="btn btn-sm rebate-card-btn btn-outline-secondary" data-fee="0"     data-zone="a" onclick="selectRebateCard(this,'a')">SV不扣手續</button>
           </div>
-          <div class="input-group mb-2">
-            <span class="input-group-text">客人身上</span>
-            <input type="number" class="form-control" id="rebate_a_input" placeholder="輸入紅鑽數" min="0" style="max-width:160px" oninput="calcRebateA()">
-            <span class="input-group-text">顆</span>
-            <span class="input-group-text text-muted px-2" style="background:#e9ecef;border-left:2px solid #adb5bd;border-right:2px solid #adb5bd">凍結</span>
-            <input type="number" class="form-control" id="rebate_a_freeze" placeholder="0" min="0" style="max-width:90px" oninput="calcRebateA()">
-            <span class="input-group-text">顆</span>
+          <div class="d-flex flex-wrap gap-2 mb-2">
+            <div class="input-group" style="width:auto;flex:1 1 200px">
+              <span class="input-group-text">客人身上</span>
+              <input type="number" class="form-control" id="rebate_a_input" placeholder="輸入紅鑽數" min="0" oninput="calcRebateA()">
+              <span class="input-group-text">顆</span>
+            </div>
+            <div class="input-group" style="width:auto;flex:0 1 160px">
+              <span class="input-group-text">凍結</span>
+              <input type="number" class="form-control" id="rebate_a_freeze" placeholder="0" min="0" oninput="calcRebateA()">
+              <span class="input-group-text">顆</span>
+            </div>
           </div>
           <div id="rebate_a_result" class="d-none">
             <div class="row g-2 text-center mt-1">
@@ -1151,13 +1155,17 @@
             <button class="btn btn-sm rebate-card-btn btn-outline-secondary" data-fee="0.005" data-zone="b" onclick="selectRebateCard(this,'b')">SV1　0.5%</button>
             <button class="btn btn-sm rebate-card-btn btn-outline-secondary" data-fee="0"     data-zone="b" onclick="selectRebateCard(this,'b')">SV2.SV3不扣手續</button>
           </div>
-          <div class="input-group mb-2">
-            <span class="input-group-text">客人身上</span>
-            <input type="number" class="form-control" id="rebate_b_input" placeholder="輸入紅鑽數" min="0" style="max-width:160px" oninput="calcRebateB()">
-            <span class="input-group-text">顆</span>
-            <span class="input-group-text text-muted px-2" style="background:#e9ecef;border-left:2px solid #adb5bd;border-right:2px solid #adb5bd">凍結</span>
-            <input type="number" class="form-control" id="rebate_b_freeze" placeholder="0" min="0" style="max-width:90px" oninput="calcRebateB()">
-            <span class="input-group-text">顆</span>
+          <div class="d-flex flex-wrap gap-2 mb-2">
+            <div class="input-group" style="width:auto;flex:1 1 200px">
+              <span class="input-group-text">客人身上</span>
+              <input type="number" class="form-control" id="rebate_b_input" placeholder="輸入紅鑽數" min="0" oninput="calcRebateB()">
+              <span class="input-group-text">顆</span>
+            </div>
+            <div class="input-group" style="width:auto;flex:0 1 160px">
+              <span class="input-group-text">凍結</span>
+              <input type="number" class="form-control" id="rebate_b_freeze" placeholder="0" min="0" oninput="calcRebateB()">
+              <span class="input-group-text">顆</span>
+            </div>
           </div>
           <div id="rebate_b_result" class="d-none">
             <div class="row g-2 text-center mt-1">
