@@ -1087,18 +1087,25 @@
           </div>
           <div id="rebate_a_result" class="d-none">
             <div class="row g-2 text-center mt-1">
-              <div class="col-6">
+              <div class="col-4">
                 <div class="bg-light rounded p-2">
-                  <div class="text-muted small mb-1">回鑽數量</div>
+                  <div class="text-muted small mb-1">可回數量</div>
                   <div class="fw-bold fs-5 text-danger user-select-all" id="rebate_a_diamonds">—</div>
                   <div class="text-muted small">顆</div>
                 </div>
               </div>
-              <div class="col-6">
+              <div class="col-4">
                 <div class="bg-light rounded p-2">
                   <div class="text-muted small mb-1">換算台幣</div>
                   <div class="fw-bold fs-5 text-success user-select-all" id="rebate_a_twd">—</div>
                   <div class="text-muted small">元</div>
+                </div>
+              </div>
+              <div class="col-4">
+                <div class="bg-light rounded p-2">
+                  <div class="text-muted small mb-1">可贈數量</div>
+                  <div class="fw-bold fs-5 text-danger user-select-all" id="rebate_a_gift">—</div>
+                  <div class="text-muted small">顆</div>
                 </div>
               </div>
               <div class="col-6">
@@ -1154,18 +1161,25 @@
           </div>
           <div id="rebate_b_result" class="d-none">
             <div class="row g-2 text-center mt-1">
-              <div class="col-6">
+              <div class="col-4">
                 <div class="bg-light rounded p-2">
-                  <div class="text-muted small mb-1">回鑽數量</div>
+                  <div class="text-muted small mb-1">可回數量</div>
                   <div class="fw-bold fs-5 text-danger user-select-all" id="rebate_b_diamonds">—</div>
                   <div class="text-muted small">顆</div>
                 </div>
               </div>
-              <div class="col-6">
+              <div class="col-4">
                 <div class="bg-light rounded p-2">
                   <div class="text-muted small mb-1">換算台幣</div>
                   <div class="fw-bold fs-5 text-success user-select-all" id="rebate_b_twd">—</div>
                   <div class="text-muted small">元</div>
+                </div>
+              </div>
+              <div class="col-4">
+                <div class="bg-light rounded p-2">
+                  <div class="text-muted small mb-1">可贈數量</div>
+                  <div class="fw-bold fs-5 text-danger user-select-all" id="rebate_b_gift">—</div>
+                  <div class="text-muted small">顆</div>
                 </div>
               </div>
               <div class="col-6">
@@ -3777,17 +3791,21 @@ function calcRebateA() {
   const raw    = parseInt(document.getElementById('rebate_a_input').value)  || 0;
   const freeze = parseInt(document.getElementById('rebate_a_freeze').value) || 0;
   const res    = document.getElementById('rebate_a_result');
-  const available = raw - 300 - freeze;
+  const available = raw - 300 - freeze;               // 可回數量
   if(available <= 0) { res.classList.add('d-none'); return; }
-  const twd  = Math.floor(available / 1.44);
-  const fee  = Math.round(available * rebateAFee);
-  const need = available + 300 + fee;
+  const twdRaw = Math.floor(available / 1.44);        // 原始台幣
+  const twd    = Math.floor(twdRaw / 500) * 500;      // 換算台幣（500倍數）
+  if(twd <= 0)  { res.classList.add('d-none'); return; }
+  const gift   = Math.round(twd * 1.44);              // 可贈數量
+  const fee    = Math.round(gift * rebateAFee);        // 服務金（以可贈數量計算）
+  const need   = gift + 300 + fee;                    // 身上要有
   const canAfford = need <= raw;
-  document.getElementById('rebate_a_diamonds').textContent = available;
-  document.getElementById('rebate_a_twd').textContent      = twd;
-  document.getElementById('rebate_a_fee').textContent      = fee;
-  document.getElementById('rebate_a_need').textContent     = need + (canAfford ? '' : ' ⚠️超過');
-  document.getElementById('rebate_a_copy_text').textContent = available + '顆=' + twd + '台';
+  document.getElementById('rebate_a_diamonds').textContent  = available;
+  document.getElementById('rebate_a_twd').textContent       = twd;
+  document.getElementById('rebate_a_gift').textContent      = gift;
+  document.getElementById('rebate_a_fee').textContent       = fee;
+  document.getElementById('rebate_a_need').textContent      = need + (canAfford ? '' : ' ⚠️超過');
+  document.getElementById('rebate_a_copy_text').textContent = gift + '顆=' + twd + '台';
   document.getElementById('rebate_a_copy_row').classList.remove('d-none');
   document.getElementById('rebate_a_copied').classList.add('d-none');
   res.classList.remove('d-none');
@@ -3797,17 +3815,21 @@ function calcRebateB() {
   const raw    = parseInt(document.getElementById('rebate_b_input').value)  || 0;
   const freeze = parseInt(document.getElementById('rebate_b_freeze').value) || 0;
   const res    = document.getElementById('rebate_b_result');
-  const available = raw - 300 - freeze;
+  const available = raw - 300 - freeze;               // 可回數量
   if(available <= 0) { res.classList.add('d-none'); return; }
-  const twd  = Math.floor(available / 1.44);
-  const fee  = Math.round(available * rebateBFee);
-  const need = available + 300 + fee;
-  const canAffordB = need <= raw;
-  document.getElementById('rebate_b_diamonds').textContent = available;
-  document.getElementById('rebate_b_twd').textContent      = twd;
-  document.getElementById('rebate_b_fee').textContent      = fee;
-  document.getElementById('rebate_b_need').textContent     = need + (canAffordB ? '' : ' ⚠️超過');
-  document.getElementById('rebate_b_copy_text').textContent = available + '顆=' + twd + '台';
+  const twdRaw = Math.floor(available / 1.44);        // 原始台幣
+  const twd    = Math.floor(twdRaw / 500) * 500;      // 換算台幣（500倍數）
+  if(twd <= 0)  { res.classList.add('d-none'); return; }
+  const gift   = Math.round(twd * 1.44);              // 可贈數量
+  const fee    = Math.round(gift * rebateBFee);        // 服務金（以可贈數量計算）
+  const need   = gift + 300 + fee;                    // 身上要有
+  const canAfford = need <= raw;
+  document.getElementById('rebate_b_diamonds').textContent  = available;
+  document.getElementById('rebate_b_twd').textContent       = twd;
+  document.getElementById('rebate_b_gift').textContent      = gift;
+  document.getElementById('rebate_b_fee').textContent       = fee;
+  document.getElementById('rebate_b_need').textContent      = need + (canAfford ? '' : ' ⚠️超過');
+  document.getElementById('rebate_b_copy_text').textContent = gift + '顆=' + twd + '台';
   document.getElementById('rebate_b_copy_row').classList.remove('d-none');
   document.getElementById('rebate_b_copied').classList.add('d-none');
   res.classList.remove('d-none');
