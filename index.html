@@ -4792,7 +4792,7 @@ function renderCheckoutTable(rows) {
       if(newer && newer.today_diamonds != null) {
         const newerNet = newer.today_diamonds - (newer.storage_diamonds || 0);
         const cv = newerNet - r.total_diamonds;
-        const cls = cv > 0 ? 'text-danger' : cv < 0 ? 'text-success' : 'text-secondary';
+        const cls = cv > 0 ? 'text-success' : cv < 0 ? 'text-danger' : 'text-secondary';
         varianceHtml = `<span class="fw-bold ${cls}">${cv > 0 ? '+' : ''}${cv}</span>`;
       }
     }
