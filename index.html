@@ -183,6 +183,9 @@
     .sidebar-btn { padding:12px 0; justify-content:center; gap:0; }
     .sidebar-btn .btn-label { display:none; }
   }
+  input[type=number]::-webkit-inner-spin-button,
+  input[type=number]::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
+  input[type=number] { -moz-appearance:textfield; }
 </style>
 </head>
 <body>
@@ -1080,12 +1083,12 @@
           <div class="d-flex flex-wrap gap-2 mb-2">
             <div class="input-group" style="width:auto;flex:1 1 200px">
               <span class="input-group-text">客人身上</span>
-              <input type="number" class="form-control" id="rebate_a_input" placeholder="輸入紅鑽數" min="0" oninput="calcRebateA()">
+              <input type="number" class="form-control" id="rebate_a_input" placeholder="" min="0" oninput="calcRebateA()">
               <span class="input-group-text">顆</span>
             </div>
             <div class="input-group" style="width:auto;flex:0 1 160px">
               <span class="input-group-text">凍結</span>
-              <input type="number" class="form-control" id="rebate_a_freeze" placeholder="0" min="0" oninput="calcRebateA()">
+              <input type="number" class="form-control" id="rebate_a_freeze" placeholder="" min="0" oninput="calcRebateA()">
               <span class="input-group-text">顆</span>
             </div>
           </div>
@@ -1158,12 +1161,12 @@
           <div class="d-flex flex-wrap gap-2 mb-2">
             <div class="input-group" style="width:auto;flex:1 1 200px">
               <span class="input-group-text">客人身上</span>
-              <input type="number" class="form-control" id="rebate_b_input" placeholder="輸入紅鑽數" min="0" oninput="calcRebateB()">
+              <input type="number" class="form-control" id="rebate_b_input" placeholder="" min="0" oninput="calcRebateB()">
               <span class="input-group-text">顆</span>
             </div>
             <div class="input-group" style="width:auto;flex:0 1 160px">
               <span class="input-group-text">凍結</span>
-              <input type="number" class="form-control" id="rebate_b_freeze" placeholder="0" min="0" oninput="calcRebateB()">
+              <input type="number" class="form-control" id="rebate_b_freeze" placeholder="" min="0" oninput="calcRebateB()">
               <span class="input-group-text">顆</span>
             </div>
           </div>
