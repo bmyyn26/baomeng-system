@@ -4534,7 +4534,16 @@ async function saveBankEdit() {
   });
   document.getElementById("beditOverlay")?.remove();
   await syncBankBalances();
-  // 修正後標記跨日驗證已完成，本次開啟頁面不再用昨日快照蓋回這次的修正值
+  // 同時更新昨日結帳快照，讓其他裝置的跨日驗證也讀到修正後的值
+  // （_crossDayValidated 旗標已防止當日重整時被蓋回，此處安全）
+  const _todayStr2 = _fmtDate(new Date());
+  const _prevDate2 = _getPrevDate(_todayStr2);
+  const _overrideJson = {};
+  BANK_STAT_NAMES.forEach(b => { _overrideJson[b] = BANK_INIT[b]||0; });
+  await _supa.from('daily_checkout')
+    .update({ bank_balances_json: JSON.stringify(_overrideJson) })
+    .eq('date', _prevDate2).catch(()=>{});
+  // 標記跨日驗證已完成，本次頁面不再用快照蓋回
   _crossDayValidated = true;
   renderBankInitDisplay();
   renderBankPage();
