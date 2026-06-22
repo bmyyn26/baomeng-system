@@ -1642,22 +1642,58 @@ async function loadAllData() {
       if(row.bank_name in BANK_INIT) BANK_INIT[row.bank_name] = parseFloat(row.balance)||0;
     });
 
-    // 跨日驗證：以昨日結帳快照（bank_balances_json）為權威起始，
-    // 防止 bank_balances 被意外覆蓋導致次日開盤餘額錯誤
-    const _prevDate = _getPrevDate(todayStr);
-    const { data: _prevCo } = await _supa.from('daily_checkout')
-      .select('bank_balances_json').eq('date', _prevDate).maybeSingle();
-    if(_prevCo?.bank_balances_json) {
-      const _prevBal = JSON.parse(_prevCo.bank_balances_json);
-      let _balChanged = false;
-      BANK_STAT_NAMES.forEach(b => {
-        if(_prevBal[b] !== undefined) { BANK_INIT[b] = _prevBal[b]; _balChanged = true; }
-      });
-      if(_balChanged) {
-        // 同步修正 bank_balances，確保 DB 也是正確的起始
-        await Promise.all(BANK_STAT_NAMES.map(b =>
-          _supa.from('bank_balances').update({ balance: BANK_INIT[b]||0 }).eq('bank_name', b)
-        )).catch(()=>{});
+    // 跨日驗證：以昨日結帳快照（bank_balances_json）為權威起始。
+    // 只在每次開啟頁面後的第一次 loadAllData 執行，防止結帳後重整時把收盤值蓋回開盤值。
+    if(!_crossDayValidated) {
+      _crossDayValidated = true;
+      const _prevDate = _getPrevDate(todayStr);
+      const { data: _prevCo } = await _supa.from('daily_checkout')
+        .select('bank_balances_json').eq('date', _prevDate).maybeSingle();
+      if(_prevCo?.bank_balances_json) {
+        // 有確認結帳：直接用快照
+        const _prevBal = JSON.parse(_prevCo.bank_balances_json);
+        let _balChanged = false;
+        BANK_STAT_NAMES.forEach(b => {
+          if(_prevBal[b] !== undefined) { BANK_INIT[b] = _prevBal[b]; _balChanged = true; }
+        });
+        if(_balChanged) {
+          await Promise.all(BANK_STAT_NAMES.map(b =>
+            _supa.from('bank_balances').update({ balance: BANK_INIT[b]||0 }).eq('bank_name', b)
+          )).catch(()=>{});
+        }
+      } else {
+        // 無確認結帳（只有快照或無結帳紀錄）：
+        // 用昨日開盤（bank_balances）+ 昨日所有交易，自動算出昨日收盤 → 作為今日起始
+        const { data: _prevTxRows } = await _supa.from('transactions')
+          .select('bank,label,amount,note').eq('date', _prevDate).catch(()=>({data:[]}));
+        if(_prevTxRows?.length) {
+          const _pFlow = {};
+          BANK_STAT_NAMES.forEach(b => { _pFlow[b] = {in:0, out:0}; });
+          (_prevTxRows || []).forEach(r => {
+            if(!BANK_STAT_NAMES.includes(r.bank)) return;
+            const lbl = r.label || '';
+            if(lbl === '買方' || lbl === '記帳' || lbl === '其他收入') _pFlow[r.bank].in  += (r.amount||0);
+            if(lbl === '賣方' || lbl === '其他支出') {
+              _pFlow[r.bank].out += (r.amount||0);
+              const fm = r.note ? r.note.match(/手續費(\d+)元/) : null;
+              if(fm) _pFlow[r.bank].out += parseInt(fm[1]);
+            }
+          });
+          const _newBal = {};
+          BANK_STAT_NAMES.forEach(b => {
+            _newBal[b] = (BANK_INIT[b]||0) + (_pFlow[b]?.in||0) - (_pFlow[b]?.out||0);
+          });
+          BANK_STAT_NAMES.forEach(b => { BANK_INIT[b] = _newBal[b]; });
+          await Promise.all(BANK_STAT_NAMES.map(b =>
+            _supa.from('bank_balances').update({ balance: BANK_INIT[b]||0 }).eq('bank_name', b)
+          )).catch(()=>{});
+          // 補寫 bank_balances_json，讓下次不用重算
+          if(_prevCo) {
+            await _supa.from('daily_checkout')
+              .update({ bank_balances_json: JSON.stringify(_newBal) })
+              .eq('date', _prevDate).catch(()=>{});
+          }
+        }
       }
     }
 
@@ -3031,6 +3067,8 @@ TODAY_LOGS.push = function(...args) {
 let currentLogFilter = "all";
 // 銀行起始餘額（使用者手動輸入）
 const BANK_INIT = { 合庫:0, 玉山:0, 超商:0, 國泰:0, 中信:0, 其他:0, 寄放:0 };
+// 跨日驗證只在每次開啟頁面後第一次 loadAllData 執行，防止重整時蓋掉結帳後的收盤值
+let _crossDayValidated = false;
 
 function filterLog(type) {
   currentLogFilter = type;
@@ -4496,14 +4534,8 @@ async function saveBankEdit() {
   });
   document.getElementById("beditOverlay")?.remove();
   await syncBankBalances();
-  // 同時更新昨日結帳快照，讓跨日驗證讀到的也是修正後的值（防止重整被蓋回）
-  const _todayStr2 = _fmtDate(new Date());
-  const _prevDate2 = _getPrevDate(_todayStr2);
-  const _overrideJson = {};
-  BANK_STAT_NAMES.forEach(b => { _overrideJson[b] = BANK_INIT[b]||0; });
-  await _supa.from('daily_checkout')
-    .update({ bank_balances_json: JSON.stringify(_overrideJson) })
-    .eq('date', _prevDate2).catch(()=>{});
+  // 修正後標記跨日驗證已完成，本次開啟頁面不再用昨日快照蓋回這次的修正值
+  _crossDayValidated = true;
   renderBankInitDisplay();
   renderBankPage();
 }
