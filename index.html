@@ -912,7 +912,7 @@
         <span class="fw-bold">合計</span>
         <span class="fw-bold fs-5" id="bank_total_all">—</span>
       </div>
-      <button class="btn btn-outline-secondary btn-sm w-100 mt-2" onclick="showBankEditModal()">修改起始餘額</button>
+      <button class="btn btn-outline-secondary btn-sm w-100 mt-2" onclick="showBankBalanceModal()"><i class="bi bi-bank me-1"></i>結帳餘額</button>
     </div>
     <!-- 第二列：篩選按鈕（橫向可滾動） -->
     <div class="d-flex gap-1" id="bank_filter_btns" style="overflow-x:auto;white-space:nowrap;padding-bottom:4px">
@@ -4505,48 +4505,110 @@ function renderBankInitDisplay() {
     </div>`).join("");
 }
 
-function showBankEditModal() {
-  const banks = ["合庫","玉山","國泰","中信"];
-  const fields = banks.map(b => `
-    <div class="mb-3">
-      <label class="form-label fw-semibold">${b}</label>
-      <input type="number" class="form-control" id="bedit_${b}" value="${BANK_INIT[b]||0}" min="0">
-    </div>`).join("");
-  const existing = document.getElementById("beditOverlay");
-  if(existing) existing.remove();
-  document.body.insertAdjacentHTML("beforeend", `
-    <div style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;display:flex;align-items:center;justify-content:center" id="beditOverlay">
-      <div style="background:#fff;padding:28px;border-radius:16px;width:320px;max-width:92%">
-        <h5 class="fw-bold mb-3"><i class="bi bi-bank me-2"></i>修改起始餘額</h5>
-        ${fields}
-        <div class="d-flex gap-2 mt-2">
-          <button class="btn btn-outline-secondary flex-grow-1" onclick="document.getElementById('beditOverlay').remove()">取消</button>
-          <button class="btn btn-pink flex-grow-1 fw-bold" onclick="saveBankEdit()">儲存</button>
+// ── 結帳餘額 ─────────────────────────────────────────────
+async function showBankBalanceModal() {
+  const today    = _fmtDate(new Date());
+  const defDate  = _getPrevDate(today);
+  document.getElementById('bankBalOverlay')?.remove();
+  const banks = ['合庫','玉山','國泰','中信'];
+  document.body.insertAdjacentHTML('beforeend', `
+    <div style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;display:flex;align-items:center;justify-content:center" id="bankBalOverlay">
+      <div style="background:#fff;padding:24px;border-radius:16px;width:340px;max-width:94%;max-height:90vh;overflow-y:auto">
+        <h5 class="fw-bold mb-3"><i class="bi bi-bank me-2"></i>結帳餘額</h5>
+        <div class="mb-3">
+          <label class="form-label fw-semibold small">結帳日期</label>
+          <input type="date" class="form-control" id="bbal_date" value="${defDate}">
+          <div class="form-text">此日期的收盤 = 隔天的開盤</div>
+        </div>
+        ${banks.map(b=>`
+        <div class="mb-2">
+          <label class="form-label fw-semibold small mb-1">${b}</label>
+          <input type="number" class="form-control" id="bbal_${b}" value="0" min="0">
+        </div>`).join('')}
+        <div id="bbal_hint" class="text-muted small mt-1 mb-2"></div>
+        <div class="d-flex gap-2 mt-3">
+          <button class="btn btn-outline-secondary flex-grow-1" onclick="document.getElementById('bankBalOverlay').remove()">取消</button>
+          <button class="btn btn-pink flex-grow-1 fw-bold" onclick="saveBankBalance()">確認儲存</button>
         </div>
       </div>
     </div>`);
+  // 日期變更時重新載入
+  document.getElementById('bbal_date').addEventListener('change', e => loadBankBalForDate(e.target.value));
+  await loadBankBalForDate(defDate);
 }
 
-async function saveBankEdit() {
-  ["合庫","玉山","國泰","中信"].forEach(b => {
-    const val = parseInt(document.getElementById("bedit_"+b)?.value)||0;
-    BANK_INIT[b] = val;
+async function loadBankBalForDate(dateStr) {
+  if(!dateStr) return;
+  const hint  = document.getElementById('bbal_hint');
+  const banks = ['合庫','玉山','國泰','中信'];
+  if(hint) hint.textContent = '載入中…';
+
+  const { data: co } = await _supa.from('daily_checkout')
+    .select('bank_balances_json').eq('date', dateStr).maybeSingle();
+
+  if(co?.bank_balances_json) {
+    // 已有確認收盤：直接帶入
+    const bal = JSON.parse(co.bank_balances_json);
+    banks.forEach(b => { const el = document.getElementById('bbal_'+b); if(el) el.value = bal[b]??0; });
+    if(hint) hint.textContent = `已載入 ${dateStr} 的確認收盤餘額`;
+    return;
+  }
+
+  // 無確認值：自動計算（前一天收盤 + 當日交易）
+  const prevDate = _getPrevDate(dateStr);
+  const { data: prevCo } = await _supa.from('daily_checkout')
+    .select('bank_balances_json').eq('date', prevDate).maybeSingle();
+  const startBal = {};
+  const today = _fmtDate(new Date());
+  if(prevCo?.bank_balances_json) {
+    Object.assign(startBal, JSON.parse(prevCo.bank_balances_json));
+  } else {
+    banks.forEach(b => { startBal[b] = (dateStr === today ? BANK_INIT[b] : 0)||0; });
+  }
+  const { data: txRows } = await _supa.from('transactions')
+    .select('bank,label,amount,note').eq('date', dateStr);
+  const flow = {};
+  banks.forEach(b => { flow[b] = {in:0, out:0}; });
+  (txRows||[]).forEach(r => {
+    if(!banks.includes(r.bank)) return;
+    const lbl = r.label||'';
+    if(lbl==='買方'||lbl==='記帳'||lbl==='其他收入') flow[r.bank].in  += (r.amount||0);
+    if(lbl==='賣方'||lbl==='其他支出') {
+      flow[r.bank].out += (r.amount||0);
+      const fm = r.note?.match(/手續費(\d+)元/);
+      if(fm) flow[r.bank].out += parseInt(fm[1]);
+    }
   });
-  document.getElementById("beditOverlay")?.remove();
-  await syncBankBalances();
-  // 同時更新昨日結帳快照，讓其他裝置的跨日驗證也讀到修正後的值
-  // （_crossDayValidated 旗標已防止當日重整時被蓋回，此處安全）
-  const _todayStr2 = _fmtDate(new Date());
-  const _prevDate2 = _getPrevDate(_todayStr2);
-  const _overrideJson = {};
-  BANK_STAT_NAMES.forEach(b => { _overrideJson[b] = BANK_INIT[b]||0; });
+  banks.forEach(b => {
+    const el = document.getElementById('bbal_'+b);
+    if(el) el.value = (startBal[b]||0) + (flow[b]?.in||0) - (flow[b]?.out||0);
+  });
+  if(hint) hint.textContent = `${dateStr} 尚無確認餘額，已帶入系統計算值，可自行調整`;
+}
+
+async function saveBankBalance() {
+  const dateStr = document.getElementById('bbal_date')?.value;
+  if(!dateStr) return;
+  const banks = ['合庫','玉山','國泰','中信'];
+  const bal   = {};
+  banks.forEach(b => { bal[b] = parseInt(document.getElementById('bbal_'+b)?.value)||0; });
+
+  // 寫入 daily_checkout.bank_balances_json（upsert，無紀錄就新增）
   await _supa.from('daily_checkout')
-    .update({ bank_balances_json: JSON.stringify(_overrideJson) })
-    .eq('date', _prevDate2).catch(()=>{});
-  // 標記跨日驗證已完成，本次頁面不再用快照蓋回
-  _crossDayValidated = true;
-  renderBankInitDisplay();
-  renderBankPage();
+    .upsert({ date: dateStr, bank_balances_json: JSON.stringify(bal) }, { onConflict:'date' });
+
+  // 若選的是昨天，同步更新今日 BANK_INIT 和 bank_balances
+  const yesterday = _getPrevDate(_fmtDate(new Date()));
+  if(dateStr === yesterday) {
+    banks.forEach(b => { BANK_INIT[b] = bal[b]; });
+    await syncBankBalances();
+    _crossDayValidated = true;
+    renderBankInitDisplay();
+    renderBankPage();
+  }
+  document.getElementById('bankBalOverlay')?.remove();
+  const label = dateStr === yesterday ? '今日開盤餘額已同步更新' : `${dateStr} 結帳餘額已儲存`;
+  alert('✅ ' + label);
 }
 
 let _boaFee = 0;
