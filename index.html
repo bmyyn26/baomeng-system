@@ -4518,7 +4518,7 @@ async function showBankBalanceModal() {
         <div class="mb-3">
           <label class="form-label fw-semibold small">結帳日期</label>
           <input type="date" class="form-control" id="bbal_date" value="${defDate}">
-          <div class="form-text">此日期的收盤 = 隔天的開盤</div>
+          <div class="form-text">此日期的結帳餘額 = 隔天的初始餘額</div>
         </div>
         ${banks.map(b=>`
         <div class="mb-2">
@@ -4550,7 +4550,7 @@ async function loadBankBalForDate(dateStr) {
     // 已有確認收盤：直接帶入
     const bal = JSON.parse(co.bank_balances_json);
     banks.forEach(b => { const el = document.getElementById('bbal_'+b); if(el) el.value = bal[b]??0; });
-    if(hint) hint.textContent = `已載入 ${dateStr} 的確認收盤餘額`;
+    if(hint) hint.textContent = `已載入 ${dateStr} 的結帳餘額`;
     return;
   }
 
@@ -4583,7 +4583,7 @@ async function loadBankBalForDate(dateStr) {
     const el = document.getElementById('bbal_'+b);
     if(el) el.value = (startBal[b]||0) + (flow[b]?.in||0) - (flow[b]?.out||0);
   });
-  if(hint) hint.textContent = `${dateStr} 尚無確認餘額，已帶入系統計算值，可自行調整`;
+  if(hint) hint.textContent = `${dateStr} 尚無結帳餘額，已帶入系統計算值，可自行調整`;
 }
 
 async function saveBankBalance() {
@@ -4607,7 +4607,7 @@ async function saveBankBalance() {
     renderBankPage();
   }
   document.getElementById('bankBalOverlay')?.remove();
-  const label = dateStr === yesterday ? '今日開盤餘額已同步更新' : `${dateStr} 結帳餘額已儲存`;
+  const label = dateStr === yesterday ? '今日初始餘額已同步更新' : `${dateStr} 結帳餘額已儲存`;
   alert('✅ ' + label);
 }
 
