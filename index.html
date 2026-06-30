@@ -2392,9 +2392,7 @@ async function export9188(type) {
     const buyData = data.filter(r => r.bank === "合庫" || r.bank === "玉山");
     const headerRow = ["買方自訂單號(虛擬帳號)","會員暱稱","交易金額","商品編號","手機","客戶銀行帳號","商店收款銀行"];
     const dataRows = buyData.map(r => {
-      const cust  = CUSTOMERS.find(c => c.暱稱 && c.暱稱.includes(r.nickname));
-      const phone = cust ? (cust.電話 && cust.電話[0] ? cust.電話[0] : "") : "";
-      return [r.order_no||"", r.nickname||"", r.amount||0, 7419, phone, r.bank_account||"", r.bank||""];
+      return [r.order_no||"", r.nickname||"", r.amount||0, 7419, "", r.bank_account||"", r.bank||""];
     });
     wsData   = [descRow, headerRow, ...dataRows];
     fileName = `9188買方_${fromVal}_${toVal}.xls`;
