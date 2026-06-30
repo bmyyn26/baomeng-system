@@ -2357,25 +2357,21 @@ async function export9188(type) {
 
   if (type === 'sell') {
     const descRow = [
+      "非必填\n系統自動帶入賣方交易單號",
       "必填\n使用已建好的會員資料避免重覆建檔問題，注意會員需要有建立暱稱",
       "必填\n只填商品數量，交易金額由系統計算，以免輸入錯誤，換算後金額不得小於80元整!",
       "必填\n填已建好的商品編號以免有商品名稱修改問題",
       "非必填\n09開頭10碼數字並加入\";\"在結尾",
       "非必填\n輸入為3碼銀行代碼-帳號 除了分隔線外都是數字",
       "必填\n商家自訂的銀行帳戶",
-      "非必填\n空白則為0,數字可填0~30\n",
-      "系統欄位（暱稱）",
-      "系統欄位（金額）"
+      "非必填\n空白則為0,數字可填0~30\n"
     ];
     const sellData = data.filter(r => r.bank === "合庫");
-    const headerRow = ["會員編號","商品數量","商品編號","手機","客戶銀行帳號","商店支出銀行","銀行轉出手續費","暱稱","金額"];
+    const headerRow = ["賣方交易單號","會員編號","商品數量","商品編號","手機","客戶銀行帳號","商店支出銀行","銀行轉出手續費"];
     const dataRows = sellData.map(r => {
-      const cust  = CUSTOMERS.find(c => c.暱稱 && c.暱稱.includes(r.nickname));
-      const id    = r.member_id || (cust ? cust['9188編號'] : "") || "";
-      const phone = cust ? (cust.電話 && cust.電話[0] ? cust.電話[0] : "") : "";
-      const feeM  = r.note ? r.note.match(/手續費(\d+)元/) : null;
-      const fee   = feeM ? parseInt(feeM[1]) : 0;
-      return [id, r.diamonds||0, 7419, phone, r.bank_account||"", r.bank||"", fee, r.nickname||"", r.amount||0];
+      const cust = CUSTOMERS.find(c => c.暱稱 && c.暱稱.includes(r.nickname));
+      const id   = r.member_id || (cust ? cust['9188編號'] : "") || "";
+      return [r.order_no||"", id, r.diamonds||0, 7419, "", r.bank_account||"", r.bank||"", ""];
     });
     wsData   = [descRow, headerRow, ...dataRows];
     fileName = `9188賣方建檔_${fromVal}_${toVal}.xls`;
