@@ -801,7 +801,7 @@
           <tr>
             <th>日期</th><th>類型</th><th>暱稱</th>
             <th class="text-end">金額</th><th class="text-end">紅鑽</th>
-            <th>銀行</th><th>時間</th><th>備註</th><th>9188賣方單號A</th><th>9188賣方單號B</th>
+            <th>銀行</th><th>時間</th><th>備註</th><th>9188買方單號</th><th>9188賣方單號A</th><th>9188賣方單號B</th>
           </tr>
         </thead>
         <tbody id="db_tbody"></tbody>
@@ -862,6 +862,33 @@
       </div>
       <div id="exp9188_msg" class="mt-1 small"></div>
       <div id="exportCenter_msg" class="mt-2 small"></div>
+
+      <!-- 匯入 9188 訂單編號 -->
+      <hr class="my-3">
+      <div class="fw-semibold small text-muted mb-2">匯入 9188 訂單編號</div>
+      <div class="d-flex align-items-center gap-2 flex-wrap mb-2">
+        <button class="btn btn-outline-info btn-sm fw-bold" onclick="document.getElementById('import9188File').click()">
+          <i class="bi bi-file-earmark-arrow-up me-1"></i>選取 XLS 檔案
+        </button>
+        <input type="file" id="import9188File" accept=".xls,.xlsx" class="d-none" onchange="preview9188Import(this)">
+      </div>
+      <div class="text-muted small mb-2">上傳 9188 後台匯出的訂單編號表（A欄：9188編號，B欄：自訂單號）</div>
+      <!-- 預覽表格 -->
+      <div id="import9188_preview" class="d-none">
+        <div id="import9188_summary" class="small mb-2"></div>
+        <div style="max-height:300px;overflow-y:auto">
+          <table class="table table-sm table-bordered" style="font-size:12px">
+            <thead class="table-light">
+              <tr><th>寶萌單號</th><th>9188 A單號</th><th>9188 B單號</th><th>狀態</th></tr>
+            </thead>
+            <tbody id="import9188_tbody"></tbody>
+          </table>
+        </div>
+        <button class="btn btn-pink btn-sm fw-bold mt-2" id="import9188_btn" onclick="confirm9188Import()">
+          <i class="bi bi-cloud-upload me-1"></i>確認匯入
+        </button>
+        <span id="import9188_msg" class="small ms-2"></span>
+      </div>
 
       <!-- 匯入轉帳 -->
       <hr class="my-3">
@@ -1384,8 +1411,12 @@
             <button class="btn btn-outline-secondary" type="button" onclick="document.getElementById('ledit_time').value=_fmtTime(new Date().getHours()+':'+String(new Date().getMinutes()).padStart(2,'0'))">現在</button>
           </div>
         </div>
-        <div class="mb-3">
-          <label class="form-label fw-semibold">9188訂單編號</label>
+        <div class="mb-3" id="ledit_buyer_no_row">
+          <label class="form-label fw-semibold">9188訂單編號（買方）</label>
+          <input type="text" class="form-control font-monospace" id="ledit_buyer_no" placeholder="9188買方單號">
+        </div>
+        <div class="mb-3" id="ledit_seller_no_row">
+          <label class="form-label fw-semibold">9188訂單編號（賣方）</label>
           <div class="d-flex gap-2">
             <input type="text" class="form-control font-monospace" id="ledit_seller_no_a" placeholder="A單號"
               onpaste="setTimeout(()=>leditSplitSellerNo(),0)">
@@ -1622,7 +1653,7 @@ async function loadAllData() {
         cvsCode: row.cvs_code || '', giftTime: row.gift_time || '',
         note: row.note || '', time: _fmtTime(row.transaction_time),
         bankAccount: row.bank_account || '', sellerOrderNo: row.seller_order_no || '',
-        _dbId: row.id
+        buyerOrderNo: row.buyer_order_no || '', _dbId: row.id
       });
     });
     buyOrderSeq  = TODAY_LOGS.filter(r=>r.orderNo&&r.orderNo.startsWith('B')).length + 1;
@@ -1796,7 +1827,8 @@ async function updateTransactionDB(log) {
       nickname: log.nickname, amount: log.amount, diamonds: log.diamonds,
       bank: log.bank, cvs_code: log.cvsCode||'', note: log.note,
       transaction_time: log.time||'', date: log.date||'',
-      seller_order_no: log.sellerOrderNo||'', bank_account: log.bankAccount||''
+      seller_order_no: log.sellerOrderNo||'', buyer_order_no: log.buyerOrderNo||'',
+      bank_account: log.bankAccount||''
     }).eq('id', log._dbId);
   } catch(e) { console.warn('updateTransactionDB:', e); }
 }
@@ -2447,6 +2479,121 @@ function exportStorageTransfer() {
   const today = new Date();
   const dateTag = `${today.getFullYear()}${String(today.getMonth()+1).padStart(2,"0")}${String(today.getDate()).padStart(2,"0")}`;
   XLSX.writeFile(wb, `賣方轉帳_${dateTag}.xlsx`);
+}
+
+// ── 匯入 9188 訂單編號 ─────────────────────────────────────────────────
+let _import9188Rows = []; // 暫存待匯入的資料
+
+function preview9188Import(input) {
+  const file = input.files[0];
+  if (!file) return;
+  input.value = '';
+  const reader = new FileReader();
+  reader.onload = async e => {
+    const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+    const sh = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sh, { header: 1, defval: '' });
+
+    // 找出資料列（跳過標題列：第一列若含「自訂單號」或「9188」就跳過）
+    const dataRows = rows.filter((r, i) => {
+      const a = String(r[0] || '').trim();
+      return a && !/9188訂單|自訂單號/.test(a);
+    });
+
+    // 依自訂單號（B欄）分組，收集 9188 編號
+    const groups = {};
+    dataRows.forEach(r => {
+      const no9188 = String(r[0] || '').trim();
+      const bmNo   = String(r[1] || '').trim();
+      if (!bmNo || !no9188) return;
+      if (!groups[bmNo]) groups[bmNo] = [];
+      groups[bmNo].push(no9188);
+    });
+
+    // 查 Supabase 確認每個寶萌單號狀態
+    const bmNos = Object.keys(groups);
+    if (!bmNos.length) {
+      document.getElementById('import9188_msg').innerHTML = '<span class="text-danger">找不到有效資料</span>';
+      return;
+    }
+
+    const { data: dbRows, error } = await _supa.from('transactions')
+      .select('id, order_no, seller_order_no, buyer_order_no')
+      .in('order_no', bmNos);
+
+    if (error) {
+      document.getElementById('import9188_msg').innerHTML = `<span class="text-danger">查詢失敗：${error.message}</span>`;
+      return;
+    }
+
+    const dbMap = {};
+    (dbRows || []).forEach(r => { dbMap[r.order_no] = r; });
+
+    _import9188Rows = [];
+    let canCount = 0, skipCount = 0, notFoundCount = 0;
+
+    const tbody = document.getElementById('import9188_tbody');
+    tbody.innerHTML = bmNos.map(bmNo => {
+      const nos = groups[bmNo];
+      const isBuy = bmNo.startsWith('B');
+      const a = nos[0] || '';
+      const b = !isBuy ? (nos[1] || '') : '';
+      const db = dbMap[bmNo];
+      const existingNo = db ? (isBuy ? db.buyer_order_no : db.seller_order_no) : null;
+      let status, rowCls;
+      if (!db) {
+        status = '<span class="text-danger">找不到交易</span>';
+        rowCls = 'table-danger';
+        notFoundCount++;
+      } else if (existingNo) {
+        status = `<span class="text-warning">已有編號（跳過）</span>`;
+        rowCls = 'table-warning';
+        skipCount++;
+      } else {
+        status = '<span class="text-success">可匯入</span>';
+        rowCls = '';
+        canCount++;
+        _import9188Rows.push({ id: db.id, order_no: bmNo, a, b, isBuy });
+      }
+      const noDisplay = isBuy ? a : `${a}${b ? ' / '+b : ''}`;
+      return `<tr class="${rowCls}"><td class="font-monospace">${bmNo}</td><td class="font-monospace" colspan="2">${noDisplay}</td><td>${status}</td></tr>`;
+    }).join('');
+
+    document.getElementById('import9188_summary').innerHTML =
+      `共 ${bmNos.length} 筆：<span class="text-success fw-bold">${canCount} 筆可匯入</span>` +
+      (skipCount   ? `、<span class="text-warning">${skipCount} 筆已有編號（跳過）</span>` : '') +
+      (notFoundCount ? `、<span class="text-danger">${notFoundCount} 筆找不到交易</span>` : '');
+
+    document.getElementById('import9188_btn').disabled = canCount === 0;
+    document.getElementById('import9188_msg').textContent = '';
+    document.getElementById('import9188_preview').classList.remove('d-none');
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+async function confirm9188Import() {
+  if (!_import9188Rows.length) return;
+  const btn = document.getElementById('import9188_btn');
+  const msg = document.getElementById('import9188_msg');
+  btn.disabled = true;
+  msg.textContent = '匯入中…';
+
+  let ok = 0, fail = 0;
+  for (const row of _import9188Rows) {
+    const updateData = row.isBuy
+      ? { buyer_order_no: row.a }
+      : { seller_order_no: row.b ? `${row.a}|${row.b}` : row.a };
+    const { error } = await _supa.from('transactions')
+      .update(updateData)
+      .eq('id', row.id);
+    if (error) { fail++; console.warn('更新失敗', row.order_no, error.message); }
+    else ok++;
+  }
+
+  msg.innerHTML = ok
+    ? `<span class="text-success">✅ 成功匯入 ${ok} 筆${fail ? `，失敗 ${fail} 筆` : ''}</span>`
+    : `<span class="text-danger">全部失敗，請檢查</span>`;
+  _import9188Rows = [];
 }
 
 // ── 賣方開單：匯入轉帳 XLS（從第3列批次建立訂單）──────────────────────
@@ -3193,6 +3340,12 @@ function editLog(idx) {
     .trim();
   document.getElementById("ledit_date").value = r.date || "";
   document.getElementById("ledit_time").value = r.time || "";
+  const isBuy = (r.type === 'buy');
+  const buyRow  = document.getElementById("ledit_buyer_no_row");
+  const sellRow = document.getElementById("ledit_seller_no_row");
+  if(buyRow)  buyRow.style.display  = isBuy ? '' : 'none';
+  if(sellRow) sellRow.style.display = isBuy ? 'none' : '';
+  document.getElementById("ledit_buyer_no").value = r.buyerOrderNo || '';
   const snParts = (r.sellerOrderNo||'').split('|');
   document.getElementById("ledit_seller_no_a").value = snParts[0]||'';
   document.getElementById("ledit_seller_no_b").value = snParts[1]||'';
@@ -3258,6 +3411,7 @@ function confirmEditLog() {
   const newTime  = document.getElementById("ledit_time").value.trim();
   const newDate  = document.getElementById("ledit_date").value.trim();
   const newCvs   = document.getElementById("ledit_cvs_code").value.trim();
+  const buyerNo  = document.getElementById("ledit_buyer_no").value.trim();
   const selNoA   = document.getElementById("ledit_seller_no_a").value.trim();
   const selNoB   = document.getElementById("ledit_seller_no_b").value.trim();
   const newBankAcc = document.getElementById("ledit_bank_account").value.trim();
@@ -3271,6 +3425,7 @@ function confirmEditLog() {
   r.note     = _leditFee > 0 ? (note ? note + '／手續費' + _leditFee + '元' : '手續費' + _leditFee + '元') : note;
   if(newTime) r.time = newTime;
   if(newDate) r.date = newDate;
+  r.buyerOrderNo  = buyerNo;
   r.sellerOrderNo = [selNoA, selNoB].filter(Boolean).join('|');
   r.bankAccount = newBankAcc;
   updateTransactionDB(r);
@@ -5762,6 +5917,7 @@ function renderDBResults() {
       <td>${r.bank||''}</td>
       <td class="text-muted small" style="white-space:nowrap">${_fmtTransactionTime(r.transaction_time)}</td>
       <td class="text-muted small">${r.note||''}</td>
+      <td class="text-muted small font-monospace">${r.buyer_order_no||''}</td>
       ${(()=>{const p=(r.seller_order_no||'').split('|');return`<td class="text-muted small font-monospace">${p[0]||''}</td><td class="text-muted small font-monospace">${p[1]||''}</td>`})()}</tr>`;
   }).join('');
 }
