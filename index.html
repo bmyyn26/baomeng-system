@@ -754,8 +754,8 @@
         <input type="text" class="form-control" id="db_order_no" placeholder="B/S開頭">
       </div>
       <div class="col-6 col-md-4">
-        <label class="form-label fw-semibold small mb-1">9188編號</label>
-        <input type="text" class="form-control" id="db_member_id" placeholder="">
+        <label class="form-label fw-semibold small mb-1">超商代碼</label>
+        <input type="text" class="form-control" id="db_cvs_code" placeholder="">
       </div>
       <div class="col-6 col-md-3">
         <label class="form-label fw-semibold small mb-1">開始日期</label>
@@ -5639,7 +5639,7 @@ function _fmtTransactionTime(t) {
 function clearDBSearch() {
   document.getElementById('db_nickname').value  = '';
   document.getElementById('db_order_no').value  = '';
-  document.getElementById('db_member_id').value = '';
+  document.getElementById('db_cvs_code').value = '';
   document.getElementById('db_date_from').value = '';
   document.getElementById('db_date_to').value   = '';
   document.getElementById('db_stats')?.classList.add('d-none');
@@ -5655,13 +5655,13 @@ function clearDBSearch() {
 async function searchDB() {
   const nickname=document.getElementById('db_nickname')?.value.trim();
   const orderNo=document.getElementById('db_order_no')?.value.trim();
-  const memberId=document.getElementById('db_member_id')?.value.trim();
+  const cvsCode=document.getElementById('db_cvs_code')?.value.trim();
   const dateFrom=document.getElementById('db_date_from')?.value;
   const dateTo=document.getElementById('db_date_to')?.value;
   let q=_supa.from('transactions').select('*').order('date',{ascending:false}).order('created_at',{ascending:false});
   if(nickname) q=q.ilike('nickname','%'+nickname+'%');
   if(orderNo)  q=q.ilike('order_no','%'+orderNo+'%');
-  if(memberId) q=q.ilike('member_id','%'+memberId+'%');
+  if(cvsCode)  q=q.ilike('cvs_code','%'+cvsCode+'%');
   if(dateFrom) q=q.gte('date',dateFrom);
   if(dateTo)   q=q.lte('date',dateTo);
   const {data,error}=await q;
@@ -5690,15 +5690,59 @@ function renderDBResults() {
   const statsEl=document.getElementById('db_stats');
   if(filtered.length) {
     statsEl.classList.remove('d-none');
-    const g={};
-    filtered.forEach(r=>{
-      if(!g[r.label])g[r.label]={count:0,amount:0,diamonds:0};
-      g[r.label].count++;g[r.label].amount+=parseFloat(r.amount)||0;g[r.label].diamonds+=parseFloat(r.diamonds)||0;
-    });
-    document.getElementById('db_stats_row').innerHTML=Object.entries(g).map(([l,v])=>`
-      <div class="col-6 col-md-3"><div class="card p-2 text-center bg-light">
-        <div class="fw-bold">${l}</div><div class="text-muted small">${v.count} 筆</div>
-        <div class="small">${v.amount} 元 / ${v.diamonds} 顆</div></div></div>`).join('');
+    function _sum(arr){return arr.reduce((a,r)=>({count:a.count+1,amount:a.amount+(parseFloat(r.amount)||0),diamonds:a.diamonds+(parseFloat(r.diamonds)||0)}),{count:0,amount:0,diamonds:0});}
+    function _card(title,titleCls,lines){
+      return `<div class="col-12 col-sm-6 col-md-4"><div class="card p-2">
+        <div class="fw-bold ${titleCls} mb-1" style="font-size:13px">${title}</div>
+        ${lines}</div></div>`;
+    }
+    function _row(label,v,cls){
+      if(!v.count) return '';
+      return `<div class="d-flex justify-content-between align-items-center py-1 border-bottom" style="font-size:12px">
+        <span class="text-muted">${label}</span>
+        <span>${v.count}筆&ensp;<span class="${cls} fw-bold">${v.amount}元</span>&ensp;<span class="text-muted">${v.diamonds}顆</span></span></div>`;
+    }
+    const isWd = r => (r.note||'').includes('寄放領回');
+    const buyCash  = filtered.filter(r => r.label==='買方' && !isWd(r));
+    const sellCash = filtered.filter(r => r.label==='賣方' && !isWd(r));
+    const wdSell   = filtered.filter(r => r.label==='賣方' &&  isWd(r));
+    const wdBuy    = filtered.filter(r => r.label==='買方' &&  isWd(r));
+    const debit    = filtered.filter(r => r.label==='記帳');
+    const repay    = filtered.filter(r => r.label==='還鑽');
+    const storage  = filtered.filter(r => r.label==='寄放');
+
+    let html='';
+    if(buyCash.length){
+      const v=_sum(buyCash);
+      html+=_card('現金買方','text-success',
+        `<div style="font-size:12px" class="py-1">${v.count}筆&ensp;<span class="text-success fw-bold">${v.amount}元</span>&ensp;<span class="text-muted">${v.diamonds}顆</span></div>`);
+    }
+    if(sellCash.length){
+      const v=_sum(sellCash);
+      html+=_card('現金賣方','text-danger',
+        `<div style="font-size:12px" class="py-1">${v.count}筆&ensp;<span class="text-danger fw-bold">${v.amount}元</span>&ensp;<span class="text-muted">${v.diamonds}顆</span></div>`);
+    }
+    if(wdSell.length||wdBuy.length){
+      const vs=_sum(wdSell), vb=_sum(wdBuy);
+      html+=_card('寄放領回','text-primary',
+        `${_row('賣方',vs,'text-danger')}${_row('買方',vb,'text-success')}`);
+    }
+    if(debit.length){
+      const v=_sum(debit);
+      html+=_card('記帳','text-warning',
+        `<div style="font-size:12px" class="py-1">${v.count}筆&ensp;<span class="text-warning fw-bold">${v.amount}元</span>&ensp;<span class="text-muted">${v.diamonds}顆</span></div>`);
+    }
+    if(repay.length){
+      const v=_sum(repay);
+      html+=_card('還鑽','text-secondary',
+        `<div style="font-size:12px" class="py-1">${v.count}筆&ensp;<span class="fw-bold">${v.diamonds}顆</span></div>`);
+    }
+    if(storage.length){
+      const v=_sum(storage);
+      html+=_card('寄放','text-info',
+        `<div style="font-size:12px" class="py-1">${v.count}筆&ensp;<span class="text-info fw-bold">${v.amount}元</span>&ensp;<span class="text-muted">${v.diamonds}顆</span></div>`);
+    }
+    document.getElementById('db_stats_row').innerHTML=html||'';
   } else { statsEl.classList.add('d-none'); }
   const cnt=document.getElementById('db_result_count');
   const emp=document.getElementById('db_empty');
