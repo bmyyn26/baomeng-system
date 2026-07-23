@@ -4352,7 +4352,7 @@ async function loadBankByRange() {
       cvsCode: row.cvs_code||'', giftTime: row.gift_time||'',
       note: row.note||'', time: _fmtTime(row.transaction_time),
       bankAccount: row.bank_account||'', sellerOrderNo: row.seller_order_no||'',
-      _dbId: row.id
+      buyerOrderNo: row.buyer_order_no||'', _dbId: row.id
     });
   });
   renderBankPage();
@@ -4381,7 +4381,7 @@ async function loadLogByDate(dateStr) {
       cvsCode: row.cvs_code||'', giftTime: row.gift_time||'',
       note: row.note||'', time: _fmtTime(row.transaction_time),
       bankAccount: row.bank_account||'', sellerOrderNo: row.seller_order_no||'',
-      _dbId: row.id
+      buyerOrderNo: row.buyer_order_no||'', _dbId: row.id
     });
   });
   renderLog();
