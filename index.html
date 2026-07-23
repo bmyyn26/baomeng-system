@@ -887,6 +887,9 @@
         <button class="btn btn-pink btn-sm fw-bold mt-2" id="import9188_btn" onclick="confirm9188Import()">
           <i class="bi bi-cloud-upload me-1"></i>確認匯入
         </button>
+        <button class="btn btn-outline-secondary btn-sm mt-2 ms-2" onclick="cancel9188Import()">
+          <i class="bi bi-x me-1"></i>取消
+        </button>
         <span id="import9188_msg" class="small ms-2"></span>
       </div>
 
@@ -2569,6 +2572,14 @@ function preview9188Import(input) {
     document.getElementById('import9188_preview').classList.remove('d-none');
   };
   reader.readAsArrayBuffer(file);
+}
+
+function cancel9188Import() {
+  _import9188Rows = [];
+  document.getElementById('import9188_preview').classList.add('d-none');
+  document.getElementById('import9188_tbody').innerHTML = '';
+  document.getElementById('import9188_summary').innerHTML = '';
+  document.getElementById('import9188_msg').textContent = '';
 }
 
 async function confirm9188Import() {
