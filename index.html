@@ -2587,7 +2587,15 @@ async function confirm9188Import() {
       .update(updateData)
       .eq('id', row.id);
     if (error) { fail++; console.warn('更新失敗', row.order_no, error.message); }
-    else ok++;
+    else {
+      ok++;
+      // 同步更新記憶體中的 TODAY_LOGS
+      const mem = TODAY_LOGS.find(t => t._dbId === row.id);
+      if (mem) {
+        if (row.isBuy) mem.buyerOrderNo = row.a;
+        else mem.sellerOrderNo = row.b ? `${row.a}|${row.b}` : row.a;
+      }
+    }
   }
 
   msg.innerHTML = ok
