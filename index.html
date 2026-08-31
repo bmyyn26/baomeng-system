@@ -2815,6 +2815,50 @@ function saveEdit(cid, isBlack) {
   doSearch();
 }
 
+// ── 移回正常會員（二次確認）──────────────────────────
+const _rmConfirm = {};
+function moveToMember(cid) {
+  const btn = document.getElementById("rm-btn-"+cid);
+  if(!_rmConfirm[cid]) {
+    _rmConfirm[cid] = true;
+    btn.innerHTML = "⚠️ 再按一次確認移回";
+    btn.classList.replace("btn-outline-success","btn-success");
+    setTimeout(()=>{
+      if(_rmConfirm[cid]) {
+        delete _rmConfirm[cid];
+        btn.innerHTML = '<i class="bi bi-arrow-left-circle me-1"></i>移回正常會員';
+        btn.classList.replace("btn-success","btn-outline-success");
+      }
+    }, 4000);
+  } else {
+    delete _rmConfirm[cid];
+    const idx = parseInt(cid.split("-").pop());
+    const rec = BLACKLIST.splice(idx, 1)[0];
+    CUSTOMERS.push(rec);
+    moveToMemberDB(rec);
+    doSearch();
+  }
+}
+
+async function moveToMemberDB(rec) {
+  try {
+    if(rec._dbIds && rec._dbIds.length > 0)
+      await _supa.from('blacklist').delete().in('id', rec._dbIds);
+    const maxLen = Math.max(rec.暱稱.length, rec.銀行帳號.length, rec.電話.length, 1);
+    const rows = [];
+    for(let i=0; i<maxLen; i++) {
+      rows.push({ member_type:'會員', id_9188: rec['9188編號']||'無',
+        nickname: rec.暱稱[i]||'', bank_account: rec.銀行帳號[i]?.帳號||'',
+        account_note: rec.銀行帳號[i]?.備註||'',
+        holder_name: i===0?rec.戶名:'', phone: i===0?(rec.電話[0]||''):(rec.電話[i]||''),
+        id_number: i===0?rec.身分證:'', note: i===0?rec.備註:'',
+        note2: i===0?(rec.備註2||''):'' });
+    }
+    const { data } = await _supa.from('members').insert(rows).select();
+    if(data) rec._dbIds = data.map(r => r.id);
+  } catch(e) { console.warn('moveToMemberDB:', e); }
+}
+
 // ── 轉入黑名單（二次確認）────────────────────────────
 const _blConfirm = {};
 function moveToBlacklist(cid) {
@@ -2945,7 +2989,7 @@ function renderCard(c, isBlack) {
       <button class="btn btn-pink flex-grow-1" onclick="saveEdit('${cid}',${isBlack})">
         <i class="bi bi-check-circle me-1"></i>儲存
       </button>
-      ${!isBlack?`<button class="btn btn-outline-danger" id="bl-btn-${cid}" onclick="moveToBlacklist('${cid}')">🚫 轉入黑名單</button>`:""}
+      ${!isBlack?`<button class="btn btn-outline-danger" id="bl-btn-${cid}" onclick="moveToBlacklist('${cid}')">🚫 轉入黑名單</button>`:`<button class="btn btn-outline-success" id="rm-btn-${cid}" onclick="moveToMember('${cid}')"><i class="bi bi-arrow-left-circle me-1"></i>移回正常會員</button>`}
     </div>
   </div>`;
 
