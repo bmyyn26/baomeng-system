@@ -129,15 +129,22 @@
     background:#fff; border-radius:10px;
     box-shadow:0 4px 20px rgba(0,0,0,.2);
     padding:10px 14px;
-    display:flex; align-items:center; gap:10px;
+    display:flex; flex-wrap:wrap; align-items:center; gap:8px;
     font-size:15px; font-weight:600;
-    pointer-events:all;
+    pointer-events:all; max-width:320px;
+  }
+  #nick-popup .np-name {
+    flex:0 0 100%; font-size:14px; font-weight:700;
+    border-bottom:1px solid #eee; padding-bottom:6px; margin-bottom:2px;
   }
   #nick-popup button {
-    background:#d63384; color:#fff; border:none;
-    border-radius:6px; padding:4px 12px;
-    font-size:13px; font-weight:600; cursor:pointer;
+    border:none; border-radius:6px; padding:5px 10px;
+    font-size:12px; font-weight:600; cursor:pointer; flex:1;
   }
+  #nick-popup .np-copy { background:#6c757d; color:#fff; }
+  #nick-popup .np-order { background:#0d6efd; color:#fff; }
+  #nick-popup .np-debit { background:#6c757d; color:#fff; }
+  #nick-popup .np-withdraw { background:#ffc107; color:#000; }
 
   /* ── 底部導覽列 ── */
   #bottom-nav {
@@ -2078,20 +2085,60 @@ async function _storageReorder(srcId, targetId) {
 function copyNicknamePopup(e, nickname) {
   e.stopPropagation();
   document.getElementById('nick-popup')?.remove();
+  const safe = nickname.replace(/'/g,"\\'");
   const popup = document.createElement('div');
   popup.id = 'nick-popup';
-  popup.innerHTML = `<span>${nickname}</span><button onclick="navigator.clipboard.writeText('${nickname.replace(/'/g,"\\'")}').then(()=>{this.textContent='✓ 已複製';setTimeout(()=>document.getElementById('nick-popup')?.remove(),800)})">複製</button>`;
+  popup.innerHTML = `
+    <div class="np-name">${nickname}</div>
+    <button class="np-copy"   onclick="navigator.clipboard.writeText('${safe}').then(()=>{this.textContent='✓ 已複製';setTimeout(()=>document.getElementById('nick-popup')?.remove(),800)})">複製</button>
+    <button class="np-order"  onclick="nickPopupAction('order','${safe}')">開單</button>
+    <button class="np-debit"  onclick="nickPopupAction('debit','${safe}')">記帳</button>
+    <button class="np-withdraw" onclick="nickPopupAction('withdraw','${safe}')">領回</button>`;
   document.body.appendChild(popup);
-  // 定位在點擊位置附近
-  const x = Math.min(e.clientX, window.innerWidth - 180);
-  const y = e.clientY - 60;
+  const x = Math.min(e.clientX, window.innerWidth - 220);
+  const y = e.clientY - 20;
   popup.style.left = Math.max(8, x) + 'px';
   popup.style.top  = Math.max(8, y) + 'px';
-  // 點其他地方關閉
   setTimeout(() => document.addEventListener('click', function h() {
     document.getElementById('nick-popup')?.remove();
     document.removeEventListener('click', h);
   }), 50);
+}
+
+function nickPopupAction(action, nickname) {
+  document.getElementById('nick-popup')?.remove();
+  if(action === 'order') {
+    openOrderDrawer();
+    setTimeout(() => {
+      const el = document.getElementById('buyer_nickname');
+      if(el) { el.value = nickname; el.dispatchEvent(new Event('input')); }
+    }, 150);
+  } else if(action === 'debit') {
+    showPage('storage');
+    setTimeout(() => {
+      storageAction('debit');
+      setTimeout(() => {
+        const el = document.getElementById('sm_nickname');
+        if(el) { el.value = nickname; el.dispatchEvent(new Event('input')); }
+      }, 100);
+    }, 100);
+  } else if(action === 'withdraw') {
+    showPage('storage');
+    setTimeout(() => {
+      // 找符合暱稱的 storage 行
+      const matches = STORAGE_DATA.filter(r => r.nickname === nickname);
+      if(matches.length === 1) {
+        // 自動勾選
+        const cb = document.querySelector(`#storage_tbody input[type=checkbox][data-id="${matches[0].id}"]`);
+        if(cb && !cb.checked) cb.click();
+        storageAction('withdraw');
+      } else if(matches.length > 1) {
+        alert(`「${nickname}」有多筆寄放紀錄，請手動勾選後再點領回`);
+      } else {
+        alert(`找不到「${nickname}」的寄放紀錄`);
+      }
+    }, 200);
+  }
 }
 
 function toggleBottomMore(force) {
