@@ -581,16 +581,19 @@
   <div class="card p-3 mb-3">
     <div class="d-flex justify-content-between align-items-center" style="cursor:pointer" onclick="toggleAddMember()">
       <h5 class="fw-bold mb-0"><i class="bi bi-person-plus me-2 text-pink" style="color:#d63384"></i>新增會員</h5>
-      <i class="bi bi-chevron-down text-muted" id="add-member-chevron"></i>
+      <div class="d-flex align-items-center gap-2">
+        <button class="btn btn-sm btn-outline-secondary py-0 px-2" type="button" onclick="event.stopPropagation();clearNewMemberForm()" title="清除所有欄位"><i class="bi bi-x-lg"></i> 清除</button>
+        <i class="bi bi-chevron-down text-muted" id="add-member-chevron"></i>
+      </div>
     </div>
     <div id="add-member-form" class="d-none mt-3">
       <!-- 快速建立 -->
       <div class="mb-3 p-3 rounded" style="background:#fff3cd;">
         <label class="form-label fw-semibold mb-1">⚡ 快速建立會員</label>
-        <div class="input-group">
-          <input type="text" class="form-control" id="nm_quick_input"
-            placeholder="">
-          <button class="btn btn-warning fw-bold" type="button" onclick="quickFillMember()">帶入</button>
+        <div class="d-flex gap-2 align-items-start">
+          <textarea class="form-control font-monospace" id="nm_quick_input" rows="5"
+            placeholder="第一行：9188編號&#10;第二行：暱稱&#10;第三行：銀行帳號&#10;第四行：戶名&#10;第五行：電話" style="resize:vertical;font-size:13px;"></textarea>
+          <button class="btn btn-warning fw-bold flex-shrink-0" type="button" onclick="quickFillMember()">帶入</button>
         </div>
       </div>
       <div id="nm_blacklist_warning" class="alert alert-danger d-none mb-3">
@@ -643,6 +646,9 @@
         <button class="btn btn-pink flex-grow-1 fw-bold" onclick="submitNewMember(false)">
           <i class="bi bi-person-check me-1"></i>建立會員
         </button>
+        <button class="btn btn-outline-info btn-sm px-3" onclick="quickSearchMember()" title="反查已建立的會員及黑名單">
+          <i class="bi bi-search me-1"></i>反查
+        </button>
         <button class="btn btn-outline-danger btn-sm px-3" onclick="submitNewMember(true)" title="直接加入黑名單">
           <i class="bi bi-slash-circle me-1"></i>加入黑名單
         </button>
@@ -654,6 +660,7 @@
     <h5 class="fw-bold mb-3"><i class="bi bi-search me-2"></i>客戶查詢 / 黑名單反查</h5>
     <div class="input-group">
       <input type="text" class="form-control form-control-lg" id="searchInput" placeholder="暱稱、9188編號、姓名、電話、銀行帳號、身分證" autocomplete="off">
+      <button class="btn btn-outline-secondary px-3" type="button" onclick="clearSearch()" title="清除搜尋"><i class="bi bi-x-lg"></i></button>
       <button class="btn btn-pink px-4" onclick="doSearch()"><i class="bi bi-search"></i></button>
     </div>
     <div class="form-text text-muted mt-1">黑名單與一般會員一起搜尋，黑名單會顯示紅色警示</div>
@@ -6091,18 +6098,86 @@ function toggleAddMember() {
   }
 }
 
-// 快速帶入格式：9188編號\t戶名\t暱稱\t(略過)\t電話\t銀行帳號
+// 快速帶入格式（每行一個欄位）：
+// 第1行：>【9188編號】（自動去除符號）
+// 第2行：暱稱
+// 第3行：銀行帳號
+// 第4行：戶名
+// 第5行：電話
 function quickFillMember() {
   const raw = document.getElementById('nm_quick_input')?.value.trim();
   if(!raw) return;
-  const parts = raw.split(/\t|　/).map(s => s.trim());
-  const set = (id, val) => { const el=document.getElementById(id); if(el && val) el.value=val; };
-  set('nm_9188',     parts[0] || '');
-  set('nm_name',     parts[1] || '');
-  set('nm_nickname', parts[2] || '');
-  set('nm_phone',    parts[4] || '');
-  set('nm_bank',     parts[5] || '');
+  const lines = raw.split(/\r?\n/).map(s => s.trim()).filter(s => s !== '');
+  const set = (id, val) => { const el=document.getElementById(id); if(el !== null) el.value=val||''; };
+  // 第1行：去掉 >【】等符號，只保留英數字
+  const id9188 = (lines[0]||'').replace(/[^A-Za-z0-9]/g, '');
+  set('nm_9188',     id9188);
+  set('nm_nickname', lines[1] || '');
+  set('nm_bank',     lines[2] || '');
+  set('nm_name',     lines[3] || '');
+  set('nm_phone',    lines[4] || '');
   checkNmBlacklist && checkNmBlacklist();
+}
+
+// 清除新增會員表單
+function clearNewMemberForm() {
+  const ids = ['nm_quick_input','nm_9188','nm_nickname','nm_bank','nm_bank_note','nm_name','nm_phone','nm_id','nm_note'];
+  ids.forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  const warn = document.getElementById('nm_blacklist_warning');
+  if(warn) warn.classList.add('d-none');
+  const res = document.getElementById('nm_result');
+  if(res) res.classList.add('d-none');
+}
+
+// 清除客戶查詢
+function clearSearch() {
+  const inp = document.getElementById('searchInput');
+  if(inp) inp.value='';
+  document.getElementById('search_results_section')?.classList.add('d-none');
+  document.getElementById('no_result')?.classList.add('d-none');
+}
+
+// 反查：用已填入的欄位搜尋所有會員及黑名單
+function quickSearchMember() {
+  const id9188   = (document.getElementById("nm_9188")?.value||"").trim().toLowerCase();
+  const nickname = (document.getElementById("nm_nickname")?.value||"").trim().toLowerCase();
+  const bank     = (document.getElementById("nm_bank")?.value||"").trim().toLowerCase();
+  const holderName = (document.getElementById("nm_name")?.value||"").trim().toLowerCase();
+  const phone    = (document.getElementById("nm_phone")?.value||"").trim().toLowerCase();
+
+  const keywords = [id9188, nickname, bank, holderName, phone].filter(k => k.length > 0);
+  if(keywords.length === 0) { alert("請先填入會員資訊再反查"); return; }
+
+  function matchAny(c) {
+    return keywords.some(q =>
+      matchArr(c.暱稱, q) ||
+      (c["9188編號"]||"").toLowerCase().includes(q) ||
+      matchArr(c.電話, q) ||
+      (c.身分證||"").toLowerCase().includes(q) ||
+      matchArr(c.銀行帳號, q) ||
+      (c.戶名||"").toLowerCase().includes(q)
+    );
+  }
+
+  const matchCustomers = CUSTOMERS.filter(matchAny);
+  const matchBlacklist = BLACKLIST.filter(matchAny);
+  const allResults = [
+    ...matchBlacklist.map(c => ({...c, _black:true})),
+    ...matchCustomers.map(c => ({...c, _black:false})),
+  ];
+
+  const resSec = document.getElementById("search_results_section");
+  const noRes  = document.getElementById("no_result");
+  if(allResults.length === 0) {
+    resSec.classList.add("d-none");
+    noRes.classList.remove("d-none");
+  } else {
+    resSec.classList.remove("d-none");
+    noRes.classList.add("d-none");
+    document.getElementById("search_results").innerHTML = allResults.map(c=>renderCard(c, c._black)).join("");
+  }
+  // 捲動到反查結果
+  (allResults.length > 0 ? resSec : noRes).scrollIntoView({behavior:"smooth", block:"start"});
 }
 
 function genNoId() {
