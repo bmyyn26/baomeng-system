@@ -3261,6 +3261,7 @@ function checkNmBlacklist() {
 function submitNewMember(addToBlacklist) {
   const nickname = document.getElementById("nm_nickname").value.trim();
   const resultEl = document.getElementById("nm_result");
+  if(!addToBlacklist && !_nmSearchDone) { showMsg(resultEl, false, "請先按「反查」確認無重複後再建立"); return; }
   if(!nickname) { showMsg(resultEl, false, "請填寫暱稱"); return; }
 
   if(!addToBlacklist) {
@@ -6117,6 +6118,18 @@ function quickFillMember() {
   set('nm_name',     lines[3] || '');
   set('nm_phone',    lines[4] || '');
   checkNmBlacklist && checkNmBlacklist();
+  _setNmSearchDone(false);
+}
+
+// 反查旗標：必須先按反查才能建立會員
+let _nmSearchDone = false;
+function _setNmSearchDone(val) {
+  _nmSearchDone = val;
+  const btn = document.querySelector('button[onclick="submitNewMember(false)"]');
+  if(btn) {
+    btn.disabled = !val;
+    btn.title = val ? '' : '請先按「反查」確認無重複後再建立';
+  }
 }
 
 // 清除新增會員表單
@@ -6127,6 +6140,7 @@ function clearNewMemberForm() {
   if(warn) warn.classList.add('d-none');
   const res = document.getElementById('nm_result');
   if(res) res.classList.add('d-none');
+  _setNmSearchDone(false);
 }
 
 // 清除客戶查詢
@@ -6178,6 +6192,8 @@ function quickSearchMember() {
   }
   // 捲動到反查結果
   (allResults.length > 0 ? resSec : noRes).scrollIntoView({behavior:"smooth", block:"start"});
+  // 解鎖建立會員
+  _setNmSearchDone(true);
 }
 
 function genNoId() {
