@@ -3011,11 +3011,11 @@ function renderCard(c, isBlack) {
     <hr class="my-2">
     <div class="small">
       <div class="mb-1"><b>9188編號：</b>${c["9188編號"]||"—"}${copyBtn(c["9188編號"])}</div>
+      <div class="mb-1"><b>銀行帳號：</b>${bankView}</div>
+      <div class="mb-1"><b>戶名：</b>${c.戶名||"—"}</div>
       <div class="mb-1"><b>電話：</b>${phoneView}</div>
       <div class="mb-1"><b>身分證：</b>${c.身分證||"—"}</div>
-      <div class="mb-1"><b>戶名：</b>${c.戶名||"—"}</div>
-      <div><b>銀行帳號：</b>${bankView}</div>
-      ${(!isBlack && c.備註)?`<div class="mt-1 text-muted"><b>備註：</b>${c.備註}</div>`:""}
+      ${(!isBlack && c.備註)?`<div class="mb-1 text-muted"><b>備註：</b>${c.備註}</div>`:""}
       <div class="mt-1 text-muted" style="font-size:11px">建立日期：${c.新建日期||"—"}</div>
     </div>
   </div>`;
