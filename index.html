@@ -2131,11 +2131,10 @@ function nickPopupAction(action, nickname) {
     }, 100);
   } else if(action === 'withdraw') {
     showPage('storage');
-    setTimeout(() => {
-      // 找符合暱稱的 storage 行
+    // 等 reloadStorageFromDB 完成後再自動勾選
+    reloadStorageFromDB().then(() => {
       const matches = STORAGE_DATA.filter(r => r.nickname === nickname);
       if(matches.length === 1) {
-        // 自動勾選
         const cb = document.querySelector(`#storage_tbody input[type=checkbox][data-id="${matches[0].id}"]`);
         if(cb && !cb.checked) cb.click();
         storageAction('withdraw');
@@ -2144,7 +2143,7 @@ function nickPopupAction(action, nickname) {
       } else {
         alert(`找不到「${nickname}」的寄放紀錄`);
       }
-    }, 200);
+    });
   }
 }
 
