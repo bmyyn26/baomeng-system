@@ -2957,7 +2957,7 @@ function renderCard(c, isBlack) {
   // 銀行帳號列
   const bankView = c.銀行帳號.length
     ? c.銀行帳號.map(b=>`
-        <div class="mt-1"><b>帳號：</b>${b.帳號}${copyBtn(b.帳號)}
+        <div class="mt-1">${b.帳號}${copyBtn(b.帳號)}
         ${b.備註?`<span class="text-primary ms-1 small">${b.備註}</span>`:""}</div>`).join("")
     : "<span class='text-muted'>—</span>";
 
