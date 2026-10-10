@@ -249,6 +249,7 @@
   <button onclick="showPage('rebate');toggleBottomMore(false)"><i class="bi bi-gem"></i>回分計算</button>
   <button onclick="showPage('checkout');toggleBottomMore(false)"><i class="bi bi-receipt-cutoff"></i>結帳</button>
   <button onclick="showPage('database');toggleBottomMore(false)"><i class="bi bi-database"></i>資料庫</button>
+  <button onclick="bmLogout()"><i class="bi bi-box-arrow-right"></i>登出</button>
 </div>
 
 <!-- ── 左側導覽列 ── -->
@@ -262,6 +263,7 @@
   <button class="sidebar-btn" id="nav-rebate"    onclick="showPage('rebate')"><i class="bi bi-gem"></i><span class="btn-label"> 回分計算</span></button>
   <button class="sidebar-btn" id="nav-checkout"  onclick="showPage('checkout')"><i class="bi bi-receipt-cutoff"></i><span class="btn-label"> 結帳</span></button>
   <button class="sidebar-btn" id="nav-database"  onclick="showPage('database')"><i class="bi bi-database"></i><span class="btn-label"> 資料庫</span></button>
+  <button class="sidebar-btn" id="nav-logout"    onclick="bmLogout()"><i class="bi bi-box-arrow-right"></i><span class="btn-label"> 登出</span></button>
 </nav>
 
 <div class="container py-4">
@@ -1618,7 +1620,10 @@
 // ════════════════════════════════════════
 const SUPABASE_URL = 'https://swleodnzuojaavrzivcv.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_FRN828NmQnE-bO2fP9KZ7A_i3A76-h-';
-const _supa = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// 登入狀態存在 sessionStorage：關掉分頁即登出（與舊版行為相同）
+const _supa = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: { storage: window.sessionStorage, persistSession: true, autoRefreshToken: true }
+});
 
 // ── 載入所有資料 ──────────────────────────────────────────
 async function loadAllData() {
@@ -4305,47 +4310,63 @@ async function repairOrderNumbers() {
 }
 
 // ════════════════════════════════════════
-// 登入驗證（Google 白名單）
+// 登入驗證（Google 登入 → Supabase Auth → 資料庫白名單）
+// 白名單存在 Supabase 的 allowed_users 資料表，由資料庫 RLS 強制執行；
+// 未登入或不在白名單的人，即使拿到金鑰也讀不到任何資料。
 // ════════════════════════════════════════
-const WHITELIST = ['jazz9001@gmail.com', 'admin@bmngcorp.tw', 'wewinn888@gmail.com', 'a0922077760@gmail.com', 'ivy72930@gmail.com', 'yyy898888888@gmail.com'];
+async function _isAllowedUser() {
+  const { data, error } = await _supa.rpc('is_allowed_user');
+  return !error && data === true;
+}
 
-// Google Identity Services 回呼
+function _showLoginError(msg) {
+  const errEl = document.getElementById('login-error');
+  errEl.textContent = msg;
+  errEl.style.display = 'block';
+  document.getElementById('login-loading').style.display = 'none';
+}
+
+// Google Identity Services 回呼：把 Google 憑證交給 Supabase 換取登入身分
 async function handleGoogleSignIn(response) {
   const errEl  = document.getElementById('login-error');
   const loadEl = document.getElementById('login-loading');
   errEl.style.display = 'none';
+  loadEl.style.display = 'block';
   try {
-    // 解析 JWT payload（base64url → base64 轉換）
-    const b64 = response.credential.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');
-    const payload = JSON.parse(atob(b64.padEnd(b64.length + (4 - b64.length%4)%4, '=')));
-    const email = (payload.email || '').toLowerCase();
-    if(!WHITELIST.includes(email)) {
-      errEl.textContent = `❌ ${payload.email} 不在授權名單中，請聯繫管理員。`;
-      errEl.style.display = 'block';
+    const { data, error } = await _supa.auth.signInWithIdToken({
+      provider: 'google',
+      token: response.credential
+    });
+    if(error) { _showLoginError('登入失敗：' + error.message); return; }
+    if(!(await _isAllowedUser())) {
+      const email = data?.user?.email || '';
+      await _supa.auth.signOut();
+      _showLoginError(`❌ ${email} 不在授權名單中，請聯繫管理員。`);
       return;
     }
-    sessionStorage.setItem('bm_auth', email);
-    loadEl.style.display = 'block';
     await loadAllData();
     document.getElementById('login-overlay').style.display = 'none';
     loadEl.style.display = 'none';
   } catch(e) {
-    errEl.textContent = '登入處理失敗，請重新嘗試。';
-    errEl.style.display = 'block';
+    _showLoginError('登入處理失敗，請重新嘗試。');
   }
 }
 
-function checkAuth() {
+async function checkAuth() {
   const overlay = document.getElementById('login-overlay');
-  const cached  = sessionStorage.getItem('bm_auth');
-  if(cached && WHITELIST.includes(cached)) {
-    // 本次 session 已驗證過
+  const { data: { session } } = await _supa.auth.getSession();
+  if(session && await _isAllowedUser()) {
     if(overlay) overlay.style.display = 'none';
     loadAllData();
   } else {
-    // 顯示登入頁，等 Google 回呼
+    if(session) await _supa.auth.signOut();
     if(overlay) overlay.style.display = 'flex';
   }
+}
+
+async function bmLogout() {
+  await _supa.auth.signOut();
+  location.reload();
 }
 
 // ── 時間格式化 ──────────────────────────────────────────────
