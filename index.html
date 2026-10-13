@@ -292,7 +292,7 @@
     <div class="col-12"><h5 class="fw-bold text-secondary mb-1">小算盤</h5></div>
 
     <!-- 買方：台幣 → 紅鑽 -->
-    <div class="col-12 col-sm-6">
+    <div class="col-12 col-sm-6 col-lg-4">
       <div class="card p-3 h-100" style="border-left:4px solid #198754">
         <div class="text-success fw-bold mb-2">買方　台幣 → 紅鑽（× 1.3）</div>
         <!-- 列1：輸入台幣 -->
@@ -314,7 +314,7 @@
     </div>
 
     <!-- 賣方：紅鑽 → 台幣 -->
-    <div class="col-12 col-sm-6">
+    <div class="col-12 col-sm-6 col-lg-4">
       <div class="card p-3 h-100" style="border-left:4px solid #dc3545">
         <div class="text-danger fw-bold mb-2">賣方　紅鑽 → 台幣（÷ 1.44）</div>
         <!-- 列1：輸入紅鑽 -->
@@ -332,6 +332,28 @@
         </div>
         <div id="mini_dia_warn" class="small mt-1 d-none" style="color:#c00">⚠️ 無法換算（含小數）</div>
         <span id="mini_twd_copied" class="text-success small d-none mt-1">已複製！</span>
+      </div>
+    </div>
+
+    <!-- 賣方：台幣 → 紅鑽（同回分計算 C 區，限 500 倍數） -->
+    <div class="col-12 col-sm-6 col-lg-4">
+      <div class="card p-3 h-100" style="border-left:4px solid #dc3545">
+        <div class="text-danger fw-bold mb-2">賣方　台幣 → 紅鑽（× 1.44）</div>
+        <!-- 列1：輸入台幣 -->
+        <div class="input-group input-group-sm mb-2">
+          <span class="input-group-text">台幣</span>
+          <input type="number" class="form-control" id="mini3_twd_in" placeholder="" min="0" step="500" oninput="calcMini3()">
+          <span class="input-group-text">元</span>
+        </div>
+        <!-- 列2：結果 + 複製整句 -->
+        <div class="input-group input-group-sm">
+          <span class="input-group-text">=</span>
+          <input type="text" class="form-control text-center fw-bold" id="mini3_dia_out" placeholder="—" readonly>
+          <span class="input-group-text">顆</span>
+          <button class="btn btn-outline-danger btn-sm" onclick="copyMini3()" title="複製完整句子"><i class="bi bi-clipboard"></i></button>
+        </div>
+        <div id="mini3_warn" class="small mt-1 d-none" style="color:#c00">⚠️ 非500的倍數</div>
+        <span id="mini3_copied" class="text-success small d-none mt-1">已複製！</span>
       </div>
     </div>
   </div>
@@ -2154,9 +2176,8 @@ function nickPopupAction(action, nickname) {
     reloadStorageFromDB().then(() => {
       const matches = STORAGE_DATA.filter(r => r.nickname === nickname);
       if(matches.length === 1) {
-        const cb = document.querySelector(`#storage_tbody input[type=checkbox][data-id="${matches[0].id}"]`);
-        if(cb && !cb.checked) cb.click();
-        storageAction('withdraw');
+        // 直接指定要領回的那一筆，不依賴畫面上的勾選狀態
+        storageAction('withdraw', matches[0].id);
       } else if(matches.length > 1) {
         alert(`「${nickname}」有多筆寄放紀錄，請手動勾選後再點領回`);
       } else {
@@ -3805,9 +3826,13 @@ function showStorageAlert(ok, msg) {
   setTimeout(() => el.classList.add("d-none"), 4000);
 }
 
-function storageAction(action) {
+// 領回目標：開啟領回視窗時就鎖定那一筆的 id，
+// 避免表格在背景重新整理後勾選被清掉，導致按「確認領回」沒反應
+let _withdrawTargetId = null;
+
+function storageAction(action, targetId) {
   currentStorageAction = action;
-  const selectedIds = getSelectedIds();
+  const selectedIds = (targetId != null) ? [targetId] : getSelectedIds();
   const modal = getStorageModal();
   const title = document.getElementById("storageModalTitle");
   const body  = document.getElementById("storageModalBody");
@@ -3882,6 +3907,8 @@ function storageAction(action) {
     if(!selectedIds.length)    { showStorageAlert(false, "請先勾選要領回的資料"); return; }
     if(selectedIds.length > 1) { showStorageAlert(false, "領回每次只能選取一筆"); return; }
     const row = STORAGE_DATA.find(r=>r.id===selectedIds[0]);
+    if(!row) { alert("找不到這筆寄放資料，請重新整理後再試"); return; }
+    _withdrawTargetId = row.id;
     title.textContent = "領回";
     okBtn.textContent = "確認領回"; okBtn.className = "btn btn-warning fw-bold text-dark";
     body.innerHTML = `
@@ -4010,8 +4037,8 @@ function confirmStorageAction() {
     }
 
   } else if(currentStorageAction === "withdraw") {
-    const selectedIds = getSelectedIds();
-    const row = STORAGE_DATA.find(r=>r.id===selectedIds[0]);
+    const row = STORAGE_DATA.find(r=>r.id===_withdrawTargetId);
+    if(!row) { alert("找不到這筆寄放資料（可能已被修改或刪除），請重新整理後再試"); return; }
     const wdAmt = parseInt(document.getElementById("sm_withdraw_amount")?.value)||0;
     if(!wdAmt)            { alert("請填寫領回金額"); return; }
     if(wdAmt > row.amount){ alert(`領回金額不能超過 ${row.amount}`); return; }
@@ -6107,6 +6134,25 @@ function calcMini(dir) {
     const warnEl=document.getElementById('mini_dia_warn');
     if(warnEl) warnEl.classList.toggle('d-none',!hasDec);
   }
+}
+// 首頁：賣方 台幣 → 紅鑽（×1.44，限500倍數，與回分計算 C 區相同）
+function calcMini3() {
+  const v = parseInt(document.getElementById('mini3_twd_in').value) || 0;
+  const out  = document.getElementById('mini3_dia_out');
+  const warn = document.getElementById('mini3_warn');
+  if(v <= 0) { out.value = ''; warn.classList.add('d-none'); return; }
+  const valid = v % 500 === 0;
+  out.value = valid ? Math.round(v * 1.44) : '';
+  warn.classList.toggle('d-none', valid);
+}
+function copyMini3() {
+  const twd = parseInt(document.getElementById('mini3_twd_in').value) || 0;
+  const dia = document.getElementById('mini3_dia_out').value;
+  if(!dia) return;
+  navigator.clipboard.writeText(`${dia}顆=${twd}台`).then(()=>{
+    const el=document.getElementById('mini3_copied');
+    if(el){el.classList.remove('d-none'); setTimeout(()=>el.classList.add('d-none'),1500);}
+  });
 }
 function copyMiniDia() {
   const v=document.getElementById('mini_dia_out').value;
