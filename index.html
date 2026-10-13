@@ -300,6 +300,7 @@
           <span class="input-group-text">台幣</span>
           <input type="number" class="form-control" id="mini_twd_in" placeholder="" min="0" oninput="calcMini('twd')">
           <span class="input-group-text">元</span>
+          <button class="btn btn-outline-secondary btn-sm" onclick="clearMini('buy')" title="清除"><i class="bi bi-x-lg"></i></button>
         </div>
         <!-- 列2：結果 + 複製 -->
         <div class="input-group input-group-sm">
@@ -322,6 +323,7 @@
           <span class="input-group-text">紅鑽</span>
           <input type="number" class="form-control" id="mini_dia_in" placeholder="" min="0" oninput="calcMini('dia')">
           <span class="input-group-text">顆</span>
+          <button class="btn btn-outline-secondary btn-sm" onclick="clearMini('sell')" title="清除"><i class="bi bi-x-lg"></i></button>
         </div>
         <!-- 列2：結果 + 複製整句 -->
         <div class="input-group input-group-sm">
@@ -344,6 +346,7 @@
           <span class="input-group-text">台幣</span>
           <input type="number" class="form-control" id="mini3_twd_in" placeholder="" min="0" step="500" oninput="calcMini3()">
           <span class="input-group-text">元</span>
+          <button class="btn btn-outline-secondary btn-sm" onclick="clearMini('sell500')" title="清除"><i class="bi bi-x-lg"></i></button>
         </div>
         <!-- 列2：結果 + 複製整句 -->
         <div class="input-group input-group-sm">
@@ -6135,6 +6138,21 @@ function calcMini(dir) {
     if(warnEl) warnEl.classList.toggle('d-none',!hasDec);
   }
 }
+// 首頁小算盤：清除單張卡片的輸入與結果，並把游標放回輸入框
+function clearMini(card) {
+  const map = {
+    buy:     { inp:'mini_twd_in',  out:'mini_dia_out',  hide:['mini_twd_warn','mini_dia_copied'] },
+    sell:    { inp:'mini_dia_in',  out:'mini_twd_out',  hide:['mini_dia_warn','mini_twd_copied'] },
+    sell500: { inp:'mini3_twd_in', out:'mini3_dia_out', hide:['mini3_warn','mini3_copied'] }
+  };
+  const c = map[card]; if(!c) return;
+  const inp = document.getElementById(c.inp);
+  inp.value = '';
+  document.getElementById(c.out).value = '';
+  c.hide.forEach(id => document.getElementById(id)?.classList.add('d-none'));
+  inp.focus();
+}
+
 // 首頁：賣方 台幣 → 紅鑽（×1.44，限500倍數，與回分計算 C 區相同）
 function calcMini3() {
   const v = parseInt(document.getElementById('mini3_twd_in').value) || 0;
