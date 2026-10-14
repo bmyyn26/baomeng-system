@@ -277,7 +277,7 @@
   <button class="sidebar-btn" id="nav-rebate"    onclick="showPage('rebate')"><i class="bi bi-gem"></i><span class="btn-label"> 回分計算</span></button>
   <button class="sidebar-btn" id="nav-checkout"  onclick="showPage('checkout')"><i class="bi bi-receipt-cutoff"></i><span class="btn-label"> 結帳</span></button>
   <button class="sidebar-btn" id="nav-database"  onclick="showPage('database')"><i class="bi bi-database"></i><span class="btn-label"> 資料庫</span></button>
-  <button class="sidebar-btn" id="nav-logout"    onclick="bmLogout()"><i class="bi bi-box-arrow-right"></i><span class="btn-label"> 登出</span></button>
+  <button class="sidebar-btn" id="nav-logout"    onclick="bmLogout()" style="margin-top:auto;border-top:1px solid rgba(255,255,255,.25);opacity:.85"><i class="bi bi-box-arrow-right"></i><span class="btn-label"> 登出</span></button>
 </nav>
 
 <div class="container py-4">
@@ -4417,6 +4417,7 @@ async function checkAuth() {
 }
 
 async function bmLogout() {
+  if(!confirm('確定要登出嗎？')) return;
   await _supa.auth.signOut();
   location.reload();
 }
