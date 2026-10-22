@@ -800,15 +800,19 @@
   <div class="card p-3 mb-3">
     <h5 class="fw-bold mb-3"><i class="bi bi-database me-2 text-primary"></i>歷史交易查詢</h5>
     <div class="row g-2 mb-2">
-      <div class="col-12 col-md-4">
+      <div class="col-6 col-md-3">
         <label class="form-label fw-semibold small mb-1">暱稱</label>
         <input type="text" class="form-control" id="db_nickname" placeholder="">
       </div>
-      <div class="col-6 col-md-4">
+      <div class="col-6 col-md-3">
         <label class="form-label fw-semibold small mb-1">訂單編號</label>
         <input type="text" class="form-control" id="db_order_no" placeholder="B/S開頭">
       </div>
-      <div class="col-6 col-md-4">
+      <div class="col-6 col-md-3">
+        <label class="form-label fw-semibold small mb-1">9188編號</label>
+        <input type="text" class="form-control" id="db_9188_no" placeholder="買方、賣方皆可">
+      </div>
+      <div class="col-6 col-md-3">
         <label class="form-label fw-semibold small mb-1">超商代碼</label>
         <input type="text" class="form-control" id="db_cvs_code" placeholder="">
       </div>
@@ -5994,6 +5998,7 @@ function clearDBSearch() {
   document.getElementById('db_nickname').value  = '';
   document.getElementById('db_order_no').value  = '';
   document.getElementById('db_cvs_code').value = '';
+  document.getElementById('db_9188_no').value = '';
   document.getElementById('db_date_from').value = '';
   document.getElementById('db_date_to').value   = '';
   document.getElementById('db_stats')?.classList.add('d-none');
@@ -6010,12 +6015,16 @@ async function searchDB() {
   const nickname=document.getElementById('db_nickname')?.value.trim();
   const orderNo=document.getElementById('db_order_no')?.value.trim();
   const cvsCode=document.getElementById('db_cvs_code')?.value.trim();
+  // 9188編號：只保留英數字，避免特殊符號破壞查詢條件
+  const no9188=(document.getElementById('db_9188_no')?.value||'').replace(/[^0-9A-Za-z]/g,'');
   const dateFrom=document.getElementById('db_date_from')?.value;
   const dateTo=document.getElementById('db_date_to')?.value;
   let q=_supa.from('transactions').select('*').order('date',{ascending:false}).order('created_at',{ascending:false});
   if(nickname) q=q.ilike('nickname','%'+nickname+'%');
   if(orderNo)  q=q.ilike('order_no','%'+orderNo+'%');
   if(cvsCode)  q=q.ilike('cvs_code','%'+cvsCode+'%');
+  // 同時比對買方單號與賣方單號（賣方存成 A|B，部分比對即可找到）
+  if(no9188)   q=q.or(`buyer_order_no.ilike.*${no9188}*,seller_order_no.ilike.*${no9188}*`);
   if(dateFrom) q=q.gte('date',dateFrom);
   if(dateTo)   q=q.lte('date',dateTo);
   const {data,error}=await q;
