@@ -2510,7 +2510,9 @@ async function export9188(type) {
     const dataRows = sellData.map(r => {
       const cust = CUSTOMERS.find(c => c.暱稱 && c.暱稱.includes(r.nickname));
       const id   = r.member_id || (cust ? cust['9188編號'] : "") || "";
-      return [id, r.diamonds||0, 7419, "", r.bank_account||"", r.bank||"", "", r.order_no||""];
+      // 商品數量一律由實際轉出的台幣金額換算（×1.44），不採用資料庫存的紅鑽，避免混入寄放紅鑽
+      const qty = (parseFloat(r.amount)||0) > 0 ? Math.round(parseFloat(r.amount) * 1.44) : (r.diamonds||0);
+      return [id, qty, 7419, "", r.bank_account||"", r.bank||"", "", r.order_no||""];
     });
     wsData   = [descRow, headerRow, ...dataRows];
     fileName = `9188賣方建檔_${fromVal}_${toVal}.xls`;
@@ -2747,7 +2749,7 @@ async function importSellerTransfer(input) {
       const insertPromises = [];
       dataRows.forEach((r, i) => {
         const id9188    = String(r[0] || "").trim();
-        const diamonds  = parseInt(r[1]) || 0;
+        const xlsDiamonds = parseInt(r[1]) || 0;
         const bankAcc   = String(r[4] || "").trim();
         const bank      = String(r[5] || "").trim() || selectedSellerPay;
         // 手續費：支援數字、字串"15"、字串"15元"等格式
@@ -2767,7 +2769,14 @@ async function importSellerTransfer(input) {
           rowTime = tm ? String(tm[1]).padStart(2,"0") + ":" + tm[2] : "";
         }
 
-        if (!diamonds) { errors.push(`第${i+3}列：商品數量為空，已略過`); return; }
+        // 金額(r[8]) 是實際轉出的錢，以它為準換算紅鑽（×1.44）。
+        // 舊版直接採用 XLS 的商品數量，若只改了金額沒改商品數量（部分轉帳、拆兩家銀行），紅鑽就會錯。
+        const colAmount = parseInt(r[8]) || 0;
+        const diamonds  = colAmount ? Math.round(colAmount * 1.44) : xlsDiamonds;
+        if (!diamonds) { errors.push(`第${i+3}列：商品數量與金額皆為空，已略過`); return; }
+        if (colAmount && xlsDiamonds && xlsDiamonds !== diamonds) {
+          errors.push(`第${i+3}列 ${String(r[7]||id9188).trim()}：XLS 商品數量 ${xlsDiamonds} 與金額 ${colAmount} 不符，已改用 ${diamonds}顆（${colAmount}×1.44）`);
+        }
 
         // 優先用欄位中的暱稱(r[7])，其次用9188編號查
         const colNickname = String(r[7] || "").trim();
@@ -2776,8 +2785,7 @@ async function importSellerTransfer(input) {
           : CUSTOMERS.find(c => String(c['9188編號']) === id9188);
         const nickname = colNickname || (cust ? (cust.暱稱[0] || id9188) : id9188);
 
-        // 優先用欄位中的金額(r[8])，其次從紅鑽換算
-        const colAmount = parseInt(r[8]) || 0;
+        // 有金額用金額，沒有才從商品數量換算
         const amount = colAmount || Math.round(diamonds / 1.44);
         const feeNote = fee ? `手續費${fee}元` : "";
         const note = [bank + "轉帳", feeNote].filter(Boolean).join("／");
