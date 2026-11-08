@@ -511,7 +511,7 @@
     <!-- 超商代碼（選超商才顯示）-->
     <div class="mb-3 d-none" id="buyer_cvs_row">
       <label class="form-label fw-semibold">超商代碼</label>
-      <input type="text" class="form-control" id="buyer_cvs_code" placeholder="">
+      <input type="text" class="form-control" id="buyer_cvs_code" placeholder="" oninput="stripSpaces(this)">
     </div>
 
     <div class="mb-3" id="buyer_bank_row">
@@ -814,7 +814,7 @@
       </div>
       <div class="col-6 col-md-3">
         <label class="form-label fw-semibold small mb-1">超商代碼</label>
-        <input type="text" class="form-control" id="db_cvs_code" placeholder="">
+        <input type="text" class="form-control" id="db_cvs_code" placeholder="" oninput="stripSpaces(this)">
       </div>
       <div class="col-6 col-md-3">
         <label class="form-label fw-semibold small mb-1">開始日期</label>
@@ -1447,7 +1447,7 @@
         </div>
         <div class="mb-3" id="ledit_cvs_row">
           <label class="form-label fw-semibold">超商代碼</label>
-          <input type="text" class="form-control" id="ledit_cvs_code" placeholder="超商虛擬帳號">
+          <input type="text" class="form-control" id="ledit_cvs_code" placeholder="超商虛擬帳號" oninput="stripSpaces(this)">
         </div>
         <div class="mb-3">
           <label class="form-label fw-semibold">銀行帳號</label>
@@ -2383,7 +2383,7 @@ function submitBuyerOrder(withGift=false) {
   const timeStr = String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0");
   const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
   const diamonds = Math.round(amount * 1.3);
-  const cvsCode  = document.getElementById("buyer_cvs_code").value.trim();
+  const cvsCode  = document.getElementById("buyer_cvs_code").value.replace(/\s+/g,"");
   const note = selectedBuyerPay==="超商" && cvsCode
     ? `超商代碼 ${cvsCode}` : selectedBuyerPay+"匯款";
 
@@ -3590,7 +3590,7 @@ function confirmEditLog() {
   const note     = document.getElementById("ledit_note").value.trim();
   const newTime  = document.getElementById("ledit_time").value.trim();
   const newDate  = document.getElementById("ledit_date").value.trim();
-  const newCvs   = document.getElementById("ledit_cvs_code").value.trim();
+  const newCvs   = document.getElementById("ledit_cvs_code").value.replace(/\s+/g,"");
   const buyerNo  = document.getElementById("ledit_buyer_no").value.trim();
   const selNoA   = document.getElementById("ledit_seller_no_a").value.trim();
   const selNoB   = document.getElementById("ledit_seller_no_b").value.trim();
@@ -6014,7 +6014,7 @@ function clearDBSearch() {
 async function searchDB() {
   const nickname=document.getElementById('db_nickname')?.value.trim();
   const orderNo=document.getElementById('db_order_no')?.value.trim();
-  const cvsCode=document.getElementById('db_cvs_code')?.value.trim();
+  const cvsCode=(document.getElementById('db_cvs_code')?.value||'').replace(/\s+/g,'');
   // 9188編號：只保留英數字，避免特殊符號破壞查詢條件
   const no9188=(document.getElementById('db_9188_no')?.value||'').replace(/[^0-9A-Za-z]/g,'');
   const dateFrom=document.getElementById('db_date_from')?.value;
@@ -6157,6 +6157,16 @@ function calcMini(dir) {
   }
 }
 // 首頁小算盤：清除單張卡片的輸入與結果，並把游標放回輸入框
+// 超商代碼：輸入或貼上時自動移除所有空白（含全形空白），盡量保持游標位置
+function stripSpaces(el) {
+  const v = el.value;
+  if(!/\s/.test(v)) return;
+  const pos = el.selectionStart ?? v.length;
+  const removedBefore = (v.slice(0, pos).match(/\s/g) || []).length;
+  el.value = v.replace(/\s+/g, '');
+  try { el.setSelectionRange(pos - removedBefore, pos - removedBefore); } catch(e) {}
+}
+
 function clearMini(card) {
   const map = {
     buy:     { inp:'mini_twd_in',  out:'mini_dia_out',  hide:['mini_twd_warn','mini_dia_copied'] },
