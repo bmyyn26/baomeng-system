@@ -824,6 +824,13 @@
         <label class="form-label fw-semibold small mb-1">結束日期</label>
         <input type="date" class="form-control" id="db_date_to">
       </div>
+      <div class="col-12 d-flex flex-wrap gap-1 order-md-last" id="db_range_btns">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-months="1"  onclick="setDBRange(1)">1個月內</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-months="2"  onclick="setDBRange(2)">2個月內</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-months="3"  onclick="setDBRange(3)">3個月內</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-months="6"  onclick="setDBRange(6)">半年內</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-months="12" onclick="setDBRange(12)">一年內</button>
+      </div>
       <div class="col-6 col-md-2 d-flex align-items-end">
         <button class="btn btn-pink w-100" onclick="searchDB()">
           <i class="bi bi-search me-1"></i>查詢
@@ -6014,7 +6021,37 @@ function _fmtTransactionTime(t) {
   return t;
 }
 
+// 本地日期 YYYY-MM-DD（不用 toISOString，避免台灣早上 8 點前變成前一天）
+function _localYMD(d) {
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+// 日期快選：開始 = 今天往前 N 個月，結束 = 今天，並直接查詢
+function setDBRange(months) {
+  const to = new Date();
+  const from = new Date(to.getFullYear(), to.getMonth() - months, to.getDate());
+  // 月底對不齊時（例如 3/31 往前 1 個月）JS 會溢位到下個月，退回該月最後一天
+  if (from.getDate() !== to.getDate()) from.setDate(0);
+  document.getElementById('db_date_from').value = _localYMD(from);
+  document.getElementById('db_date_to').value   = _localYMD(to);
+  _markDBRange(months);
+  searchDB();
+}
+
+function _markDBRange(months) {
+  document.querySelectorAll('#db_range_btns button').forEach(b => {
+    const on = Number(b.dataset.months) === months;
+    b.classList.toggle('btn-pink', on);
+    b.classList.toggle('btn-outline-secondary', !on);
+  });
+}
+
+// 手動改日期時取消快選標示
+['db_date_from','db_date_to'].forEach(id =>
+  document.getElementById(id)?.addEventListener('input', () => _markDBRange(null)));
+
 function clearDBSearch() {
+  _markDBRange(null);
   document.getElementById('db_nickname').value  = '';
   document.getElementById('db_order_no').value  = '';
   document.getElementById('db_cvs_code').value = '';
@@ -6039,17 +6076,26 @@ async function searchDB() {
   const no9188=(document.getElementById('db_9188_no')?.value||'').replace(/[^0-9A-Za-z]/g,'');
   const dateFrom=document.getElementById('db_date_from')?.value;
   const dateTo=document.getElementById('db_date_to')?.value;
-  let q=_supa.from('transactions').select('*').order('date',{ascending:false}).order('created_at',{ascending:false});
-  if(nickname) q=q.ilike('nickname','%'+nickname+'%');
-  if(orderNo)  q=q.ilike('order_no','%'+orderNo+'%');
-  if(cvsCode)  q=q.ilike('cvs_code','%'+cvsCode+'%');
-  // 同時比對買方單號與賣方單號（賣方存成 A|B，部分比對即可找到）
-  if(no9188)   q=q.or(`buyer_order_no.ilike.*${no9188}*,seller_order_no.ilike.*${no9188}*`);
-  if(dateFrom) q=q.gte('date',dateFrom);
-  if(dateTo)   q=q.lte('date',dateTo);
-  const {data,error}=await q;
-  if(error){console.warn('searchDB:',error.message);return;}
-  _dbData=data||[]; _dbFilter='all';
+  const buildQ=()=>{
+    let q=_supa.from('transactions').select('*').order('date',{ascending:false}).order('created_at',{ascending:false}).order('id',{ascending:false});
+    if(nickname) q=q.ilike('nickname','%'+nickname+'%');
+    if(orderNo)  q=q.ilike('order_no','%'+orderNo+'%');
+    if(cvsCode)  q=q.ilike('cvs_code','%'+cvsCode+'%');
+    // 同時比對買方單號與賣方單號（賣方存成 A|B，部分比對即可找到）
+    if(no9188)   q=q.or(`buyer_order_no.ilike.*${no9188}*,seller_order_no.ilike.*${no9188}*`);
+    if(dateFrom) q=q.gte('date',dateFrom);
+    if(dateTo)   q=q.lte('date',dateTo);
+    return q;
+  };
+  // 分頁抓取：Supabase 單次上限 1000 筆，長區間（半年/一年）會超過
+  const PAGE=1000; let all=[];
+  for(let page=0;;page++){
+    const {data,error}=await buildQ().range(page*PAGE,(page+1)*PAGE-1);
+    if(error){console.warn('searchDB:',error.message);alert('查詢失敗：'+error.message);return;}
+    all=all.concat(data||[]);
+    if(!data||data.length<PAGE) break;
+  }
+  _dbData=all; _dbFilter='all';
   ['all','buy','sell','debit','repay','storage'].forEach(t=>{
     const btn=document.getElementById('dbf-'+t);
     if(btn){btn.classList.toggle('btn-pink',t==='all');btn.classList.toggle('btn-outline-secondary',t!=='all');}
