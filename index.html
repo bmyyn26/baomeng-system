@@ -6217,13 +6217,16 @@ async function updateDBClass(dateFrom, dateTo) {
 
   // 找出查詢結果屬於哪些客人（依 9188 編號）
   const groups = new Map();
-  [...new Set(_dbData.map(r => r.nickname).filter(Boolean))].forEach(n => {
+  // 只看客人交易；其他收入／其他支出／差額 的暱稱欄是說明文字，不是客人
+  const CUST_LABELS = ['買方','賣方','記帳','還鑽','寄放','領回'];
+  [...new Set(_dbData.filter(r => CUST_LABELS.includes(r.label)).map(r => r.nickname).filter(Boolean))].forEach(n => {
     const f = _findMemberByNick(n);
     const key = f ? 'M:' + f.m['9188編號'] : 'N:' + n;
     if(!groups.has(key)) groups.set(key, f
       ? { id: f.m['9188編號'], nicks: [...f.m.暱稱], black: f.black }
       : { id: '', nicks: [n], black: false });
   });
+  if(groups.size === 0) return;
   if(groups.size !== 1) {
     const names = [...groups.values()].slice(0, 8).map(g => g.nicks[0]).join('、');
     box.innerHTML = `<div class="alert alert-light border small mb-0 py-2">
