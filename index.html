@@ -1471,6 +1471,7 @@
           <li><b>常客</b>：現金買方 + 寄放領回，平均每月 ≥ 10萬，或平均每月 ≥ 10 筆（兩個月 = 20萬 或 20 筆）</li>
           <li><b>買賣比例</b>：(現金賣方 + 寄放未付) ÷ 現金買方。寄放未付是之後要付出去的錢，所以一起算；寄放領回不算。例：3.83 = 每買 1 元就要付回 3.83 元</li>
           <li><b>淨付出</b>：現金賣方 − 現金買方 + 目前寄放未付。正數 = 我們淨付出的錢；負數 = 我們淨收進的錢</li>
+          <li><b>平均單筆轉出</b>：查詢區間內 現金賣方金額 ÷ 現金賣方筆數</li>
           <li><b>利潤參考</b>：(現金買方 + 寄放領回) × 9.72%（買方 1.3、賣方 1.44 的比值差）</li>
           <li>現金買方、現金賣方：備註不含「寄放領回」的買方／賣方交易</li>
         </ul>
@@ -6314,7 +6315,7 @@ async function updateDBClass(dateFrom, dateTo) {
     <div class="dbc-grid">
       ${cell('活躍度', `${Math.round(buy + wd)}元／${buyN + wdN}筆`, `平均每月 ${Math.round((buy + wd) / months)}元／${Math.round((buyN + wdN) / months)}筆<br>${active ? '達常客標準' : `未達常客標準（平均每月${DBC.activeAmtPerMonth / 10000}萬元 或 ${DBC.activeCntPerMonth}筆）`}`)}
       ${cell('買賣比例', ratioTxt, `買方 ${Math.round(buy)}元<br>賣方 ${Math.round(sell)}元${storage > 0 ? `＋寄放 ${Math.round(storage)}元` : ''}`)}
-      ${cell('淨付出', `${Math.round(netOut)}元`, `寄放未付 ${Math.round(storage)}元`)}
+      ${cell('淨付出', `${Math.round(netOut)}元`, `寄放未付 ${Math.round(storage)}元<br>${sellN ? `平均單筆轉出 ${Math.round(sell / sellN)}元（${sellN}筆）` : '區間內無轉出'}`)}
       ${cell('利潤參考', `${profit}元`, debitN ? `記帳 ${debitN} 筆` : '')}
       <div class="dbc-cell dbc-wide text-danger"><span class="fw-bold">建議轉帳方式：</span>${advice}</div>
       ${alertOn ? `<div class="dbc-cell dbc-wide"><i class="bi bi-exclamation-triangle me-1"></i>現金警戒中：銀行起始餘額 ${Math.round(bankTotal)}元，寄放未付總額 ${Math.round(storageTotal)}元，建議放慢付款</div>` : ''}
