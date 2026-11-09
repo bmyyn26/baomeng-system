@@ -6306,7 +6306,7 @@ async function updateDBClass(dateFrom, dateTo) {
       <span class="text-muted small ms-auto">${from} ～ ${to}・約 ${months} 個月${defaulted ? '・未填日期預設近兩個月' : ''}</span>
     </div>
     <div class="dbc-grid">
-      ${cell('活躍度', `${Math.round(buy + wd)}元／${buyN + wdN}筆`, active ? '達常客標準' : `常客標準：${DBC.activeAmtPerMonth * months}元 或 ${DBC.activeCntPerMonth * months}筆`)}
+      ${cell('活躍度', `${Math.round(buy + wd)}元／${buyN + wdN}筆`, `平均每月 ${Math.round((buy + wd) / months)}元／${Math.round((buyN + wdN) / months)}筆<br>${active ? '達常客標準' : `未達常客標準（平均每月${DBC.activeAmtPerMonth / 10000}萬元 或 ${DBC.activeCntPerMonth}筆）`}`)}
       ${cell('買賣比例', ratioTxt, `買方 ${Math.round(buy)}元<br>賣方 ${Math.round(sell)}元`)}
       ${cell('淨付出', `${Math.round(netOut)}元`, `寄放未付 ${Math.round(storage)}元`)}
       ${cell('利潤參考', `${profit}元`, debitN ? `記帳 ${debitN} 筆` : '')}
