@@ -1457,9 +1457,10 @@
           <thead class="table-light"><tr><th style="white-space:nowrap">分類</th><th>條件</th><th style="white-space:nowrap">建議轉帳方式</th></tr></thead>
           <tbody>
             <tr><td><span class="badge bg-warning text-dark">記帳客</span></td><td>查詢區間內有記帳紀錄</td><td>由老闆決定</td></tr>
-            <tr><td><span class="badge bg-danger">回鑽客</span></td><td>買賣比例 2 以上（含只賣不買），且淨付出 ≥ 10萬</td><td>拉長寄放天數，單筆 1～3萬</td></tr>
+            <tr><td><span class="badge bg-danger">回鑽客</span></td><td>買賣比例 2 以上（含只賣不買／只寄放），且淨付出 ≥ 10萬</td><td>拉長寄放天數，單筆 1～3萬</td></tr>
             <tr><td><span class="badge bg-success">優等客</span></td><td>常客，且買賣比例 0.8 以下</td><td>立即結清</td></tr>
             <tr><td><span class="badge bg-primary">平均客</span></td><td>常客，且買賣比例 0.8～1.5</td><td>立即結清</td></tr>
+            <tr><td><span class="badge bg-info text-dark">小額買家</span></td><td>未達常客，有現金買方，且買賣比例 0.8 以下</td><td>立即結清</td></tr>
             <tr><td><span class="badge bg-secondary">一般客</span></td><td>不屬於以上任何一類</td><td>2～3 天轉完</td></tr>
             <tr><td><span class="badge bg-secondary">資料不足</span></td><td>一般客之中，現金買方 + 現金賣方 + 寄放領回 合計 &lt; 5 筆</td><td>比照一般客</td></tr>
           </tbody>
@@ -1468,7 +1469,7 @@
         <div class="fw-bold mb-1">名詞說明</div>
         <ul class="mb-3 ps-3">
           <li><b>常客</b>：現金買方 + 寄放領回，平均每月 ≥ 10萬，或平均每月 ≥ 10 筆（兩個月 = 20萬 或 20 筆）</li>
-          <li><b>買賣比例</b>：現金賣方 ÷ 現金買方（只看現金，不含寄放領回）。例：3.83 = 每買 1 元就賣回 3.83 元</li>
+          <li><b>買賣比例</b>：(現金賣方 + 寄放未付) ÷ 現金買方。寄放未付是之後要付出去的錢，所以一起算；寄放領回不算。例：3.83 = 每買 1 元就要付回 3.83 元</li>
           <li><b>淨付出</b>：現金賣方 − 現金買方 + 目前寄放未付。正數 = 我們淨付出的錢；負數 = 我們淨收進的錢</li>
           <li><b>利潤參考</b>：(現金買方 + 寄放領回) × 9.72%（買方 1.3、賣方 1.44 的比值差）</li>
           <li>現金買方、現金賣方：備註不含「寄放領回」的買方／賣方交易</li>
@@ -6268,21 +6269,23 @@ async function updateDBClass(dateFrom, dateTo) {
   });
   const storage = (stRows||[]).reduce((a, r) => a + num(r.amount), 0);
   const netOut = sell - buy + storage;
-  const ratio = buy > 0 ? sell / buy : null;
+  const out = sell + storage;                    // 賣方 + 寄放未付（未來要付出的也算）
+  const ratio = buy > 0 ? out / buy : null;
   const active = (buy + wd) >= DBC.activeAmtPerMonth * months || (buyN + wdN) >= DBC.activeCntPerMonth * months;
   const profit = Math.round((buy + wd) * DBC.profitRate);
 
   let cat;
   if(debitN > 0) cat = '記帳客';
-  else if(sell > 0 && (buy === 0 || sell >= DBC.ratioBack * buy) && netOut >= DBC.backNetOut) cat = '回鑽客';
-  else if(active && sell <= DBC.ratioGood * buy) cat = '優等客';
-  else if(active && sell <= DBC.ratioAvg * buy) cat = '平均客';
+  else if(out > 0 && (buy === 0 || out >= DBC.ratioBack * buy) && netOut >= DBC.backNetOut) cat = '回鑽客';
+  else if(active && out <= DBC.ratioGood * buy) cat = '優等客';
+  else if(active && out <= DBC.ratioAvg * buy) cat = '平均客';
+  else if(!active && buy > 0 && out <= DBC.ratioGood * buy) cat = '小額買家';
   else if(buyN + sellN + wdN < DBC.minTrades) cat = '資料不足';
   else cat = '一般客';
 
   const badge = { 記帳客:'bg-warning text-dark', 回鑽客:'bg-danger', 資料不足:'bg-secondary',
-                  優等客:'bg-success', 平均客:'bg-primary', 一般客:'bg-secondary' }[cat];
-  let advice = { 記帳客:'由老闆決定', 優等客:'立即結清', 平均客:'立即結清',
+                  優等客:'bg-success', 平均客:'bg-primary', 小額買家:'bg-info text-dark', 一般客:'bg-secondary' }[cat];
+  let advice = { 記帳客:'由老闆決定', 優等客:'立即結清', 平均客:'立即結清', 小額買家:'立即結清',
                  一般客:'2～3 天轉完', 資料不足:'比照一般客：2～3 天轉完' }[cat];
   if(cat === '回鑽客') {
     advice = '拉長寄放天數，單筆 1～3萬';
@@ -6293,7 +6296,7 @@ async function updateDBClass(dateFrom, dateTo) {
   const storageTotal = (stAll||[]).reduce((a, r) => a + num(r.amount), 0);
   const alertOn = bankTotal < DBC.alertFloor || bankTotal < storageTotal * DBC.alertMultiple;
 
-  const ratioTxt = ratio !== null ? ratio.toFixed(2) : (sell > 0 ? '只賣不買' : '—');
+  const ratioTxt = ratio !== null ? ratio.toFixed(2) : (out > 0 ? '只賣不買' : '—');
   const cell = (label, val, sub) => `<div class="dbc-cell"><div class="dbc-lbl">${label}</div>
     <div class="fw-bold">${val}</div>${sub ? `<div class="dbc-sub">${sub}</div>` : ''}</div>`;
 
@@ -6307,7 +6310,7 @@ async function updateDBClass(dateFrom, dateTo) {
     </div>
     <div class="dbc-grid">
       ${cell('活躍度', `${Math.round(buy + wd)}元／${buyN + wdN}筆`, `平均每月 ${Math.round((buy + wd) / months)}元／${Math.round((buyN + wdN) / months)}筆<br>${active ? '達常客標準' : `未達常客標準（平均每月${DBC.activeAmtPerMonth / 10000}萬元 或 ${DBC.activeCntPerMonth}筆）`}`)}
-      ${cell('買賣比例', ratioTxt, `買方 ${Math.round(buy)}元<br>賣方 ${Math.round(sell)}元`)}
+      ${cell('買賣比例', ratioTxt, `買方 ${Math.round(buy)}元<br>賣方 ${Math.round(sell)}元${storage > 0 ? `＋寄放 ${Math.round(storage)}元` : ''}`)}
       ${cell('淨付出', `${Math.round(netOut)}元`, `寄放未付 ${Math.round(storage)}元`)}
       ${cell('利潤參考', `${profit}元`, debitN ? `記帳 ${debitN} 筆` : '')}
       <div class="dbc-cell dbc-wide text-danger"><span class="fw-bold">建議轉帳方式：</span>${advice}</div>
