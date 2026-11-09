@@ -1458,10 +1458,10 @@
           <tbody>
             <tr><td><span class="badge bg-warning text-dark">記帳客</span></td><td>查詢區間內有記帳紀錄</td><td>由老闆決定</td></tr>
             <tr><td><span class="badge bg-danger">回鑽客</span></td><td>買賣比例 2 以上（含只賣不買），且淨付出 ≥ 10萬</td><td>拉長寄放天數，單筆 1～3萬</td></tr>
-            <tr><td><span class="badge bg-light text-dark border">資料不足</span></td><td>現金買方 + 現金賣方 + 寄放領回 合計 &lt; 5 筆</td><td>比照一般客</td></tr>
             <tr><td><span class="badge bg-success">優等客</span></td><td>常客，且買賣比例 0.8 以下</td><td>立即結清</td></tr>
             <tr><td><span class="badge bg-primary">平均客</span></td><td>常客，且買賣比例 0.8～1.5</td><td>立即結清</td></tr>
             <tr><td><span class="badge bg-secondary">一般客</span></td><td>不屬於以上任何一類</td><td>2～3 天轉完</td></tr>
+            <tr><td><span class="badge bg-secondary">資料不足</span></td><td>一般客之中，現金買方 + 現金賣方 + 寄放領回 合計 &lt; 5 筆</td><td>比照一般客</td></tr>
           </tbody>
         </table>
         </div>
@@ -6275,12 +6275,12 @@ async function updateDBClass(dateFrom, dateTo) {
   let cat;
   if(debitN > 0) cat = '記帳客';
   else if(sell > 0 && (buy === 0 || sell >= DBC.ratioBack * buy) && netOut >= DBC.backNetOut) cat = '回鑽客';
-  else if(buyN + sellN + wdN < DBC.minTrades) cat = '資料不足';
   else if(active && sell <= DBC.ratioGood * buy) cat = '優等客';
   else if(active && sell <= DBC.ratioAvg * buy) cat = '平均客';
+  else if(buyN + sellN + wdN < DBC.minTrades) cat = '資料不足';
   else cat = '一般客';
 
-  const badge = { 記帳客:'bg-warning text-dark', 回鑽客:'bg-danger', 資料不足:'bg-light text-dark border',
+  const badge = { 記帳客:'bg-warning text-dark', 回鑽客:'bg-danger', 資料不足:'bg-secondary',
                   優等客:'bg-success', 平均客:'bg-primary', 一般客:'bg-secondary' }[cat];
   let advice = { 記帳客:'由老闆決定', 優等客:'立即結清', 平均客:'立即結清',
                  一般客:'2～3 天轉完', 資料不足:'比照一般客：2～3 天轉完' }[cat];
