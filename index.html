@@ -28,19 +28,22 @@
   .card { border:none; border-radius:14px; box-shadow:0 2px 12px rgba(0,0,0,.08); }
   .btn-pink { background:#d63384; color:#fff; border:none; }
   /* 客人分類卡（歷史交易查詢 → 交易彙總） */
-  .dbc-grid { display:grid; grid-template-columns:repeat(4,1fr); border:1px solid #dee2e6; border-radius:6px; overflow:hidden; font-size:14px; }
-  .dbc-cell { padding:6px 10px; border-right:1px solid #dee2e6; border-bottom:1px solid #dee2e6; min-width:0; }
+  .dbc-grid { display:grid; grid-template-columns:repeat(4,1fr); border:1px solid #dee2e6; border-radius:6px; overflow:hidden; font-size:16px; }
+  .dbc-cell { padding:8px 12px; border-right:1px solid #dee2e6; border-bottom:1px solid #dee2e6; min-width:0; }
   .dbc-cell:nth-child(4n) { border-right:0; }
-  .dbc-lbl { font-size:12px; color:#6c757d; background:#f8f9fa; margin:-6px -10px 4px; padding:3px 10px; border-bottom:1px solid #eef0f2; }
-  .dbc-sub { font-size:11px; color:#6c757d; line-height:1.4; }
-  .dbc-wide { grid-column:1 / -1; border-right:0; font-size:13px; }
+  .dbc-lbl { font-size:14px; color:#6c757d; background:#f8f9fa; margin:-8px -12px 6px; padding:4px 12px; border-bottom:1px solid #eef0f2; }
+  .dbc-sub { font-size:13.5px; color:#6c757d; line-height:1.5; margin-top:2px; }
+  .dbc-val { font-size:19px; font-weight:700; }
+  .dbc-wide { grid-column:1 / -1; border-right:0; font-size:15.5px; }
   .dbc-grid > .dbc-cell:last-child { border-bottom:0; }
   @media (max-width:767px) {
     .dbc-grid { grid-template-columns:1fr 1fr; }
     .dbc-cell:nth-child(4n) { border-right:1px solid #dee2e6; }
     .dbc-cell:nth-child(2n) { border-right:0; }
-    .dbc-cell { padding:6px 8px; }
-    .dbc-lbl { margin:-6px -8px 4px; padding:3px 8px; }
+    .dbc-cell { padding:8px 10px; }
+    .dbc-lbl { margin:-8px -10px 6px; padding:4px 10px; }
+    .dbc-val { font-size:17px; }
+    .dbc-sub { font-size:13px; }
   }
   .btn-pink:hover { background:#b5206e; color:#fff; }
   .order-type-card { cursor:pointer; border-radius:14px; transition:transform .15s,box-shadow .15s; border:2px solid transparent; }
@@ -1460,7 +1463,7 @@
             <tr><td><span class="badge bg-danger">回鑽客</span></td><td>買賣比例 2 以上（含只賣不買／只寄放），且淨付出 ≥ 10萬</td><td>拉長寄放天數，單筆 1～3萬</td></tr>
             <tr><td><span class="badge bg-success">優等客</span></td><td>常客，且買賣比例 0.8 以下</td><td>立即結清</td></tr>
             <tr><td><span class="badge bg-primary">平均客</span></td><td>常客，且買賣比例 0.8～1.5</td><td>立即結清</td></tr>
-            <tr><td><span class="badge bg-info text-dark">小額買家</span></td><td>未達常客，有現金買方，且買賣比例 0.8 以下</td><td>立即結清</td></tr>
+            <tr><td><span class="badge bg-info text-dark">小額買家</span></td><td>未達常客，有現金買方，且買賣比例 1.2 以下（含 1.2）</td><td>立即結清</td></tr>
             <tr><td><span class="badge bg-secondary">一般客</span></td><td>不屬於以上任何一類</td><td>2～3 天轉完</td></tr>
             <tr><td><span class="badge bg-secondary">資料不足</span></td><td>一般客之中，現金買方 + 現金賣方 + 寄放領回 合計 &lt; 5 筆</td><td>比照一般客</td></tr>
           </tbody>
@@ -6176,7 +6179,7 @@ async function searchDB() {
 // ── 客人分類（交易彙總區塊）──────────────────────────────────
 // 規則見 dbClassRuleModal；以客戶資料的 9188 編號合併同一人所有暱稱計算
 const DBC = {
-  ratioGood: 0.8, ratioAvg: 1.5, ratioBack: 2,   // 買1回 門檻
+  ratioGood: 0.8, ratioAvg: 1.5, ratioSmall: 1.2, ratioBack: 2,   // 買1回 門檻
   backNetOut: 100000,                            // 回鑽客 淨付出門檻
   activeAmtPerMonth: 100000, activeCntPerMonth: 10, // 常客：每月金額 / 筆數
   minTrades: 5,                                  // 資料不足
@@ -6283,7 +6286,7 @@ async function updateDBClass(dateFrom, dateTo) {
   else if(out > 0 && (buy === 0 || out >= DBC.ratioBack * buy) && netOut >= DBC.backNetOut) cat = '回鑽客';
   else if(active && out <= DBC.ratioGood * buy) cat = '優等客';
   else if(active && out <= DBC.ratioAvg * buy) cat = '平均客';
-  else if(!active && buy > 0 && out <= DBC.ratioGood * buy) cat = '小額買家';
+  else if(!active && buy > 0 && out <= DBC.ratioSmall * buy) cat = '小額買家';
   else if(buyN + sellN + wdN < DBC.minTrades) cat = '資料不足';
   else cat = '一般客';
 
@@ -6302,15 +6305,15 @@ async function updateDBClass(dateFrom, dateTo) {
 
   const ratioTxt = ratio !== null ? ratio.toFixed(2) : (out > 0 ? '只賣不買' : '—');
   const cell = (label, val, sub) => `<div class="dbc-cell"><div class="dbc-lbl">${label}</div>
-    <div class="fw-bold">${val}</div>${sub ? `<div class="dbc-sub">${sub}</div>` : ''}</div>`;
+    <div class="dbc-val">${val}</div>${sub ? `<div class="dbc-sub">${sub}</div>` : ''}</div>`;
 
   box.innerHTML = `<div class="card p-2 border-2" style="border-color:#dee2e6">
     <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-      <span class="badge ${badge}" style="font-size:15px">${cat}</span>
-      <span class="fw-bold">${g.nicks.join('、')}</span>
-      ${g.id ? `<span class="text-muted small">9188：${g.id}</span>` : '<span class="text-muted small">客戶資料查無此暱稱</span>'}
+      <span class="badge ${badge}" style="font-size:17px">${cat}</span>
+      <span class="fw-bold" style="font-size:18px">${g.nicks.join('、')}</span>
+      ${g.id ? `<span class="text-muted">9188：${g.id}</span>` : '<span class="text-muted small">客戶資料查無此暱稱</span>'}
       ${g.black ? '<span class="badge bg-dark">黑名單</span>' : ''}
-      <span class="text-muted small ms-auto">${from} ～ ${to}・約 ${months} 個月${defaulted ? '・未填日期預設近兩個月' : ''}</span>
+      <span class="text-muted ms-auto">${from} ～ ${to}・約 ${months} 個月${defaulted ? '・未填日期預設近兩個月' : ''}</span>
     </div>
     <div class="dbc-grid">
       ${cell('活躍度', `${Math.round(buy + wd)}元／${buyN + wdN}筆`, `平均每月 ${Math.round((buy + wd) / months)}元／${Math.round((buyN + wdN) / months)}筆<br>${active ? '達常客標準' : `未達常客標準（平均每月${DBC.activeAmtPerMonth / 10000}萬元 或 ${DBC.activeCntPerMonth}筆）`}`)}
