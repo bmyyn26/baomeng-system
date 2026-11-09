@@ -27,6 +27,21 @@
   body.sidebar-closed { padding-left:0; }
   .card { border:none; border-radius:14px; box-shadow:0 2px 12px rgba(0,0,0,.08); }
   .btn-pink { background:#d63384; color:#fff; border:none; }
+  /* 客人分類卡（歷史交易查詢 → 交易彙總） */
+  .dbc-grid { display:grid; grid-template-columns:repeat(4,1fr); border:1px solid #dee2e6; border-radius:6px; overflow:hidden; font-size:14px; }
+  .dbc-cell { padding:6px 10px; border-right:1px solid #dee2e6; border-bottom:1px solid #dee2e6; min-width:0; }
+  .dbc-cell:nth-child(4n) { border-right:0; }
+  .dbc-lbl { font-size:12px; color:#6c757d; background:#f8f9fa; margin:-6px -10px 4px; padding:3px 10px; border-bottom:1px solid #eef0f2; }
+  .dbc-sub { font-size:11px; color:#6c757d; line-height:1.4; }
+  .dbc-wide { grid-column:1 / -1; border-right:0; font-size:13px; }
+  .dbc-grid > .dbc-cell:last-child { border-bottom:0; }
+  @media (max-width:767px) {
+    .dbc-grid { grid-template-columns:1fr 1fr; }
+    .dbc-cell:nth-child(4n) { border-right:1px solid #dee2e6; }
+    .dbc-cell:nth-child(2n) { border-right:0; }
+    .dbc-cell { padding:6px 8px; }
+    .dbc-lbl { margin:-6px -8px 4px; padding:3px 8px; }
+  }
   .btn-pink:hover { background:#b5206e; color:#fff; }
   .order-type-card { cursor:pointer; border-radius:14px; transition:transform .15s,box-shadow .15s; border:2px solid transparent; }
   .order-type-card:hover { transform:translateY(-3px); box-shadow:0 6px 20px rgba(0,0,0,.13); }
@@ -1439,13 +1454,13 @@
         <div class="text-muted small mb-2">由上往下判斷，符合哪一條就停在哪一類。以客戶資料的 9188 編號合併同一人所有暱稱計算。</div>
         <div class="table-responsive">
         <table class="table table-sm table-bordered align-middle mb-3">
-          <thead class="table-light"><tr><th style="white-space:nowrap">分類</th><th>條件</th><th style="white-space:nowrap">寄放轉現金</th></tr></thead>
+          <thead class="table-light"><tr><th style="white-space:nowrap">分類</th><th>條件</th><th style="white-space:nowrap">建議轉帳方式</th></tr></thead>
           <tbody>
             <tr><td><span class="badge bg-warning text-dark">記帳客</span></td><td>查詢區間內有記帳紀錄</td><td>由老闆決定</td></tr>
-            <tr><td><span class="badge bg-danger">回鑽客</span></td><td>買1回2 以上（含只賣不買），且淨付出 ≥ 10萬</td><td>拉長寄放天數，單筆 1～3萬</td></tr>
+            <tr><td><span class="badge bg-danger">回鑽客</span></td><td>買賣比例 2 以上（含只賣不買），且淨付出 ≥ 10萬</td><td>拉長寄放天數，單筆 1～3萬</td></tr>
             <tr><td><span class="badge bg-light text-dark border">資料不足</span></td><td>現金買方 + 現金賣方 + 寄放領回 合計 &lt; 5 筆</td><td>比照一般客</td></tr>
-            <tr><td><span class="badge bg-success">優等客</span></td><td>常客，且買1回0.8 以下</td><td>立即結清</td></tr>
-            <tr><td><span class="badge bg-primary">平均客</span></td><td>常客，且買1回0.8～1.5</td><td>立即結清</td></tr>
+            <tr><td><span class="badge bg-success">優等客</span></td><td>常客，且買賣比例 0.8 以下</td><td>立即結清</td></tr>
+            <tr><td><span class="badge bg-primary">平均客</span></td><td>常客，且買賣比例 0.8～1.5</td><td>立即結清</td></tr>
             <tr><td><span class="badge bg-secondary">一般客</span></td><td>不屬於以上任何一類</td><td>2～3 天轉完</td></tr>
           </tbody>
         </table>
@@ -1453,7 +1468,7 @@
         <div class="fw-bold mb-1">名詞說明</div>
         <ul class="mb-3 ps-3">
           <li><b>常客</b>：現金買方 + 寄放領回，平均每月 ≥ 10萬，或平均每月 ≥ 10 筆（兩個月 = 20萬 或 20 筆）</li>
-          <li><b>買1回</b>：現金賣方 ÷ 現金買方（只看現金，不含寄放領回）</li>
+          <li><b>買賣比例</b>：現金賣方 ÷ 現金買方（只看現金，不含寄放領回）。例：3.83 = 每買 1 元就賣回 3.83 元</li>
           <li><b>淨付出</b>：現金賣方 − 現金買方 + 目前寄放未付。正數 = 我們淨付出的錢；負數 = 我們淨收進的錢</li>
           <li><b>利潤參考</b>：(現金買方 + 寄放領回) × 9.72%（買方 1.3、賣方 1.44 的比值差）</li>
           <li>現金買方、現金賣方：備註不含「寄放領回」的買方／賣方交易</li>
@@ -6278,27 +6293,26 @@ async function updateDBClass(dateFrom, dateTo) {
   const storageTotal = (stAll||[]).reduce((a, r) => a + num(r.amount), 0);
   const alertOn = bankTotal < DBC.alertFloor || bankTotal < storageTotal * DBC.alertMultiple;
 
-  const ratioTxt = ratio !== null ? ('買1回' + ratio.toFixed(2)) : (sell > 0 ? '只賣不買' : '—');
-  const netCls = netOut > 0 ? 'text-danger' : 'text-success';
-  const item = (label, val, sub) => `<div class="col-6 col-md-3"><div class="text-muted" style="font-size:12px">${label}</div>
-    <div class="fw-bold">${val}</div>${sub ? `<div class="text-muted" style="font-size:11px">${sub}</div>` : ''}</div>`;
+  const ratioTxt = ratio !== null ? ratio.toFixed(2) : (sell > 0 ? '只賣不買' : '—');
+  const cell = (label, val, sub) => `<div class="dbc-cell"><div class="dbc-lbl">${label}</div>
+    <div class="fw-bold">${val}</div>${sub ? `<div class="dbc-sub">${sub}</div>` : ''}</div>`;
 
   box.innerHTML = `<div class="card p-2 border-2" style="border-color:#dee2e6">
     <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
       <span class="badge ${badge}" style="font-size:15px">${cat}</span>
       <span class="fw-bold">${g.nicks.join('、')}</span>
-      ${g.id ? `<span class="text-muted small">9188：${g.id}</span>` : '<span class="text-muted small">（客戶資料查無此暱稱）</span>'}
+      ${g.id ? `<span class="text-muted small">9188：${g.id}</span>` : '<span class="text-muted small">客戶資料查無此暱稱</span>'}
       ${g.black ? '<span class="badge bg-dark">黑名單</span>' : ''}
-      <span class="text-muted small ms-auto">${from} ～ ${to}（約 ${months} 個月${defaulted ? '，未填日期預設近兩個月' : ''}）</span>
+      <span class="text-muted small ms-auto">${from} ～ ${to}・約 ${months} 個月${defaulted ? '・未填日期預設近兩個月' : ''}</span>
     </div>
-    <div class="row g-2 mb-2">
-      ${item('活躍度（現金買方＋寄放領回）', `${Math.round(buy + wd)}元／${buyN + wdN}筆`, active ? '達常客標準' : `常客標準：${DBC.activeAmtPerMonth * months}元 或 ${DBC.activeCntPerMonth * months}筆`)}
-      ${item('買1回（只看現金）', ratioTxt, `現金買方 ${Math.round(buy)}元／現金賣方 ${Math.round(sell)}元`)}
-      ${item('淨付出（含寄放未付）', `<span class="${netCls}">${Math.round(netOut)}元</span>`, `寄放未付 ${Math.round(storage)}元`)}
-      ${item('利潤參考（×9.72%）', `${profit}元`, debitN ? `記帳 ${debitN} 筆` : '')}
+    <div class="dbc-grid">
+      ${cell('活躍度', `${Math.round(buy + wd)}元／${buyN + wdN}筆`, active ? '達常客標準' : `常客標準：${DBC.activeAmtPerMonth * months}元 或 ${DBC.activeCntPerMonth * months}筆`)}
+      ${cell('買賣比例', ratioTxt, `買方 ${Math.round(buy)}元<br>賣方 ${Math.round(sell)}元`)}
+      ${cell('淨付出', `${Math.round(netOut)}元`, `寄放未付 ${Math.round(storage)}元`)}
+      ${cell('利潤參考', `${profit}元`, debitN ? `記帳 ${debitN} 筆` : '')}
+      <div class="dbc-cell dbc-wide"><span class="fw-bold text-danger">建議轉帳方式：</span>${advice}</div>
+      ${alertOn ? `<div class="dbc-cell dbc-wide"><i class="bi bi-exclamation-triangle me-1"></i>現金警戒中：銀行起始餘額 ${Math.round(bankTotal)}元，寄放未付總額 ${Math.round(storageTotal)}元，建議放慢付款</div>` : ''}
     </div>
-    <div class="small"><b>寄放轉現金：</b>${advice}</div>
-    ${alertOn ? `<div class="small text-danger mt-1"><i class="bi bi-exclamation-triangle me-1"></i>現金警戒中：銀行起始餘額 ${Math.round(bankTotal)}元，寄放未付總額 ${Math.round(storageTotal)}元，建議放慢付款</div>` : ''}
   </div>`;
 }
 
