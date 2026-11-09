@@ -6310,7 +6310,7 @@ async function updateDBClass(dateFrom, dateTo) {
       ${cell('買賣比例', ratioTxt, `買方 ${Math.round(buy)}元<br>賣方 ${Math.round(sell)}元`)}
       ${cell('淨付出', `${Math.round(netOut)}元`, `寄放未付 ${Math.round(storage)}元`)}
       ${cell('利潤參考', `${profit}元`, debitN ? `記帳 ${debitN} 筆` : '')}
-      <div class="dbc-cell dbc-wide"><span class="fw-bold text-danger">建議轉帳方式：</span>${advice}</div>
+      <div class="dbc-cell dbc-wide text-danger"><span class="fw-bold">建議轉帳方式：</span>${advice}</div>
       ${alertOn ? `<div class="dbc-cell dbc-wide"><i class="bi bi-exclamation-triangle me-1"></i>現金警戒中：銀行起始餘額 ${Math.round(bankTotal)}元，寄放未付總額 ${Math.round(storageTotal)}元，建議放慢付款</div>` : ''}
     </div>
   </div>`;
